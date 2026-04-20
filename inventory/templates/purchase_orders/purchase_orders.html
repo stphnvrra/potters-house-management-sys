@@ -1,0 +1,1156 @@
+{% extends 'core/base.html' %}
+{% load humanize %}
+{% block title %}Purchase Orders{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb breadcrumb-custom mb-0">
+            <li class="breadcrumb-item"><a href="#">Home</a></li>
+            <li class="breadcrumb-item active" aria-current="page">Purchase Orders</li>
+        </ol>
+    </nav>
+</div>
+
+<h4 class="mb-3">Purchase Orders</h4>
+<div class="row mb-4 row-cols-1 row-cols-md-4 g-3">
+    <div class="col">
+        <a href="{% url 'purchase_orders' %}?view=active" class="text-decoration-none">
+            <div
+                class="card stat-card border-0 shadow-sm {% if current_view == 'active' or current_view == 'total' %}stat-card-active{% endif %}">
+                <div class="card-body d-flex align-items-center">
+                   <div class="stat-icon bg-primary bg-opacity-10 text-white rounded-circle me-3">
+                        <i class="fas fa-file-invoice"></i>
+                    </div>
+                    <div class="stat-details">
+                        <div class="stat-label text-muted small">Total POs</div>
+                        <div class="stat-value fw-bold text-dark">{{ total_pos }}</div>
+                    </div>
+                </div>
+            </div>
+        </a>
+    </div>
+    <div class="col">
+        <a href="{% url 'purchase_orders' %}?view=Open" class="text-decoration-none">
+            <div
+                class="card stat-card border-0 shadow-sm {% if current_view == 'Open' %}stat-card-active{% endif %}">
+                <div class="card-body d-flex align-items-center">
+                    <div class="stat-icon bg-warning bg-opacity-10 text-warning rounded-circle me-3">
+                        <i class="fas fa-lock-open"></i>
+                    </div>
+                    <div class="stat-details">
+                        <div class="stat-label text-muted small">Open POs</div>
+                        <div class="stat-value fw-bold text-dark">{{ open_count }}</div>
+                    </div>
+                </div>
+            </div>
+        </a>
+    </div>
+    <div class="col">
+        <a href="{% url 'purchase_orders' %}?view=Locked" class="text-decoration-none">
+            <div
+                class="card stat-card border-0 shadow-sm {% if current_view == 'Locked' %}stat-card-active{% endif %}">
+                <div class="card-body d-flex align-items-center">
+                    <div class="stat-icon bg-secondary bg-opacity-10 text-secondary rounded-circle me-3">
+                        <i class="fas fa-lock"></i>
+                    </div>
+                    <div class="stat-details">
+                        <div class="stat-label text-muted small">Locked POs</div>
+                        <div class="stat-value fw-bold text-dark">{{ locked_count }}</div>
+                    </div>
+                </div>
+            </div>
+        </a>
+    </div>
+    <div class="col">
+        <a href="{% url 'purchase_orders' %}?view=archived" class="text-decoration-none">
+            <div
+                class="card stat-card border-0 shadow-sm {% if current_view == 'archived' %}stat-card-active{% endif %}">
+                <div class="card-body d-flex align-items-center">
+                    <div class="stat-icon bg-dark bg-opacity-10 text-dark rounded-circle me-3">
+                        <i class="fas fa-archive"></i>
+                    </div>
+                    <div class="stat-details">
+                        <div class="stat-label text-muted small">Archived POs</div>
+                        <div class="stat-value fw-bold text-dark">{{ archived_count }}</div>
+                    </div>
+                </div>
+            </div>
+        </a>
+    </div>
+</div>
+
+<div class="inventory-card">
+    <div class="inventory-card-header d-flex align-items-center text-pink">
+        <div class="icon-box">
+            <i class="fas fa-shopping-cart"></i>
+        </div>
+        Purchase Order Items
+        <div class="ms-auto text-muted small fw-normal">
+            Showing <strong>{{ total_pos }}</strong> POs
+        </div>
+    </div>
+
+    <div class="p-3 bg-white border-bottom tool-bar">
+        <div class="d-flex justify-content-between align-items-center">
+            <div class="text-muted small" id="selectionInfo">
+                <span id="selectedCount">0</span> selected
+            </div>
+            <div class="btn-group">
+                <button type="button" class="btn btn-sm" data-bs-toggle="modal" data-bs-target="#newPOModal">
+                    <i class="fas fa-file-invoice me-1"></i> New PO
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Simple Table -->
+    <div class="table-responsive">
+        <table id="purchaseOrdersTable" class="table table-bordered table-hover mb-0">
+            <thead>
+                <tr>
+                    <th scope="col" style="width: 40px;">
+                        <input type="checkbox" id="selectAll" class="form-check-input" title="Select All">
+                    </th>
+                    <th scope="col" style="width: 50px;" class="sortable" data-column="1"># <i class="fas fa-sort"></i>
+                    </th>
+                    <th scope="col" class="col-header-text sortable" data-column="2">PO # <i class="fas fa-sort"></i>
+                    </th>
+                    <th scope="col" class="col-header-text sortable" data-column="3">PO Date <i class="fas fa-sort"></i>
+                    </th>
+                    <th scope="col" class="col-header-text sortable" data-column="4">Supplier <i
+                            class="fas fa-sort"></i></th>
+                    <th scope="col" class="col-header-text sortable" data-column="5">Status <i class="fas fa-sort"></i>
+                    </th>
+                    <th scope="col" class="col-header-text sortable" data-column="6">Comments <i
+                            class="fas fa-sort"></i></th>
+                    <th scope="col" class="col-header-text sortable" data-column="7">Datetime Created <i
+                            class="fas fa-sort"></i></th>
+                    <th scope="col" class="col-header-text sortable" data-column="8">Created By <i
+                            class="fas fa-sort"></i></th>
+                    <th scope="col" class="col-header-text sortable" data-column="9">Total Amount <i
+                            class="fas fa-sort"></i></th>
+                    <th scope="col" style="width: 80px;">Actions</th>
+                </tr>
+                <!-- Filter Row -->
+                <tr class="bg-light filter-row">
+                    <td></td>
+                    <td></td>
+                    <td><input type="text" class="form-control form-control-sm column-filter" data-column="2"
+                            placeholder="PO #"></td>
+                    <td><input type="text" class="form-control form-control-sm column-filter" data-column="3"
+                            placeholder="Date"></td>
+                    <td>
+                        <select class="form-select form-select-sm column-filter" data-column="4">
+                            <option value="">All</option>
+                            {% for supplier in suppliers %}
+                            <option value="{{ supplier }}">{{ supplier }}</option>
+                            {% endfor %}
+                        </select>
+                    </td>
+                    <td>
+                        <select class="form-select form-select-sm column-filter" data-column="5">
+                            <option value="">All</option>
+                            <option value="Open">Open</option>
+                            <option value="Locked">Locked</option>
+                        </select>
+                    </td>
+                    <td><input type="text" class="form-control form-control-sm column-filter" data-column="6"
+                            placeholder="Comments"></td>
+                    <td><input type="text" class="form-control form-control-sm column-filter" data-column="7"
+                            placeholder="Select range..."></td>
+                    <td>
+                        <select class="form-select form-select-sm column-filter" data-column="8">
+                            <option value="">All</option>
+                            {% for creator in creators %}
+                            <option value="{{ creator }}">{{ creator }}</option>
+                            {% endfor %}
+                        </select>
+                    </td>
+                    <td><input type="text" class="form-control form-control-sm column-filter" data-column="9"
+                            placeholder="Amount"></td>
+                    <td></td>
+                </tr>
+            </thead>
+            <tbody>
+                {% for po in purchase_orders %}
+                <tr>
+                    <td>
+                        <input type="checkbox" class="form-check-input row-checkbox" value="{{ po.id }}">
+                    </td>
+                    <td>{{ forloop.counter }}</td>
+                    <td>
+                        <a href="/purchase-orders/{{ po.id }}/" class="text-decoration-none">
+                            {{ po.po_number }}
+                        </a>
+                    </td>
+                    <td>{{ po.po_date }}</td>
+                    <td>{{ po.supplier }}</td>
+                    <td>
+                        {% if po.is_archived %}
+                        <span class="badge bg-secondary"><i class="fas fa-archive me-1"></i> Archived</span>
+                        {% elif po.status == 'Locked' %}
+                        <span class="badge bg-success"><i class="fas fa-lock me-1"></i> Locked</span>
+                        {% else %}
+                        <span class="badge bg-warning text-dark"><i class="fas fa-lock-open me-1"></i> Open</span>
+                        {% endif %}
+                    </td>
+                    <td class="small text-muted">{{ po.comments }}</td>
+                    <td>{{ po.datetime_created }}</td>
+                    <td>{{ po.created_by }}</td>
+                    <td class="fw-bold">₱{{ po.total|floatformat:2|intcomma }}</td>
+                    <td>
+                        <div class="btn-group btn-group-sm">
+                            <a href="/purchase-orders/{{ po.id }}/" class="btn btn-outline-danger btn-sm"
+                                title="View PO" style="color: #ff3366; border-color: #ff3366;">
+                                <i class="fas fa-eye"></i>
+                            </a>
+                            {% if po.is_archived %}
+                            <button type="button" class="btn btn-outline-success btn-sm unarchive-po-btn"
+                                data-id="{{ po.id }}" data-number="{{ po.po_number }}" title="Unarchive">
+                                <i class="fas fa-undo"></i>
+                            </button>
+                            {% else %}
+                            <button type="button" class="btn btn-outline-secondary btn-sm archive-po-btn"
+                                data-id="{{ po.id }}" data-number="{{ po.po_number }}" title="Archive">
+                                <i class="fas fa-archive"></i>
+                            </button>
+                            {% endif %}
+                        </div>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="11" class="text-center py-5 text-muted">
+                        <i class="fas fa-shopping-cart fa-3x mb-3 opacity-50"></i>
+                        <p class="mb-0">No purchase orders found.</p>
+                        <button type="button" class="btn btn-sm mt-3" data-bs-toggle="modal"
+                            data-bs-target="#newPOModal">
+                            <i class="fas fa-plus me-1"></i> Create New PO
+                        </button>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Pagination -->
+    <div class="card-footer bg-light border-top">
+        <div class="d-flex justify-content-between align-items-center">
+            <div class="text-muted small">
+                Showing <span id="showStart">1</span> to <span id="showEnd">{{ purchase_orders|length }}</span> of <span
+                    id="totalItems">{{ purchase_orders|length }}</span> items
+            </div>
+            <nav aria-label="Pagination">
+                <ul class="pagination pagination-sm mb-0" id="paginationContainer">
+                </ul>
+            </nav>
+        </div>
+    </div>
+</div>
+
+
+<!-- Purchase Order Logs Table -->
+<div class="inventory-card mt-4">
+    <div class="inventory-card-header d-flex align-items-center text-pink">
+        <div class="icon-box">
+            <i class="fas fa-history"></i>
+        </div>
+        Recent Purchase Order Activity
+    </div>
+    <div class="table-responsive">
+        <table class="table table-bordered table-hover mb-0">
+            <thead>
+                <tr class="text-center">
+                    <th scope="col" style="width: 50px;" class="sortable" data-column="0"># <i class="fas fa-sort"></i>
+                    </th>
+                    <th scope="col" class="sortable" data-column="1">PO # <i class="fas fa-sort"></i></th>
+                    <th scope="col" class="sortable" data-column="2">Action <i class="fas fa-sort"></i></th>
+                    <th scope="col" class="sortable" data-column="3">Details <i class="fas fa-sort"></i></th>
+                    <th scope="col" class="sortable" data-column="4">User <i class="fas fa-sort"></i></th>
+                    <th scope="col" class="sortable" data-column="5">Timestamp <i class="fas fa-sort"></i></th>
+                </tr>
+            </thead>
+            <tbody id="poLogsTableBody">
+                {% for log in po_logs %}
+                <tr>
+                    <td class="text-center">{{ forloop.counter }}</td>
+                    <td class="fw-semibold text-center">
+                        {% if log.po_number and log.purchase_order_id %}
+                        <a href="{% url 'purchase_order_detail' log.purchase_order_id %}"
+                            class="text-decoration-none">
+                            {{ log.po_number }}
+                        </a>
+                        {% elif log.po_number %}
+                        {{ log.po_number }}
+                        {% else %}
+                        <span class="text-muted">-</span>
+                        {% endif %}
+                    </td>
+                    <td class="text-center">
+                        {% if log.action == 'create' %}
+                        <span class="badge bg-success">Created</span>
+                        {% elif log.action == 'update' %}
+                        <span class="badge bg-primary">Updated</span>
+                        {% elif log.action == 'archive' %}
+                        <span class="badge bg-secondary">Archived</span>
+                        {% elif log.action == 'lock' %}
+                        <span class="badge bg-dark">Locked</span>
+                        {% elif log.action == 'unlock' %}
+                        <span class="badge bg-warning text-dark">Unlocked</span>
+                        {% else %}
+                        <span class="badge bg-info">{{ log.action|title }}</span>
+                        {% endif %}
+                    </td>
+                    <td class="small">{{ log.details }}</td>
+                    <td>{{ log.user }}</td>
+                    <td class="text-muted small">{{ log.timestamp }}</td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="6" class="text-center py-4 text-muted">
+                        <i class="fas fa-history fa-2x mb-3 opacity-50"></i>
+                        <p class="mb-0">No recent activity.</p>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    <div class="card-footer bg-light border-top p-2">
+        <nav aria-label="Logs navigation">
+            <ul class="pagination pagination-sm justify-content-end mb-0" id="logsPagination"></ul>
+        </nav>
+    </div>
+</div>
+
+
+<!-- New PO Modal -->
+<div class="modal fade" id="newPOModal" tabindex="-1" aria-labelledby="newPOModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header modal-header-themed">
+                <h5 class="modal-title" id="newPOModalLabel">
+                    <i class="fas fa-file-invoice me-2"></i> New Purchase Order
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form id="newPOForm">
+                <div class="modal-body" style="background: #fff;">
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold" style="color: var(--text-color);">Supplier</label>
+                        <select class="form-select" name="supplier" id="newPOSupplier"
+                            style="border: 1px solid var(--border-color); border-radius: 4px;">
+                            <option value="">Select supplier ...</option>
+                            <option value="custom">-- Enter Custom --</option>
+                            {% for supplier in suppliers %}
+                            <option value="{{ supplier }}">{{ supplier }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <!-- Custom Supplier Field - Hidden by default -->
+                    <div class="mb-3" id="customSupplierField" style="display: none;">
+                        <label class="form-label fw-semibold" style="color: var(--text-color);">Supplier Name</label>
+                        <input type="text" class="form-control" name="custom_supplier" id="customSupplierInput"
+                            placeholder="Enter supplier name..." style="border-radius: 4px;">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold" style="color: var(--text-color);">PO Date</label>
+                        <input type="date" class="form-control" name="po_date" id="newPODate"
+                            style="border-radius: 4px;">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold" style="color: var(--text-color);">Comments</label>
+                        <textarea class="form-control" name="comments" id="newPOComments" rows="3"
+                            style="border-radius: 4px;"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer border-0" style="background: #fff;">
+                    <button type="submit" class="btn"
+                        style="background: var(--primary-color); color: #fff; border-radius: 4px; padding: 8px 24px;">
+                        Create PO
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Add Item Modal -->
+<div class="modal fade" id="newItemModal" tabindex="-1" aria-labelledby="newItemModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header modal-header-themed">
+                <h5 class="modal-title" id="newItemModalLabel">
+                    <i class="fas fa-plus me-2"></i> Add Item to PO
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form id="addItemForm">
+                <div class="modal-body" style="background: #fff;">
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Select Purchase Order</label>
+                        <select class="form-select" name="po_id" id="addItemPOId" required>
+                            <option value="">Select PO ...</option>
+                            {% for po in open_pos %}
+                            <option value="{{ po.id }}">{{ po.po_number }} - {{ po.supplier }}</option>
+                            {% endfor %}
+                        </select>
+                        <div class="form-text">Only open (unlocked) POs can receive new items</div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Product</label>
+                        <select class="form-select" name="product_id" id="addItemProductId" required>
+                            <option value="">Select product ...</option>
+                            {% for item in inventory_items %}
+                            <option value="{{ item.id }}">{{ item.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label fw-semibold">Quantity</label>
+                            <input type="number" step="0.01" class="form-control" name="quantity" id="addItemQty"
+                                min="0" value="1" required>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label fw-semibold">Unit Price</label>
+                            <input type="number" step="0.01" class="form-control" name="unit_price" id="addItemPrice"
+                                min="0" value="0">
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer border-0" style="background: #fff;">
+                    <button type="submit" class="btn"
+                        style="background: var(--primary-color); color: #fff; border-radius: 4px; padding: 8px 24px;">
+                        Add Item
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- View PO Items Modal -->
+<div class="modal fade" id="viewItemsModal" tabindex="-1" aria-labelledby="viewItemsModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header modal-header-themed">
+                <h5 class="modal-title" id="viewItemsModalLabel">
+                    <i class="fas fa-list me-2"></i> <span id="viewItemsPONumber">PO Items</span>
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body" style="background: #fff; max-height: 60vh; overflow-y: auto;">
+                <div class="mb-3">
+                    <span class="text-muted">Supplier:</span>
+                    <strong id="viewItemsSupplier">-</strong>
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-bordered table-hover mb-0">
+                        <thead class="bg-light">
+                            <tr>
+                                <th scope="col" style="width: 50px;">#</th>
+                                <th scope="col">Item Name</th>
+                                <th scope="col">Description</th>
+                                <th scope="col" style="width: 80px;">Qty</th>
+                                <th scope="col" style="width: 80px;">Unit</th>
+                                <th scope="col" style="width: 100px;">Unit Price</th>
+                                <th scope="col" style="width: 100px;">Total</th>
+                            </tr>
+                        </thead>
+                        <tbody id="viewItemsTableBody">
+                            <tr>
+                                <td colspan="7" class="text-center text-muted py-4">Loading...</td>
+                            </tr>
+                        </tbody>
+                        <tfoot>
+                            <tr class="bg-light fw-bold">
+                                <td colspan="6" class="text-end">Total:</td>
+                                <td id="viewItemsTotal" class="text-end">0.00</td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+            </div>
+            <div class="modal-footer border-0" style="background: #fff;">
+                <a href="#" id="viewItemsDetailLink" class="btn"
+                    style="background: var(--primary-color); color: #fff; border-radius: 4px; padding: 8px 24px;">
+                    <i class="fas fa-eye me-1"></i> View Full Details
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Archive PO Confirmation Modal -->
+<div class="modal fade" id="archivePOConfirmModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-sm">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header border-0 pb-0">
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body text-center pt-0">
+                <div class="mb-3 text-secondary">
+                    <i class="fas fa-archive fa-3x"></i>
+                </div>
+                <h5 class="fw-bold mb-2">Archive PO?</h5>
+                <p class="text-muted small mb-4">Are you sure you want to archive <span id="archivePONumber" class="fw-bold"></span>? It will be moved to the Archived section.</p>
+                <div class="d-grid gap-2">
+                    <form id="archivePOForm" method="POST">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-secondary w-100 mb-2">Confirm Archive</button>
+                    </form>
+                    <button type="button" class="btn btn-light w-100" data-bs-dismiss="modal">Cancel</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Unarchive PO Confirmation Modal -->
+<div class="modal fade" id="unarchivePOConfirmModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-sm">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header border-0 pb-0">
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body text-center pt-0">
+                <div class="mb-3 text-success">
+                    <i class="fas fa-undo fa-3x"></i>
+                </div>
+                <h5 class="fw-bold mb-2">Unarchive PO?</h5>
+                <p class="text-muted small mb-4">Are you sure you want to restore <span id="unarchivePONumber" class="fw-bold"></span>? It will be moved back to the active list.</p>
+                <div class="d-grid gap-2">
+                    <form id="unarchivePOForm" method="POST">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-success w-100 mb-2">Confirm Unarchive</button>
+                    </form>
+                    <button type="button" class="btn btn-light w-100" data-bs-dismiss="modal">Cancel</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        // Select All functionality
+        const selectAll = document.getElementById('selectAll');
+        const rowCheckboxes = document.querySelectorAll('.row-checkbox');
+        const selectedCountSpan = document.getElementById('selectedCount');
+
+        if (selectAll) {
+            selectAll.addEventListener('change', function () {
+                rowCheckboxes.forEach(cb => cb.checked = this.checked);
+                updateSelectedCount();
+            });
+        }
+
+        rowCheckboxes.forEach(cb => {
+            cb.addEventListener('change', updateSelectedCount);
+        });
+
+        function updateSelectedCount() {
+            const count = document.querySelectorAll('.row-checkbox:checked').length;
+            selectedCountSpan.textContent = count;
+        }
+
+        // Column filtering
+        const columnFilters = document.querySelectorAll('.column-filter');
+        columnFilters.forEach(filter => {
+            filter.addEventListener('input', filterTable);
+            filter.addEventListener('change', filterTable);
+        });
+
+        function filterTable() {
+            const table = document.getElementById('purchaseOrdersTable');
+            const rows = table.querySelectorAll('tbody tr');
+
+            rows.forEach(row => {
+                let show = true;
+                columnFilters.forEach(filter => {
+                    const column = parseInt(filter.dataset.column);
+                    const value = filter.value.toLowerCase();
+                    if (value && row.cells[column]) {
+                        const cellText = row.cells[column].textContent.toLowerCase();
+                        if (!cellText.includes(value)) {
+                            show = false;
+                        }
+                    }
+                });
+                row.style.display = show ? '' : 'none';
+            });
+        }
+
+        // Sorting functionality
+        // Sorting functionality
+        const sortableHeaders = document.querySelectorAll('.sortable');
+
+        sortableHeaders.forEach(header => {
+            header.style.cursor = 'pointer';
+            header.addEventListener('click', function () {
+                const table = this.closest('table');
+                const column = parseInt(this.dataset.column);
+
+                // Get current sort state
+                let currentDir = table.getAttribute('data-sort-dir') || 'asc';
+                let currentSortCol = table.getAttribute('data-sort-col');
+
+                if (currentSortCol == column) {
+                    currentDir = currentDir === 'asc' ? 'desc' : 'asc';
+                } else {
+                    currentDir = 'asc';
+                }
+
+                // Update state
+                table.setAttribute('data-sort-dir', currentDir);
+                table.setAttribute('data-sort-col', column);
+
+                sortTable(table, column, currentDir);
+
+                // Update sort icons in this table only
+                table.querySelectorAll('.sortable i').forEach(icon => {
+                    icon.className = 'fas fa-sort';
+                });
+                const icon = this.querySelector('i');
+                icon.className = currentDir === 'asc' ? 'fas fa-sort-up' : 'fas fa-sort-down';
+
+                // If this is the paginated table, update pagination
+                if (table.id === 'purchaseOrdersTable' && typeof showPage === 'function') {
+                    allRows = Array.from(table.querySelectorAll('tbody tr'));
+                    showPage(1);
+                }
+            });
+        });
+
+        function sortTable(table, column, direction) {
+            const tbody = table.querySelector('tbody');
+            const rows = Array.from(tbody.querySelectorAll('tr'));
+
+            rows.sort((a, b) => {
+                // Handle rows with colspan (spacer, empty msg) - push to bottom
+                const aIsColspan = !!a.querySelector('td[colspan]');
+                const bIsColspan = !!b.querySelector('td[colspan]');
+
+                if (aIsColspan && bIsColspan) return 0;
+                if (aIsColspan) return 1;
+                if (bIsColspan) return -1;
+
+                const aVal = a.cells[column]?.textContent.trim() || '';
+                const bVal = b.cells[column]?.textContent.trim() || '';
+
+                // Try numeric comparison
+                const aNum = parseFloat(aVal.replace(/[^0-9.-]+/g, ""));
+                const bNum = parseFloat(bVal.replace(/[^0-9.-]+/g, ""));
+
+                // Check if both are valid numbers and the string content resembles a number
+                // (Avoiding cases where text incidentally parses as number)
+                const isNum = !isNaN(aNum) && !isNaN(bNum) && /^\d/.test(aVal) && /^\d/.test(bVal);
+
+                if (isNum) {
+                    return direction === 'asc' ? aNum - bNum : bNum - aNum;
+                }
+
+                // String comparison
+                return direction === 'asc' ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
+            });
+
+            rows.forEach(row => tbody.appendChild(row));
+        }
+
+        // Toggle custom supplier field
+        const supplierSelect = document.getElementById('newPOSupplier');
+        const customSupplierField = document.getElementById('customSupplierField');
+        const customSupplierInput = document.getElementById('customSupplierInput');
+
+        if (supplierSelect && customSupplierField) {
+            supplierSelect.addEventListener('change', function () {
+                if (this.value === 'custom') {
+                    customSupplierField.style.display = 'block';
+                    if (customSupplierInput) customSupplierInput.required = true;
+                } else {
+                    customSupplierField.style.display = 'none';
+                    if (customSupplierInput) customSupplierInput.required = false;
+                }
+            });
+        }
+
+        // New PO Form submission
+        const newPOForm = document.getElementById('newPOForm');
+        if (newPOForm) {
+            newPOForm.addEventListener('submit', function (e) {
+                e.preventDefault();
+
+                // Validate supplier selection
+                const supplierVal = document.getElementById('newPOSupplier').value;
+                const customSupplier = document.getElementById('customSupplierInput')?.value;
+
+                if (!supplierVal && !customSupplier) {
+                    showToast('Please select a supplier or enter a custom supplier name', 'warning');
+                    return;
+                }
+
+                if (supplierVal === 'custom' && !customSupplier) {
+                    showToast('Please enter a supplier name', 'warning');
+                    return;
+                }
+
+                const formData = new FormData(this);
+
+                fetch('/purchase-order/create', {
+                    method: 'POST',
+                    body: formData
+                })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            const modal = bootstrap.Modal.getInstance(document.getElementById('newPOModal'));
+                            if (modal) modal.hide();
+                            // Redirect to the new PO detail page
+                            if (data.po_id) {
+                                window.location.href = '/purchase-orders/' + data.po_id + '/';
+                            } else {
+                                window.location.reload();
+                            }
+                        } else {
+                            showToast(data.message || 'Failed to create PO', 'error');
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        showToast('An error occurred while creating the PO', 'error');
+                    });
+            });
+        }
+
+        // Add Item Form submission
+        const addItemForm = document.getElementById('addItemForm');
+        if (addItemForm) {
+            addItemForm.addEventListener('submit', function (e) {
+                e.preventDefault();
+                const poId = document.getElementById('addItemPOId').value;
+                const formData = new FormData(this);
+
+                fetch(`/purchase-order/${poId}/add-item`, {
+                    method: 'POST',
+                    body: formData
+                })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            const modal = bootstrap.Modal.getInstance(document.getElementById('newItemModal'));
+                            if (modal) modal.hide();
+                            window.location.reload();
+                        } else {
+                            showToast(data.message || 'Failed to add item', 'error');
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        showToast('An error occurred while adding the item', 'error');
+                    });
+            });
+        }
+
+        // Archive PO logic (using delegation)
+        document.addEventListener('click', function(e) {
+            const btn = e.target.closest('.archive-po-btn');
+            if (btn) {
+                const id = btn.dataset.id;
+                const number = btn.dataset.number;
+                
+                document.getElementById('archivePONumber').innerText = number;
+                document.getElementById('archivePOForm').action = '/purchase-order/' + id + '/archive';
+                
+                // Get or create modal instance
+                const modalEl = document.getElementById('archivePOConfirmModal');
+                let archiveModal = bootstrap.Modal.getInstance(modalEl);
+                if (!archiveModal) {
+                    archiveModal = new bootstrap.Modal(modalEl);
+                }
+                archiveModal.show();
+            }
+        });
+
+        // Unarchive PO logic (using delegation)
+        document.addEventListener('click', function(e) {
+            const btn = e.target.closest('.unarchive-po-btn');
+            if (btn) {
+                const id = btn.dataset.id;
+                const number = btn.dataset.number;
+                
+                document.getElementById('unarchivePONumber').innerText = number;
+                document.getElementById('unarchivePOForm').action = '/purchase-order/' + id + '/archive';
+                
+                // Get or create modal instance
+                const modalEl = document.getElementById('unarchivePOConfirmModal');
+                let unarchiveModal = bootstrap.Modal.getInstance(modalEl);
+                if (!unarchiveModal) {
+                    unarchiveModal = new bootstrap.Modal(modalEl);
+                }
+                unarchiveModal.show();
+            }
+        });
+
+        // Handle Archive Form Submission for automatic refresh
+        const archivePOForm = document.getElementById('archivePOForm');
+        if (archivePOForm) {
+            archivePOForm.addEventListener('submit', function(e) {
+                e.preventDefault();
+                const formData = new FormData(this);
+                const actionUrl = this.action;
+
+                fetch(actionUrl, {
+                    method: 'POST',
+                    body: formData,
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest'
+                    }
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        window.location.reload();
+                    } else {
+                        showToast(data.message || 'Failed to archive PO', 'error');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    window.location.reload(); // Fallback to reload if JSON fails
+                });
+            });
+        }
+
+        // Handle Unarchive Form Submission for automatic refresh
+        const unarchivePOForm = document.getElementById('unarchivePOForm');
+        if (unarchivePOForm) {
+            unarchivePOForm.addEventListener('submit', function(e) {
+                e.preventDefault();
+                const formData = new FormData(this);
+                const actionUrl = this.action;
+
+                fetch(actionUrl, {
+                    method: 'POST',
+                    body: formData,
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest'
+                    }
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        window.location.reload();
+                    } else {
+                        showToast(data.message || 'Failed to unarchive PO', 'error');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    window.location.reload();
+                });
+            });
+        }
+
+
+
+        // Pagination
+        const itemsPerPage = 20;
+        let allRows = Array.from(document.querySelectorAll('#purchaseOrdersTable tbody tr'));
+        let currentPage = 1;
+
+        function showPage(page) {
+            currentPage = page;
+            const total = allRows.length;
+            const totalPages = Math.ceil(total / itemsPerPage) || 1;
+            const start = (page - 1) * itemsPerPage;
+            const end = start + itemsPerPage;
+
+            allRows.forEach((row, index) => {
+                row.style.display = (index >= start && index < end) ? '' : 'none';
+            });
+
+            document.getElementById('showStart').textContent = total > 0 ? start + 1 : 0;
+            document.getElementById('showEnd').textContent = Math.min(end, total);
+            document.getElementById('totalItems').textContent = total;
+
+            updatePagination(totalPages);
+        }
+
+        function updatePagination(totalPages) {
+            const container = document.getElementById('paginationContainer');
+            container.innerHTML = '';
+
+            if (totalPages <= 1) return;
+
+            // Previous
+            const prevLi = document.createElement('li');
+            prevLi.className = 'page-item' + (currentPage === 1 ? ' disabled' : '');
+            prevLi.innerHTML = '<a class="page-link" href="#">&laquo;</a>';
+            prevLi.addEventListener('click', (e) => { e.preventDefault(); if (currentPage > 1) showPage(currentPage - 1); });
+            container.appendChild(prevLi);
+
+            // Page numbers
+            for (let i = 1; i <= totalPages; i++) {
+                const li = document.createElement('li');
+                li.className = 'page-item' + (i === currentPage ? ' active' : '');
+                li.innerHTML = '<a class="page-link" href="#">' + i + '</a>';
+                li.addEventListener('click', function (e) { e.preventDefault(); showPage(i); });
+                container.appendChild(li);
+            }
+
+            // Next
+            const nextLi = document.createElement('li');
+            nextLi.className = 'page-item' + (currentPage === totalPages ? ' disabled' : '');
+            nextLi.innerHTML = '<a class="page-link" href="#">&raquo;</a>';
+            nextLi.addEventListener('click', (e) => { e.preventDefault(); if (currentPage < totalPages) showPage(currentPage + 1); });
+            container.appendChild(nextLi);
+        }
+
+        // Initialize pagination
+        if (allRows.length > 0) {
+            showPage(1);
+        }
+
+        // View PO Items in Modal
+        const viewItemsLinks = document.querySelectorAll('.view-po-items');
+        viewItemsLinks.forEach(link => {
+            link.addEventListener('click', function (e) {
+                e.preventDefault();
+                const poId = this.dataset.poId;
+                const poNumber = this.dataset.poNumber;
+                const supplier = this.dataset.supplier;
+
+                // Update modal header
+                document.getElementById('viewItemsPONumber').textContent = poNumber + ' Items';
+                document.getElementById('viewItemsSupplier').textContent = supplier;
+                document.getElementById('viewItemsDetailLink').href = '/purchase-orders/' + poId + '/';
+
+                // Show loading
+                document.getElementById('viewItemsTableBody').innerHTML = '<tr><td colspan="7" class="text-center text-muted py-4">Loading...</td></tr>';
+
+                // Fetch items
+                fetch('/api/purchase-order/' + poId + '/items')
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            const tbody = document.getElementById('viewItemsTableBody');
+                            let total = 0;
+
+                            if (data.items.length === 0) {
+                                tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted py-4">No items in this PO</td></tr>';
+                            } else {
+                                tbody.innerHTML = data.items.map((item, idx) => {
+                                    const itemTotal = item.quantity * item.unit_price;
+                                    total += itemTotal;
+                                    return `
+                                        <tr>
+                                            <td class="text-center">${idx + 1}</td>
+                                            <td class="fw-semibold">${item.product_name}</td>
+                                            <td class="text-muted small">${item.description || '-'}</td>
+                                            <td class="text-center">${item.quantity}</td>
+                                            <td class="text-center">${item.unit}</td>
+                                            <td class="text-end">${item.unit_price.toFixed(2)}</td>
+                                            <td class="text-end">${itemTotal.toFixed(2)}</td>
+                                        </tr>
+                                    `;
+                                }).join('');
+                            }
+
+                            document.getElementById('viewItemsTotal').textContent = total.toFixed(2);
+                        } else {
+                            document.getElementById('viewItemsTableBody').innerHTML = '<tr><td colspan="7" class="text-center text-danger py-4">' + (data.message || 'Error loading items') + '</td></tr>';
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        document.getElementById('viewItemsTableBody').innerHTML = '<tr><td colspan="7" class="text-center text-danger py-4">Error loading items</td></tr>';
+                    });
+
+                // Show modal
+                const modal = new bootstrap.Modal(document.getElementById('viewItemsModal'));
+                modal.show();
+            });
+        });
+    });
+
+    // Sorting functionality for PO Logs
+    const sortableHeaders = document.querySelectorAll('.sortable');
+    sortableHeaders.forEach(header => {
+        header.style.cursor = 'pointer';
+        header.addEventListener('click', function () {
+            const table = this.closest('table');
+            const column = parseInt(this.dataset.column);
+            const tbody = table.querySelector('tbody');
+            const rows = Array.from(tbody.querySelectorAll('tr'));
+
+            // Get current sort state
+            let currentDir = table.getAttribute('data-sort-dir') || 'asc';
+            let currentSortCol = table.getAttribute('data-sort-col');
+
+            // Toggle direction
+            if (currentSortCol == column) {
+                currentDir = currentDir === 'asc' ? 'desc' : 'asc';
+            } else {
+                currentDir = 'asc';
+            }
+
+            // Update state
+            table.setAttribute('data-sort-dir', currentDir);
+            table.setAttribute('data-sort-col', column);
+
+            // Sort rows
+            rows.sort((a, b) => {
+                const aVal = a.cells[column]?.textContent.trim() || '';
+                const bVal = b.cells[column]?.textContent.trim() || '';
+
+                // Try numeric comparison (for # column)
+                if (column === 0) {
+                    return currentDir === 'asc' ? parseInt(aVal) - parseInt(bVal) : parseInt(bVal) - parseInt(aVal);
+                }
+
+                // String comparison
+                return currentDir === 'asc' ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
+            });
+
+            // Re-append sorted rows
+            rows.forEach(row => tbody.appendChild(row));
+
+            // Update icons
+            table.querySelectorAll('.sortable i').forEach(icon => {
+                icon.className = 'fas fa-sort';
+            });
+            const icon = this.querySelector('i');
+            icon.className = currentDir === 'asc' ? 'fas fa-sort-up' : 'fas fa-sort-down';
+        });
+    });
+
+
+    // Pagination for PO Logs
+    document.addEventListener('DOMContentLoaded', function () {
+        const rowsPerPage = 20;
+        const tableBody = document.getElementById('poLogsTableBody');
+        const paginationContainer = document.getElementById('logsPagination');
+
+        if (!tableBody || !paginationContainer) return;
+
+        const rows = Array.from(tableBody.querySelectorAll('tr'));
+        const totalRows = rows.length;
+        const totalPages = Math.ceil(totalRows / rowsPerPage);
+        let currentPage = 1;
+
+        function showPage(page) {
+            currentPage = page;
+            const start = (page - 1) * rowsPerPage;
+            const end = start + rowsPerPage;
+
+            rows.forEach((row, index) => {
+                row.style.display = (index >= start && index < end) ? '' : 'none';
+            });
+
+            renderPagination();
+        }
+
+        function renderPagination() {
+            paginationContainer.innerHTML = '';
+
+            // Previous Button
+            const prevLi = document.createElement('li');
+            prevLi.className = `page-item ${currentPage === 1 ? 'disabled' : ''}`;
+            prevLi.innerHTML = `<a class="page-link" href="#" aria-label="Previous">&laquo;</a>`;
+            prevLi.addEventListener('click', (e) => {
+                e.preventDefault();
+                if (currentPage > 1) showPage(currentPage - 1);
+            });
+            paginationContainer.appendChild(prevLi);
+
+            // Limited Page Numbers
+            let startPage = Math.max(1, currentPage - 2);
+            let endPage = Math.min(totalPages, currentPage + 2);
+
+            if (totalPages <= 5) {
+                startPage = 1;
+                endPage = totalPages;
+            } else {
+                if (currentPage <= 3) {
+                    startPage = 1;
+                    endPage = 5;
+                } else if (currentPage >= totalPages - 2) {
+                    startPage = totalPages - 4;
+                    endPage = totalPages;
+                }
+            }
+
+            if (startPage > 1) {
+                const firstLi = document.createElement('li');
+                firstLi.className = 'page-item';
+                firstLi.innerHTML = `<a class="page-link" href="#">1</a>`;
+                firstLi.addEventListener('click', (e) => { e.preventDefault(); showPage(1); });
+                paginationContainer.appendChild(firstLi);
+
+                if (startPage > 2) {
+                    const dots = document.createElement('li');
+                    dots.className = 'page-item disabled';
+                    dots.innerHTML = `<span class="page-link">...</span>`;
+                    paginationContainer.appendChild(dots);
+                }
+            }
+
+            for (let i = startPage; i <= endPage; i++) {
+                const li = document.createElement('li');
+                li.className = `page-item ${i === currentPage ? 'active' : ''}`;
+                li.innerHTML = `<a class="page-link" href="#">${i}</a>`;
+                li.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    showPage(i);
+                });
+                paginationContainer.appendChild(li);
+            }
+
+            if (endPage < totalPages) {
+                if (endPage < totalPages - 1) {
+                    const dots = document.createElement('li');
+                    dots.className = 'page-item disabled';
+                    dots.innerHTML = `<span class="page-link">...</span>`;
+                    paginationContainer.appendChild(dots);
+                }
+
+                const lastLi = document.createElement('li');
+                lastLi.className = 'page-item';
+                lastLi.innerHTML = `<a class="page-link" href="#">${totalPages}</a>`;
+                lastLi.addEventListener('click', (e) => { e.preventDefault(); showPage(totalPages); });
+                paginationContainer.appendChild(lastLi);
+            }
+
+            // Next Button
+            const nextLi = document.createElement('li');
+            nextLi.className = `page-item ${currentPage === totalPages ? 'disabled' : ''}`;
+            nextLi.innerHTML = `<a class="page-link" href="#" aria-label="Next">&raquo;</a>`;
+            nextLi.addEventListener('click', (e) => {
+                e.preventDefault();
+                if (currentPage < totalPages) showPage(currentPage + 1);
+            });
+            paginationContainer.appendChild(nextLi);
+        }
+
+        if (totalRows > 0) {
+            showPage(1);
+        }
+
+        // ============ AUTO-MODAL TRIGGER ============
+        const urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.get('create') === 'true') {
+            const modalEl = document.getElementById('newPOModal');
+            if (modalEl) {
+                const modal = new bootstrap.Modal(modalEl);
+                modal.show();
+            }
+        }
+    });
+
+</script>
+{% endblock %}

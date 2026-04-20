@@ -1,0 +1,937 @@
+{% extends 'core/base.html' %}
+{% load static humanize %}
+
+{% block title %}All Expenses - The Potter's House{% endblock %}
+
+{% block extra_css %}
+<style>
+    .stat-card {
+        background: white;
+        border-radius: 12px;
+        padding: 1.5rem;
+        box-shadow: 0 2px 12px rgba(0,0,0,0.04);
+        border: 1px solid rgba(0,0,0,0.05);
+        height: 100%;
+        transition: all 0.3s ease;
+    }
+    .stat-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 8px 15px rgba(0,0,0,0.1);
+    }
+    .stat-icon {
+        width: 48px;
+        height: 48px;
+        border-radius: 10px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.5rem;
+        margin-bottom: 1rem;
+    }
+    .bg-light-pink { background-color: #fff0f3; color: #ff3366; }
+    
+    .clickable-date { 
+        cursor: pointer; 
+        color: #ff3366; 
+        text-decoration: underline;
+        font-weight: 600;
+    }
+    .clickable-date:hover {
+        color: #d62e58;
+        text-shadow: 0 0 1px rgba(255, 51, 102, 0.2);
+    }
+    
+    .filter-row input, .filter-row select {
+        padding: 0.25rem 0.5rem;
+        font-size: 0.8rem;
+        border-radius: 4px;
+        border: 1px solid #dee2e6;
+        width: 100%;
+    }
+    
+    .sortable { cursor: pointer; position: relative; padding-right: 25px !important; transition: background-color 0.2s; }
+    .sortable:hover { background-color: #fff0f3 !important; }
+    .sortable i { position: absolute; right: 8px; top: 50%; transform: translateY(-50%); opacity: 0.2; font-size: 0.75rem; transition: all 0.2s; }
+    .sortable.asc i.fa-sort-up, .sortable.desc i.fa-sort-down { opacity: 1; color: #ff3366; }
+    .sortable.asc i.fa-sort, .sortable.desc i.fa-sort { display: none; }
+    .sortable:not(.asc):not(.desc) i.fa-sort-up, .sortable:not(.asc):not(.desc) i.fa-sort-down { display: none; }
+    
+    .table-responsive { border-radius: 0 0 12px 12px; }
+    .col-highlight { background-color: #fdf2f4 !important; }
+    .col-highlight-cell { color: #ff3366; font-weight: 700 !important; }
+    
+    .tool-bar {
+        background: white;
+        border-bottom: 1px solid #eee;
+        padding: 1rem;
+    }
+    .icon-box {
+        width: 32px;
+        height: 32px;
+        background: #fff0f3;
+        color: #ff3366;
+        border-radius: 6px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        margin-right: 8px;
+        transition: all 0.2s;
+        border: none;
+    }
+    .icon-box:hover {
+        background: #ff3366;
+        color: white;
+    }
+    
+    .tfoot-total {
+        background-color: #fff9fa;
+        font-weight: 700;
+        border-top: 2px solid #ff3366 !important;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid p-0">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h4 class="fw-bold mb-1">Expenses Registry</h4>
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb small mb-0">
+                    <li class="breadcrumb-item"><a href="/" class="text-decoration-none text-muted">Dashboard</a></li>
+                    <li class="breadcrumb-item active fw-bold text-primary">All Expenses</li>
+                </ol>
+            </nav>
+        </div>
+        <button type="button" class="btn d-flex align-items-center gap-2 px-3 shadow-sm" data-bs-toggle="modal" data-bs-target="#newExpenseModal" style="background-color: #e92487ff;" >
+            <i class="fas fa-plus text-white"></i>
+            <span class="text-white">New Expense</span>
+        </button>
+    </div>
+
+    <!-- Quick Stats -->
+    <div class="row g-3 mb-4">
+        <div class="col-md-4">
+            <div class="stat-card">
+                <div class="stat-icon bg-light-pink">
+                    <i class="fas fa-money-bill-wave"></i>
+                </div>
+                <div class="text-muted small mb-1">Total Filtered Amount</div>
+                <h3 class="fw-bold mb-0 text-pink">₱ <span id="statTotalAmount">{{ total_amount|floatformat:2|intcomma }}</span></h3>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="stat-card">
+                <div class="stat-icon" style="background-color: #e7f3ff; color: #007bff;">
+                    <i class="fas fa-receipt"></i>
+                </div>
+                <div class="text-muted small mb-1">Total Filtered Count</div>
+                <h3 class="fw-bold mb-0" style="color: #007bff;"><span id="statTotalCount">{{ items|length }}</span> <small class="fs-6 text-muted">items</small></h3>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="stat-card">
+                <div class="stat-icon" style="background-color: #f0fdf4; color: #16a34a;">
+                    <i class="fas fa-calendar-alt"></i>
+                </div>
+                <div class="text-muted small mb-1">Date Range</div>
+                <div class="fw-bold" id="statDateRange">
+                    {% if date_from or date_to %}
+                        {{ date_from|default:"Start" }} to {{ date_to|default:"Present" }}
+                    {% else %}
+                        All Time Records
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="inventory-card shadow-sm border-0 overflow-hidden">
+        <!-- Search & Date Filter Toolbar -->
+        <div class="tool-bar">
+            <div class="row g-3 align-items-center">
+                <div class="col-auto d-flex align-items-center">
+                    <span class="small text-muted fw-bold me-3">FROM:</span>
+                    <input type="date" id="date_from" class="form-control form-control-sm" style="width: 150px;" value="{{ date_from }}">
+                </div>
+                <div class="col-auto d-flex align-items-center">
+                    <span class="small text-muted fw-bold me-3">TO:</span>
+                    <input type="date" id="date_to" class="form-control form-control-sm" style="width: 150px;" value="{{ date_to }}">
+                </div>
+                <div class="col-auto">
+                    <button type="button" onclick="applyDateFilter()" class="btn btn-sm btn-outline-secondary" title="Apply Filter">
+                        <span class="icon-box" style="width: 18px; height: 18px; margin-right: 3px; border-radius: 3px;">
+                            <i class="fas fa-filter" style="font-size: 0.65rem;"></i>
+                        </span>
+                        Filter
+                    </button>
+                    <button type="button" onclick="resetFilters()" class="btn btn-sm btn-outline-secondary" title="Clear Filters">
+                        <span class="icon-box" style="width: 18px; height: 18px; margin-right: 3px; border-radius: 3px;">
+                            <i class="fas fa-times" style="font-size: 0.65rem;"></i>
+                        </span>
+                    </button>
+                </div>
+                <div class="col text-end">
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Registry Table -->
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0" id="expensesTable">
+                <thead class="bg-light">
+                    <tr>
+                        <th style="width: 60px;">#</th>
+                        <th class="sortable" onclick="sortTable(1)">DATE <i class="fas fa-sort"></i><i class="fas fa-sort-up"></i><i class="fas fa-sort-down"></i></th>
+                        <th class="sortable" onclick="sortTable(2)">DV NUMBER <i class="fas fa-sort"></i><i class="fas fa-sort-up"></i><i class="fas fa-sort-down"></i></th>
+                        <th class="sortable" onclick="sortTable(3)">CATEGORY <i class="fas fa-sort"></i><i class="fas fa-sort-up"></i><i class="fas fa-sort-down"></i></th>
+                        <th class="sortable" onclick="sortTable(4)">SUPPLIER <i class="fas fa-sort"></i><i class="fas fa-sort-up"></i><i class="fas fa-sort-down"></i></th>
+                        <th class="sortable" onclick="sortTable(5)">RECEIPT # <i class="fas fa-sort"></i><i class="fas fa-sort-up"></i><i class="fas fa-sort-down"></i></th>
+                        <th class="sortable col-highlight" onclick="sortTable(6)">AMOUNT <i class="fas fa-sort"></i><i class="fas fa-sort-up"></i><i class="fas fa-sort-down"></i></th>
+                        <th class="sortable" onclick="sortTable(7)">CLASSIFICATION <i class="fas fa-sort"></i><i class="fas fa-sort-up"></i><i class="fas fa-sort-down"></i></th>
+                        <th class="sortable" onclick="sortTable(8)">MODE <i class="fas fa-sort"></i><i class="fas fa-sort-up"></i><i class="fas fa-sort-down"></i></th>
+                        <th class="sortable" onclick="sortTable(9)">PARTICULAR <i class="fas fa-sort"></i><i class="fas fa-sort-up"></i><i class="fas fa-sort-down"></i></th>
+                        <th class="sortable" onclick="sortTable(10)">PREPARED BY <i class="fas fa-sort"></i><i class="fas fa-sort-up"></i><i class="fas fa-sort-down"></i></th>
+                    </tr>
+                    <tr class="filter-row bg-white border-bottom">
+                        <td></td>
+                        <td><input type="text" onkeyup="updateFilters()" placeholder="Date..."></td>
+                        <td><input type="text" onkeyup="updateFilters()" placeholder="DV..."></td>
+                        <td><input type="text" onkeyup="updateFilters()" placeholder="Category..."></td>
+                        <td><input type="text" onkeyup="updateFilters()" placeholder="Supplier..."></td>
+                        <td><input type="text" onkeyup="updateFilters()" placeholder="Receipt..."></td>
+                        <td><input type="text" onkeyup="updateFilters()" placeholder="Amount..."></td>
+                        <td><input type="text" onkeyup="updateFilters()" placeholder="Classification..."></td>
+                        <td><input type="text" onkeyup="updateFilters()" placeholder="Mode..."></td>
+                        <td><input type="text" onkeyup="updateFilters()" placeholder="Particular..."></td>
+                        <td><input type="text" onkeyup="updateFilters()" placeholder="User..."></td>
+                    </tr>
+                </thead>
+                <tbody id="tableBody">
+                    {% for item in items %}
+                    <tr class="expense-row">
+                        <td class="text-muted small row-counter">{{ forloop.counter }}</td>
+                        <td class="text-nowrap clickable-date" 
+                            data-bs-toggle="modal" 
+                            data-bs-target="#updateExpenseModal"
+                            data-id="{{ item.id }}"
+                            data-date="{{ item.date|date:'Y-m-d' }}"
+                            data-dv="{{ item.dv_number|default:'' }}"
+                            data-type="{{ item.expense_type.id|default:'' }}"
+                            data-source="{{ item.fund_source|default:'Cash' }}"
+                            data-amount="{{ item.amount|floatformat:2 }}"
+                            data-receipt="{{ item.receipt_number|default:'' }}"
+                            data-supplier="{{ item.supplier.id|default:'' }}"
+                            data-classification="{{ item.classification|default:'' }}"
+                            data-particular="{{ item.particular|default:'' }}"
+                            style="cursor: pointer; text-decoration: underline;"
+                            >{{ item.date|date:"Y-m-d" }}</td>
+                        <td class="fw-bold text-pink">{{ item.dv_number|default:"-" }}</td>
+                        <td><span class="badge bg-light text-dark font-monospace border">{{ item.expense_type.name|default:"Unclassified" }}</span></td>
+                        <td>{{ item.supplier.name|default:"-" }}</td>
+                        <td class="small">{{ item.receipt_number|default:"-" }}</td>
+                        <td class="col-highlight-cell fw-bold fw-bold" data-amount="{{ item.amount }}">₱{{ item.amount|floatformat:2|intcomma }}</td>
+                        <td><span class="small px-2 py-1 rounded bg-light border text-muted">{{ item.classification|default:"-" }}</span></td>
+                        <td><span class="small badge bg-white border text-dark">{{ item.mode|default:item.fund_source }}</span></td>
+                        <td class="small text-truncate" style="max-width: 200px;" title="{{ item.particular }}">{{ item.particular }}</td>
+                        <td class="text-muted small">{{ item.created_by }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr id="noResults" style="display: none;">
+                        <td colspan="11" class="text-center py-5">
+                            <i class="fas fa-search fa-3x mb-3 text-muted opacity-25"></i>
+                            <p class="text-muted">No expenses matching your filters.</p>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+                <tfoot id="tableFoot" class="tfoot-total">
+                    <tr>
+                        <td colspan="6" class="text-end py-3">SUB-TOTAL (FILTERED):</td>
+                        <td class="col-highlight-cell py-3" id="subTotalCell">₱0.00</td>
+                        <td colspan="4"></td>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+
+        <!-- Footer / Pagination -->
+        <div class="p-3 bg-white border-top d-flex justify-content-between align-items-center">
+            <div class="small text-muted" id="paginationInfo">
+                Showing 0-0 of 0 entries
+            </div>
+            <ul class="pagination pagination-sm mb-0 shadow-sm" id="paginationContainer"></ul>
+        </div>
+    </div>
+</div>
+
+<!-- Update Expense Modal -->
+<div class="modal fade" id="updateExpenseModal" tabindex="-1">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg">
+            <div class="modal-header text-white" style="background-color: #e92487ff;">
+                <h5 class="modal-title text-white fw-bold"><i class="fas fa-edit me-2"></i>Update Expense</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="updateExpenseForm" method="POST">
+                {% csrf_token %}
+                <div class="modal-body p-4 bg-light">
+                    <!-- Section 1: Transaction Basics -->
+                    <div class="card border-0 shadow-sm mb-4">
+                        <div class="card-body p-4">
+                            <h6 class="text-pink fw-bold mb-4 border-bottom pb-2"><i class="fas fa-info-circle me-2"></i>Transaction Details</h6>
+                            <div class="row g-4">
+                                <div class="col-md-6">
+                                    <label class="form-label small fw-bold text-muted text-uppercase ls-1">Date Posted</label>
+                                    <input type="date" name="date" id="update_date" class="form-control" required>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label small fw-bold text-muted text-uppercase ls-1">DV Number</label>
+                                    <input type="text" name="dv_number" id="update_dv" class="form-control border-pink-focus">
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label small fw-bold text-muted text-uppercase ls-1">Expense Type</label>
+                                    <select name="type_id" id="update_type" class="form-select border-pink-focus" required>
+                                        <option value="">Select Type...</option>
+                                        {% for type in types %}
+                                        <option value="{{ type.id }}">{{ type.category.name }} : {{ type.name }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label small fw-bold text-muted text-uppercase ls-1">Fund Source (Credit)</label>
+                                    <select name="fund_source" id="update_source" class="form-select border-pink-focus">
+                                        <option value="Cash">Cash</option>
+                                        <option value="Landbank">Landbank</option>
+                                        <option value="BPI">BPI</option>
+                                        <option value="Gcash">Gcash</option>
+                                        <option value="Others">Others</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Section 2: Financials -->
+                    <div class="card border-0 shadow-sm">
+                        <div class="card-body p-4">
+                            <h6 class="text-pink fw-bold mb-4 border-bottom pb-2"><i class="fas fa-tags me-2"></i>Classification & Finance</h6>
+                            <div class="row g-4">
+                                <div class="col-md-6">
+                                    <label class="form-label small fw-bold text-muted text-uppercase ls-1">Amount</label>
+                                    <div class="input-group">
+                                        <span class="input-group-text bg-white border-end-0">₱</span>
+                                        <input type="number" step="0.01" name="amount" id="update_amount" class="form-control border-start-0 border-pink-focus" required>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label small fw-bold text-muted text-uppercase ls-1">Receipt Number</label>
+                                    <input type="text" name="receipt_number" id="update_receipt" class="form-control border-pink-focus">
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label small fw-bold text-muted text-uppercase ls-1">Supplier / Payee</label>
+                                    <select name="supplier_id" id="update_supplier" class="form-select border-pink-focus">
+                                        <option value="">Select Supplier...</option>
+                                        {% for sup in suppliers %}
+                                        <option value="{{ sup.id }}">{{ sup.name }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label small fw-bold text-muted text-uppercase ls-1">Classification</label>
+                                    <select name="classification" id="update_classification" class="form-select border-pink-focus">
+                                        <option value="VAT">VAT</option>
+                                        <option value="NON-VAT">NON-VAT</option>
+                                        <option value="NO RECEIPT">NO RECEIPT</option>
+                                    </select>
+                                </div>
+                                <div class="col-12">
+                                    <label class="form-label small fw-bold text-muted text-uppercase ls-1">Particulars / Description</label>
+                                    <textarea name="particular" id="update_particular" class="form-control border-pink-focus" rows="3" required></textarea>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer bg-white border-top-0 p-4 d-flex justify-content-between">
+                    <button type="button" class="btn btn-danger px-4 py-2 fw-bold" onclick="deleteExpense()">
+                        <i class="fas fa-trash-alt me-2"></i>Delete
+                    </button>
+                    <div>
+                        <button type="button" class="btn btn-outline-secondary px-4 py-2 me-2" data-bs-dismiss="modal">
+                            Cancel
+                        </button>
+                        <button type="submit" class="btn btn-success px-5 py-2 fw-bold shadow">
+                            <i class="fas fa-save me-2"></i>Save Changes
+                        </button>
+                    </div>
+                </div>
+            </form>
+            <form id="deleteExpenseForm" method="POST" style="display: none;">
+                {% csrf_token %}
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- New Expense Modal -->
+<div class="modal fade" id="newExpenseModal" tabindex="-1">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg">
+            <div class="modal-header" style="background: linear-gradient(135deg, #ff3366 0%, #d62e58 100%); color: white;">
+                <h5 class="modal-title text-white fw-bold"><i class="fas fa-plus-circle me-2"></i>Record New Expense</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST">
+                {% csrf_token %}
+                <div class="modal-body p-4 bg-light">
+                    <!-- Section 1: Transaction Basics -->
+                    <div class="card border-0 shadow-sm mb-4">
+                        <div class="card-body p-4">
+                            <h6 class="text-pink fw-bold mb-4 border-bottom pb-2"><i class="fas fa-info-circle me-2"></i>Transaction Details</h6>
+                            <div class="row g-4">
+                                <div class="col-md-6">
+                                    <label class="form-label small fw-bold text-muted text-uppercase ls-1">Date Posted</label>
+                                    <input type="date" name="date" class="form-control" value="{{ now|date:'Y-m-d' }}" required>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label small fw-bold text-muted text-uppercase ls-1">DV Number</label>
+                                    <input type="text" name="dv_number" class="form-control border-pink-focus" placeholder="DV-XXXXXX">
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label small fw-bold text-muted text-uppercase ls-1">Expense Type</label>
+                                    <select name="type_id" class="form-select border-pink-focus" required>
+                                        <option value="">Select Type...</option>
+                                        {% for type in types %}
+                                        <option value="{{ type.id }}">{{ type.category.name }} : {{ type.name }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label small fw-bold text-muted text-uppercase ls-1">Fund Source (Credit)</label>
+                                    <select name="fund_source" class="form-select border-pink-focus">
+                                        <option value="Cash">Cash</option>
+                                        <option value="Landbank">Landbank</option>
+                                        <option value="BPI">BPI</option>
+                                        <option value="Gcash">Gcash</option>
+                                        <option value="Others">Others</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Section 2: Financials -->
+                    <div class="card border-0 shadow-sm">
+                        <div class="card-body p-4">
+                            <h6 class="text-pink fw-bold mb-4 border-bottom pb-2"><i class="fas fa-tags me-2"></i>Classification & Finance</h6>
+                            <div class="row g-4">
+                                <div class="col-md-6">
+                                    <label class="form-label small fw-bold text-muted text-uppercase ls-1">Amount</label>
+                                    <div class="input-group">
+                                        <span class="input-group-text bg-white border-end-0">₱</span>
+                                        <input type="number" step="0.01" name="amount" class="form-control border-start-0 border-pink-focus" required placeholder="0.00">
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label small fw-bold text-muted text-uppercase ls-1">Receipt Number</label>
+                                    <input type="text" name="receipt_number" class="form-control border-pink-focus" placeholder="OR# OR Invoice#">
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label small fw-bold text-muted text-uppercase ls-1">Supplier / Payee</label>
+                                    <select name="supplier_id" class="form-select border-pink-focus">
+                                        <option value="">Select Supplier...</option>
+                                        {% for sup in suppliers %}
+                                        <option value="{{ sup.id }}">{{ sup.name }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label small fw-bold text-muted text-uppercase ls-1">Classification</label>
+                                    <select name="classification" class="form-select border-pink-focus">
+                                        <option value="VAT">VAT</option>
+                                        <option value="NON-VAT">NON-VAT</option>
+                                        <option value="NO RECEIPT">NO RECEIPT</option>
+                                    </select>
+                                </div>
+                                <div class="col-12">
+                                    <label class="form-label small fw-bold text-muted text-uppercase ls-1">Particulars / Description</label>
+                                    <textarea name="particular" class="form-control border-pink-focus" rows="3" required placeholder="Describe the reason for this expense..."></textarea>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer bg-white border-top-0 p-4">
+                    <button type="button" class="btn btn-outline-secondary px-4 py-2" data-bs-dismiss="modal">
+                        <i class="fas fa-times me-2"></i>Cancel
+                    </button>
+                    <button type="submit" class="btn btn-primary px-5 py-2 fw-bold shadow">
+                        <i class="fas fa-save me-2"></i>Save Transaction
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Expense Activity Logs Table -->
+<div class="inventory-card mt-5 mb-5 shadow-sm border-0">
+    <div class="inventory-card-header bg-white py-3 px-4 border-bottom d-flex justify-content-between align-items-center">
+        <div class="d-flex align-items-center">
+            <span class="icon-box me-2" style="background-color: #fdf2f8; color: #db2777; width: 35px; height: 35px; border-radius: 8px;">
+                <i class="fas fa-history"></i>
+            </span>
+            <h5 class="mb-0 fw-bold"  style="font-size: 0.85rem; color: #db2777;">Expense Activity Logs</h5>
+        </div>
+        <div class="d-flex align-items-center gap-3">
+            <div class="d-flex align-items-center">
+                <label class="small text-muted fw-bold me-2 mb-0 text-uppercase ls-1" style="font-size: 0.65rem;">From:</label>
+                <input type="date" id="log_date_start" class="form-control form-control-sm border-pink-focus" style="width: 140px;" value="{{ log_date_start }}">
+            </div>
+            <div class="d-flex align-items-center">
+                <label class="small text-muted fw-bold me-2 mb-0 text-uppercase ls-1" style="font-size: 0.65rem;">To:</label>
+                <input type="date" id="log_date_end" class="form-control form-control-sm border-pink-focus" style="width: 140px;" value="{{ log_date_end }}">
+            </div>
+            <div class="btn-group">
+                <button type="button" class="btn btn-sm btn-outline-secondary px-3" onclick="applyLogDateFilter()">
+                    <i class="fas fa-filter me-1 small"></i> Filter
+                </button>
+                <button type="button" class="btn btn-sm btn-outline-secondary" onclick="clearLogDateFilter()">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+    <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0" id="expenseLogsTable">
+            <thead class="bg-light">
+                <tr>
+                    <th style="width: 60px;">#</th>
+                    <th style="width: 180px;">TIMESTAMP</th>
+                    <th style="width: 120px;">ACTION</th>
+                    <th style="width: 150px;">USER</th>
+                    <th>DESCRIPTION</th>
+                </tr>
+                <tr class="filter-row bg-white border-bottom">
+                    <td></td>
+                    <td><input type="text" class="log-column-filter" placeholder="Filter Date..."></td>
+                    <td><input type="text" class="log-column-filter" placeholder="Filter Action..."></td>
+                    <td><input type="text" class="log-column-filter" placeholder="Filter User..."></td>
+                    <td><input type="text" class="log-column-filter" placeholder="Filter Description..."></td>
+                </tr>
+            </thead>
+            <tbody id="logTableBody">
+                {% for log in activity_logs %}
+                <tr class="log-row">
+                    <td class="text-muted small log-counter">{{ forloop.counter }}</td>
+                    <td class="text-muted small">{{ log.timestamp|date:"Y-m-d H:i:s" }}</td>
+                    <td>
+                        {% if log.action == 'created' %}
+                        <span class="badge rounded-pill bg-success-subtle text-success border border-success-subtle px-3">CREATED</span>
+                        {% elif log.action == 'updated' %}
+                        <span class="badge rounded-pill bg-primary-subtle text-primary border border-primary-subtle px-3">UPDATED</span>
+                        {% elif log.action == 'deleted' %}
+                        <span class="badge rounded-pill bg-danger-subtle text-danger border border-danger-subtle px-3">DELETED</span>
+                        {% else %}
+                        <span class="badge rounded-pill bg-secondary-subtle text-secondary border border-secondary-subtle px-3">{{ log.action|upper }}</span>
+                        {% endif %}
+                    </td>
+                    <td class="fw-bold">{{ log.user }}</td>
+                    <td class="small text-muted">{{ log.description|linebreaksbr }}</td>
+                </tr>
+                {% empty %}
+                <tr id="noLogsResults" style="display: none;">
+                    <td colspan="5" class="text-center py-5">
+                        <i class="fas fa-history fa-3x mb-3 text-muted opacity-25"></i>
+                        <p class="text-muted">No activity logs found matching your filters.</p>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    <!-- Log Pagination -->
+    <div class="p-4 bg-white border-top d-flex justify-content-between align-items-center">
+        <div class="small text-muted" id="logPaginationInfo">
+            Showing 0-0 of 0 entries
+        </div>
+        <nav aria-label="Log pagination">
+            <ul class="pagination pagination-sm mb-0 shadow-sm" id="logPaginationContainer">
+                <!-- JS will populate -->
+            </ul>
+        </nav>
+    </div>
+</div>
+
+<!-- Delete Confirmation Modal -->
+<div class="modal fade" id="deleteConfirmModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered" style="max-width: 400px;">
+        <div class="modal-content border-0 shadow-lg">
+            <div class="modal-header border-bottom-0 pb-0">
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body text-center pt-0 pb-4">
+                <div class="mb-4">
+                    <div class="icon-box mx-auto mb-3" style="width: 60px; height: 60px; background-color: #fee2e2; color: #dc2626; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.5rem; border: none;">
+                        <i class="fas fa-exclamation-triangle"></i>
+                    </div>
+                    <h5 class="fw-bold text-dark">Confirm Deletion</h5>
+                    <p class="text-muted small mb-0 px-3">Are you sure you want to delete this expense? This action cannot be undone.</p>
+                </div>
+                <div class="d-grid gap-2 px-4">
+                    <button type="button" class="btn btn-danger py-2 fw-bold" id="confirmDeleteBtn">Delete Record</button>
+                    <button type="button" class="btn btn-light py-2 text-muted fw-bold" data-bs-dismiss="modal">Cancel</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+    let rows = [];
+    let currentPage = 1;
+    const itemsPerPage = 20;
+    
+    let logRows = [];
+    let currentLogPage = 1;
+    const logsPerPage = 10;
+
+    document.addEventListener('DOMContentLoaded', function() {
+        // Collect Main Expense data
+        const tableRows = document.querySelectorAll('.expense-row');
+        tableRows.forEach(row => {
+            const cells = row.querySelectorAll('td');
+            rows.push({
+                element: row,
+                data: Array.from(cells).map(c => c.textContent.trim().toLowerCase()),
+                amount: parseFloat(row.querySelector('[data-amount]').dataset.amount.replace(/,/g, '')) || 0,
+                date: row.querySelector('[data-date]').dataset.date
+            });
+        });
+
+        // Collect Activity Log data
+        const allLogRows = document.querySelectorAll('.log-row');
+        allLogRows.forEach(row => {
+            const cells = row.querySelectorAll('td');
+            logRows.push({
+                element: row,
+                data: Array.from(cells).map(c => c.textContent.trim().toLowerCase())
+            });
+        });
+        
+        updateFilters();
+        updateLogFilters();
+
+        const updateModal = document.getElementById('updateExpenseModal');
+        if (updateModal) {
+            updateModal.addEventListener('show.bs.modal', function (event) {
+                const button = event.relatedTarget;
+                if (!button) return;
+                
+                try {
+                    const id = button.dataset.id;
+                    
+                    document.getElementById('update_date').value = button.dataset.date || '';
+                    document.getElementById('update_dv').value = button.dataset.dv || '';
+                    document.getElementById('update_type').value = button.dataset.type || '';
+                    document.getElementById('update_source').value = button.dataset.source || '';
+                    
+                    let amountStr = button.dataset.amount || '';
+                    amountStr = amountStr.replace(/,/g, '');
+                    document.getElementById('update_amount').value = amountStr;
+                    
+                    document.getElementById('update_receipt').value = button.dataset.receipt || '';
+                    document.getElementById('update_supplier').value = button.dataset.supplier || '';
+                    document.getElementById('update_classification').value = button.dataset.classification || '';
+                    document.getElementById('update_particular').value = button.dataset.particular || '';
+                    
+                    const updateForm = document.getElementById('updateExpenseForm');
+                    const deleteForm = document.getElementById('deleteExpenseForm');
+                    if(updateForm) updateForm.action = `/api/expense/update/${id}/`;
+                    if(deleteForm) deleteForm.action = `/api/expense/delete/${id}/`;
+                } catch (err) {
+                    console.error("Error populating update modal:", err);
+                }
+            });
+        }
+
+        // Add event listeners for log filters
+        document.querySelectorAll('.log-column-filter').forEach(input => {
+            input.addEventListener('input', updateLogFilters);
+        });
+    });
+
+    function updateFilters() {
+        const filterInputs = document.querySelectorAll('.filter-row input');
+        const searchTerms = Array.from(filterInputs).map(i => i.value.toLowerCase());
+        
+        let filteredRows = rows.filter(row => {
+            return searchTerms.every((term, index) => {
+                if (!term) return true;
+                return row.data[index+1].includes(term);
+            });
+        });
+
+        renderTable(filteredRows);
+        updateStats(filteredRows);
+    }
+
+    function renderTable(data) {
+        const start = (currentPage - 1) * itemsPerPage;
+        const end = start + itemsPerPage;
+        const tbody = document.getElementById('tableBody');
+        
+        // Hide all first
+        rows.forEach(r => r.element.style.display = 'none');
+        
+        const pageData = data.slice(start, end);
+        pageData.forEach((row, index) => {
+            row.element.style.display = '';
+            row.element.querySelector('.row-counter').textContent = start + index + 1;
+            // Re-append to change DOM order
+            tbody.appendChild(row.element);
+        });
+
+        const noResults = document.getElementById('noResults');
+        if (noResults) {
+            // Ensure noResults is at the end
+            tbody.appendChild(noResults);
+            noResults.style.display = data.length === 0 ? '' : 'none';
+        }
+
+        buildPagination(data.length);
+        updatePaginationInfo(data.length, start, end);
+    }
+
+    function updateStats(data) {
+        const total = data.reduce((sum, row) => sum + row.amount, 0);
+        document.getElementById('statTotalAmount').textContent = total.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
+        document.getElementById('statTotalCount').textContent = data.length;
+        document.getElementById('subTotalCell').textContent = '₱ ' + total.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
+    }
+
+    function buildPagination(totalItems) {
+        const totalPages = Math.ceil(totalItems / itemsPerPage);
+        const container = document.getElementById('paginationContainer');
+        container.innerHTML = '';
+        if (totalPages < 1) return;
+        addPageItem('«', currentPage > 1 ? currentPage - 1 : null);
+        for (let i = 1; i <= totalPages; i++) {
+            if (i === 1 || i === totalPages || (i >= currentPage - 2 && i <= currentPage + 2)) {
+                addPageItem(i, i, i === currentPage);
+            } else if (i === currentPage - 3 || i === currentPage + 3) {
+                addPageItem('...', null);
+            }
+        }
+        addPageItem('»', currentPage < totalPages ? currentPage + 1 : null);
+    }
+
+    function addPageItem(label, page, active = false) {
+        const li = document.createElement('li');
+        li.className = `page-item ${active ? 'active' : ''} ${page === null ? 'disabled' : ''}`;
+        const a = document.createElement('a');
+        a.className = 'page-link border-0 shadow-none';
+        a.href = '#';
+        a.textContent = label;
+        if (page !== null) {
+            a.onclick = (e) => {
+                e.preventDefault();
+                currentPage = page;
+                updateFilters();
+            };
+        }
+        li.appendChild(a);
+        document.getElementById('paginationContainer').appendChild(li);
+    }
+
+    function updatePaginationInfo(total, start, end) {
+        const info = document.getElementById('paginationInfo');
+        const displayedEnd = Math.min(end, total);
+        info.innerHTML = `Showing <span class="fw-bold">${total > 0 ? start + 1 : 0}-${displayedEnd}</span> of <span class="fw-bold">${total}</span> entries`;
+    }
+
+    function applyDateFilter() {
+        const from = document.getElementById('date_from').value;
+        const to = document.getElementById('date_to').value;
+        let url = new URL(window.location.href);
+        if (from) url.searchParams.set('date_from', from);
+        else url.searchParams.delete('date_from');
+        if (to) url.searchParams.set('date_to', to);
+        else url.searchParams.delete('date_to');
+        window.location.href = url.toString();
+    }
+
+    function resetFilters() {
+        window.location.href = '{% url "expenses" %}';
+    }
+
+    function sortTable(colIndex) {
+        const table = document.getElementById('expensesTable');
+        const headers = table.querySelectorAll('th.sortable');
+        const currentHeader = headers[colIndex - 1];
+        
+        // Cycle sort: None -> Asc -> Desc -> None (reset to original)
+        let sortMode = 'asc';
+        if (currentHeader.classList.contains('asc')) sortMode = 'desc';
+        else if (currentHeader.classList.contains('desc')) sortMode = 'none';
+
+        // Clear other headers
+        headers.forEach(h => h.classList.remove('asc', 'desc'));
+
+        if (sortMode === 'none') {
+            // Reset to original order (by counter)
+            rows.sort((a, b) => {
+                return parseInt(a.element.querySelector('.row-counter').textContent) - 
+                       parseInt(b.element.querySelector('.row-counter').textContent);
+            });
+        } else {
+            currentHeader.classList.add(sortMode);
+            const isAsc = sortMode === 'asc';
+            
+            rows.sort((a, b) => {
+                let valA = a.data[colIndex];
+                let valB = b.data[colIndex];
+                
+                // Specials
+                if (colIndex === 1) { // DATE
+                    return isAsc ? a.date.localeCompare(b.date) : b.date.localeCompare(a.date);
+                }
+                if (colIndex === 6) { // AMOUNT
+                    return isAsc ? a.amount - b.amount : b.amount - a.amount;
+                }
+                
+                // Numeric extraction for strings that might have numbers (like DV-2026-001)
+                const numA = valA.match(/\d+/);
+                const numB = valB.match(/\d+/);
+                if (numA && numB && valA.replace(/\d+/g, '') === valB.replace(/\d+/g, '')) {
+                    return isAsc ? parseInt(numA[0]) - parseInt(numB[0]) : parseInt(numB[0]) - parseInt(numA[0]);
+                }
+
+                return isAsc ? valA.localeCompare(valB) : valB.localeCompare(valA);
+            });
+        }
+        
+        updateFilters();
+    }
+
+    let deleteConfirmModal;
+    document.addEventListener('DOMContentLoaded', function() {
+        deleteConfirmModal = new bootstrap.Modal(document.getElementById('deleteConfirmModal'));
+        
+        const confirmBtn = document.getElementById('confirmDeleteBtn');
+        if (confirmBtn) {
+            confirmBtn.addEventListener('click', function() {
+                document.getElementById('deleteExpenseForm').submit();
+            });
+        }
+    });
+
+    function deleteExpense() {
+        if (deleteConfirmModal) {
+            deleteConfirmModal.show();
+        }
+    }
+
+    // --- Activity Log Functions ---
+    function updateLogFilters() {
+        const filterInputs = document.querySelectorAll('.log-column-filter');
+        const searchTerms = Array.from(filterInputs).map(i => i.value.toLowerCase());
+        let filteredLogs = logRows.filter(row => {
+            return searchTerms.every((term, index) => {
+                if (!term) return true;
+                return row.data[index + 1].includes(term);
+            });
+        });
+        renderLogTable(filteredLogs);
+    }
+
+    function renderLogTable(data) {
+        const start = (currentLogPage - 1) * logsPerPage;
+        const end = start + logsPerPage;
+        const tbody = document.getElementById('logTableBody');
+        
+        // Hide all first
+        logRows.forEach(r => r.element.style.display = 'none');
+        
+        const pageData = data.slice(start, end);
+        pageData.forEach((row, index) => {
+            row.element.style.display = '';
+            row.element.querySelector('.log-counter').textContent = start + index + 1;
+            // Re-append to change DOM order
+            tbody.appendChild(row.element);
+        });
+
+        const noResults = document.getElementById('noLogsResults');
+        if (noResults) {
+            // Ensure noResults is at the end
+            tbody.appendChild(noResults);
+            noResults.style.display = data.length === 0 ? '' : 'none';
+        }
+        buildLogPagination(data.length);
+        updateLogPaginationInfo(data.length, start, end);
+    }
+
+    function buildLogPagination(totalItems) {
+        const totalPages = Math.ceil(totalItems / logsPerPage);
+        const container = document.getElementById('logPaginationContainer');
+        container.innerHTML = '';
+        if (totalPages < 1) return;
+        addLogPageItem('«', currentLogPage > 1 ? currentLogPage - 1 : null);
+        for (let i = 1; i <= totalPages; i++) {
+            if (i === 1 || i === totalPages || (i >= currentLogPage - 2 && i <= currentLogPage + 2)) {
+                addLogPageItem(i, i, i === currentLogPage);
+            } else if (i === currentLogPage - 3 || i === currentLogPage + 3) {
+                addLogPageItem('...', null);
+            }
+        }
+        addLogPageItem('»', currentLogPage < totalPages ? currentLogPage + 1 : null);
+    }
+
+    function addLogPageItem(label, page, active = false) {
+        const li = document.createElement('li');
+        li.className = `page-item ${active ? 'active' : ''} ${page === null ? 'disabled' : ''}`;
+        const a = document.createElement('a');
+        a.className = 'page-link border-0 shadow-none';
+        a.href = '#';
+        a.textContent = label;
+        if (page !== null) {
+            a.onclick = (e) => {
+                e.preventDefault();
+                currentLogPage = page;
+                updateLogFilters();
+                document.getElementById('expenseLogsTable').scrollIntoView({ behavior: 'smooth', block: 'start' });
+            };
+        }
+        li.appendChild(a);
+        document.getElementById('logPaginationContainer').appendChild(li);
+    }
+
+    function updateLogPaginationInfo(total, start, end) {
+        const info = document.getElementById('logPaginationInfo');
+        const displayedEnd = Math.min(end, total);
+        info.innerHTML = `Showing <span class="fw-bold">${total > 0 ? start + 1 : 0}-${displayedEnd}</span> of <span class="fw-bold">${total}</span> entries`;
+    }
+
+    function applyLogDateFilter() {
+        const from = document.getElementById('log_date_start').value;
+        const to = document.getElementById('log_date_end').value;
+        let url = new URL(window.location.href);
+        if (from) url.searchParams.set('log_date_start', from);
+        else url.searchParams.delete('log_date_start');
+        if (to) url.searchParams.set('log_date_end', to);
+        else url.searchParams.delete('log_date_end');
+        window.location.href = url.toString();
+    }
+
+    function clearLogDateFilter() {
+        let url = new URL(window.location.href);
+        url.searchParams.delete('log_date_start');
+        url.searchParams.delete('log_date_end');
+        window.location.href = url.toString();
+    }
+</script>
+{% endblock %}

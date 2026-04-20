@@ -1,0 +1,116 @@
+{% extends 'core/base.html' %}
+{% load static humanize %}
+
+{% block title %}Client Detail - {{ client.full_name }}{% endblock %}
+
+{% block content %}
+<div class="row align-items-center mb-4">
+    <div class="col">
+        <h4 class="mb-0">Client Detail</h4>
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb breadcrumb-custom mb-0">
+                <li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Home</a></li>
+                <li class="breadcrumb-item"><a href="{% url 'clients' %}">Clients</a></li>
+                <li class="breadcrumb-item active" aria-current="page">{{ client.full_name }}</li>
+            </ol>
+        </nav>
+    </div>
+    <div class="col-auto">
+        <a href="{% url 'clients' %}" class="btn btn-light border shadow-sm px-4 fw-bold">
+            <i class="fas fa-arrow-left me-2"></i>Back to Registry
+        </a>
+    </div>
+</div>
+
+<div class="row g-4">
+    <!-- Client Info Card -->
+    <div class="col-md-4">
+        <div class="inventory-card h-100">
+            <div class="inventory-card-header" style="background-color: #fdf2f8;">
+                <div class="text-primary"><i class="fas fa-info-circle"></i> Basic Information</div>
+            </div>
+            <div class="p-4">
+                <div class="text-center mb-4">
+                    <div class="rounded-circle bg-light d-inline-flex align-items-center justify-content-center border shadow-sm mb-3" style="width: 100px; height: 100px; background-color: #fce7f3 !important;">
+                        <i class="fas fa-user-tie fa-3x text-primary"></i>
+                    </div>
+                    <h5 class="fw-bold mb-1 text-dark">{{ client.full_name }}</h5>
+                    <p class="text-muted mb-0 small">{{ client.business_name|default:"No Business Registered" }}</p>
+                </div>
+
+                <div class="info-list">
+                    <div class="mb-3 pb-2 border-bottom d-flex justify-content-between">
+                        <span class="text-muted small fw-bold">Mobile Number</span>
+                        <span class="text-dark">{{ client.mobile_number|default:"---" }}</span>
+                    </div>
+                    <div class="mb-3 pb-2 border-bottom d-flex justify-content-between">
+                        <span class="text-muted small fw-bold">Email Address</span>
+                        <span class="text-dark">{{ client.email_address|default:"---" }}</span>
+                    </div>
+                    <div class="mb-3 pb-2 border-bottom d-flex justify-content-between">
+                        <span class="text-muted small fw-bold">TIN</span>
+                        <span class="text-dark">{{ client.tin|default:"---" }}</span>
+                    </div>
+                    <div class="mb-3 pb-2 border-bottom d-flex justify-content-between">
+                        <span class="text-muted small fw-bold">Date Enrolled</span>
+                        <span class="text-dark">{{ client.date_enrolled|date:"d M Y" }}</span>
+                    </div>
+                    <div class="mb-3 pb-2 border-bottom d-flex justify-content-between">
+                        <span class="text-muted small fw-bold">Enrolled By</span>
+                        <span class="text-dark">{{ client.enrolled_by }}</span>
+                    </div>
+                    <div class="mb-2 d-flex justify-content-between">
+                        <span class="text-muted small fw-bold text-dark">Total Balance</span>
+                        <span class="h5 fw-bold text-primary mb-0">₱{{ client.total_balance|floatformat:2|intcomma }}</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Job Order History -->
+    <div class="col-md-8">
+        <div class="inventory-card">
+            <div class="inventory-card-header" style="background-color: #fdf2f8;">
+                <div class="text-primary"><i class="fas fa-history"></i> Job Order History</div>
+            </div>
+            <div class="table-responsive" style="max-height: 500px; overflow-y: auto;">
+                <table class="table table-hover">
+                    <thead class="sticky-top bg-white shadow-sm">
+                        <tr>
+                            <th class="fw-bold text-dark border-0">WIP #</th>
+                            <th class="fw-bold text-dark border-0">Date</th>
+                            <th class="fw-bold text-dark border-0 text-end">Total Amount</th>
+                            <th class="fw-bold text-dark border-0 text-center">Status</th>
+                            <th class="fw-bold text-dark border-0 text-center">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for jo in job_orders %}
+                        <tr>
+                            <td class="fw-bold">{{ jo.wip }}</td>
+                            <td>{{ jo.transaction_date|date:"d M Y" }}</td>
+                            <td class="text-end fw-bold">₱{{ jo.get_total_amount|floatformat:2|intcomma }}</td>
+                            <td class="text-center">
+                                <span class="badge {% if jo.status == 'Completed' %}bg-success{% elif jo.status == 'Void' %}bg-secondary{% else %}bg-warning{% endif %} px-3 py-2">
+                                    {{ jo.status }}
+                                </span>
+                            </td>
+                            <td class="text-center">
+                                <a href="{% url 'job_order_detail' jo.id %}" class="btn btn-primary btn-sm rounded-pill px-3">
+                                    View
+                                </a>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="5" class="text-center p-5 text-muted">No job orders found for this client.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

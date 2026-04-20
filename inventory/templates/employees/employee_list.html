@@ -1,0 +1,914 @@
+{% extends "core/base.html" %}
+{% block title %}Employee Directory{% endblock %}
+{% load static %}
+
+{% block content %}
+<!-- Page Header -->
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+        <h4 class="mb-0"><i class="fas fa-users me-2" style="color: var(--primary-color);"></i>Employees</h4>
+        <nav class="breadcrumb-custom mt-1">
+            <ol class="breadcrumb mb-0">
+                <li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Dashboard</a></li>
+                <li class="breadcrumb-item active">Employee Directory</li>
+            </ol>
+        </nav>
+    </div>
+    <button class="btn btn-sm" style="background: var(--primary-color); color: #fff; font-weight: 600;" data-bs-toggle="modal" data-bs-target="#addEmployeeModal">
+        <i class="fas fa-user-plus me-1"></i> Add Employee
+    </button>
+</div>
+
+<!-- Stat Cards -->
+<div class="row g-3 mb-4">
+    <div class="col-lg-3 col-md-6">
+        <a href="{% url 'employee_list' %}?filter=all" class="text-decoration-none">
+            <div class="dashboard-stat-card d-flex align-items-center bg-white rounded shadow-sm text-dark h-100 {% if stats.current_filter == 'all' %}stat-card-active{% endif %}" style="border-left: 4px solid #e83e8c; padding: 20px;">
+                <div class="stat-icon d-flex justify-content-center align-items-center rounded me-3" style="width: 48px; height: 48px; background-color: #fce8f3; color: #e83e8c; font-size: 1.2rem;">
+                    <i class="fas fa-users"></i>
+                </div>
+                <div class="stat-info">
+                    <div class="stat-value fw-bold" style="font-size: 1.5rem; line-height: 1.2;">{{ stats.total }}</div>
+                    <div class="stat-label text-muted text-uppercase fw-semibold" style="font-size: 0.75rem; letter-spacing: 0.5px;">Total Employees</div>
+                </div>
+            </div>
+        </a>
+    </div>
+    <div class="col-lg-3 col-md-6">
+        <a href="{% url 'employee_list' %}?filter=active" class="text-decoration-none">
+            <div class="dashboard-stat-card d-flex align-items-center bg-white rounded shadow-sm text-dark h-100 {% if stats.current_filter == 'active' %}stat-card-active{% endif %}" style="border-left: 4px solid #20c997; padding: 20px;">
+                <div class="stat-icon d-flex justify-content-center align-items-center rounded me-3" style="width: 48px; height: 48px; background-color: #e6f9f3; color: #20c997; font-size: 1.2rem;">
+                    <i class="fas fa-user-check"></i>
+                </div>
+                <div class="stat-info">
+                    <div class="stat-value fw-bold" style="font-size: 1.5rem; line-height: 1.2;">{{ stats.active }}</div>
+                    <div class="stat-label text-muted text-uppercase fw-semibold" style="font-size: 0.75rem; letter-spacing: 0.5px;">Active</div>
+                </div>
+            </div>
+        </a>
+    </div>
+    <div class="col-lg-3 col-md-6">
+        <a href="{% url 'employee_list' %}?filter=on_leave" class="text-decoration-none">
+            <div class="dashboard-stat-card d-flex align-items-center bg-white rounded shadow-sm text-dark h-100 {% if stats.current_filter == 'on_leave' %}stat-card-active{% endif %}" style="border-left: 4px solid #f59e0b; padding: 20px;">
+                <div class="stat-icon d-flex justify-content-center align-items-center rounded me-3" style="width: 48px; height: 48px; background-color: #fef3c7; color: #f59e0b; font-size: 1.2rem;">
+                    <i class="fas fa-user-clock"></i>
+                </div>
+                <div class="stat-info">
+                    <div class="stat-value fw-bold" style="font-size: 1.5rem; line-height: 1.2;">{{ stats.on_leave }}</div>
+                    <div class="stat-label text-muted text-uppercase fw-semibold" style="font-size: 0.75rem; letter-spacing: 0.5px;">On Leave</div>
+                </div>
+            </div>
+        </a>
+    </div>
+    <div class="col-lg-3 col-md-6">
+        <a href="{% url 'employee_list' %}?filter=terminated" class="text-decoration-none">
+            <div class="dashboard-stat-card d-flex align-items-center bg-white rounded shadow-sm text-dark h-100 {% if stats.current_filter == 'terminated' %}stat-card-active{% endif %}" style="border-left: 4px solid #0dcaf0; padding: 20px;">
+                <div class="stat-icon d-flex justify-content-center align-items-center rounded me-3" style="width: 48px; height: 48px; background-color: #fde8e8; color: #dc3545; font-size: 1.2rem;">
+                    <i class="fas fa-user-times"></i>
+                </div>
+                <div class="stat-info">
+                    <div class="stat-value fw-bold" style="font-size: 1.5rem; line-height: 1.2;">{{ stats.terminated }}</div>
+                    <div class="stat-label text-muted text-uppercase fw-semibold" style="font-size: 0.75rem; letter-spacing: 0.5px;">Terminated</div>
+                </div>
+            </div>
+        </a>
+    </div>
+</div>
+
+<style>
+    .dashboard-stat-card {
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+    a.text-decoration-none:hover .dashboard-stat-card {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(0,0,0,0.1) !important;
+    }
+    .stat-card-active {
+        background-color: var(--primary-bg) !important;
+        border: 2px solid var(--primary-color) !important;
+    }
+    .emp-list-tabs .nav-link {
+        color: #6c757d;
+        border-radius: 8px;
+        transition: all 0.2s ease;
+    }
+    .emp-list-tabs .nav-link:hover {
+        background-color: rgba(0, 0, 0, 0.03);
+    }
+    .emp-list-tabs .nav-link.active {
+        background-color: var(--primary-color) !important;
+        color: white !important;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    }
+</style>
+
+<!-- Employee Table Card -->
+<div class="inventory-card">
+    <div class="inventory-card-header d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3">
+        <ul class="nav nav-pills emp-list-tabs" id="empListTabs" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link active py-1 px-3 fw-semibold" id="active-employees-tab" data-bs-toggle="pill" data-bs-target="#active-employees" type="button" role="tab">
+                    <i class="fas fa-user-check me-1"></i> Active Directory
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link py-1 px-3 fw-semibold" id="archived-employees-tab" data-bs-toggle="pill" data-bs-target="#archived-employees" type="button" role="tab">
+                    <i class="fas fa-archive me-1"></i> Archived Employees
+                </button>
+            </li>
+        </ul>
+        <div class="d-flex gap-2 align-items-center">
+            <input type="text" class="form-control form-control-sm filter-input" id="empSearchInput" placeholder="Search employees..." style="width: 200px;">
+            <select class="form-select form-select-sm filter-input" id="empDeptFilter" style="width: auto;">
+                <option value="">All Departments</option>
+                {% for dept in departments %}
+                <option value="{{ dept }}">{{ dept }}</option>
+                {% endfor %}
+            </select>
+            <select class="form-select form-select-sm filter-input" id="empStatusFilter" style="width: auto;">
+                <option value="">All Status</option>
+                <option value="Active">Active</option>
+                <option value="On-Leave">On Leave</option>
+                <option value="Terminated">Terminated</option>
+            </select>
+        </div>
+    </div>
+    
+    <div class="tab-content">
+        <!-- Active Employees Tab -->
+        <div class="tab-pane fade show active" id="active-employees" role="tabpanel">
+            <div class="table-responsive" style="min-height: 300px;">
+                <table class="table table-hover mb-0" id="employeeTable">
+            <thead>
+                <tr>
+                    <th scope="col" class="col-header-text" style="width: 50px;">#</th>
+                    <th scope="col" class="col-header-text sortable" data-column="1">ID <i class="fas fa-sort"></i></th>
+                    <th scope="col" class="col-header-text sortable" data-column="2">Employee <i class="fas fa-sort"></i></th>
+                    <th scope="col" class="col-header-text sortable" data-column="3">Position <i class="fas fa-sort"></i></th>
+                    <th scope="col" class="col-header-text sortable" data-column="4">Department <i class="fas fa-sort"></i></th>
+                    <th scope="col" class="col-header-text sortable" data-column="5">Contact <i class="fas fa-sort"></i></th>
+                    <th scope="col" class="col-header-text sortable" data-column="6">Status <i class="fas fa-sort"></i></th>
+                    <th scope="col" class="col-header-text sortable" data-column="7">Date Hired <i class="fas fa-sort"></i></th>
+                    <th scope="col" class="col-header-text text-center">Actions</th>
+                </tr>
+                <!-- Filter Row -->
+                <tr class="bg-light filter-row">
+                    <td></td>
+                    <td><input type="text" class="form-control form-control-sm column-filter" data-col="1" placeholder="ID"></td>
+                    <td><input type="text" class="form-control form-control-sm column-filter" data-col="2" placeholder="Employee"></td>
+                    <td><input type="text" class="form-control form-control-sm column-filter" data-col="3" placeholder="Position"></td>
+                    <td><input type="text" class="form-control form-control-sm column-filter" data-col="4" placeholder="Department"></td>
+                    <td><input type="text" class="form-control form-control-sm column-filter" data-col="5" placeholder="Contact"></td>
+                    <td>
+                        <select class="form-select form-select-sm column-filter" data-col="6">
+                            <option value="">All</option>
+                            <option value="Active">Active</option>
+                            <option value="On-Leave">On-Leave</option>
+                            <option value="Terminated">Terminated</option>
+                        </select>
+                    </td>
+                    <td><input type="text" class="form-control form-control-sm column-filter" data-col="7" placeholder="Date"></td>
+                    <td></td>
+                </tr>
+            </thead>
+            <tbody>
+                {% for emp in employees %}
+                <tr data-name="{{ emp.full_name|lower }}" data-dept="{{ emp.department|lower }}" data-status="{{ emp.status }}">
+                    <td class="text-center text-muted small">{{ forloop.counter }}</td>
+                    <td class="fw-semibold">{{ emp.employee_id }}</td>
+                    <td>
+                        <div class="d-flex align-items-center gap-2">
+                            {% if emp.avatar %}
+                            <img src="{{ emp.avatar }}" class="rounded-circle avatar-trigger" style="width: 32px; height: 32px; object-fit: cover; cursor: pointer;" alt="" data-bs-toggle="modal" data-bs-target="#avatarModal" data-img-src="{{ emp.avatar }}">
+                            {% else %}
+                            <div class="rounded-circle d-flex align-items-center justify-content-center" style="width: 32px; height: 32px; background: var(--sidebar-active-bg); color: var(--primary-color); font-weight: 700; font-size: 0.75rem;">
+                                {{ emp.first_name|first }}{{ emp.last_name|first }}
+                            </div>
+                            {% endif %}
+                            <div>
+                                <div class="fw-semibold">{{ emp.full_name }}</div>
+                                <div class="text-muted" style="font-size: 0.7rem;">{{ emp.work_email }}</div>
+                            </div>
+                        </div>
+                    </td>
+                    <td>{{ emp.position|default:"-" }}</td>
+                    <td>{{ emp.department|default:"-" }}</td>
+                    <td>{{ emp.phone|default:"-" }}</td>
+                    <td>
+                        <span class="badge emp-status-badge status-{{ emp.status|lower }}">{{ emp.status }}</span>
+                    </td>
+                    <td data-sort="{{ emp.date_hired|date:'Y-m-d'|default:'' }}">{{ emp.date_hired|default:"-" }}</td>
+                    <td>
+                        <div class="d-flex gap-1 justify-content-center">
+                            <a href="{% url 'employee_detail' emp.id %}" class="btn btn-sm btn-outline-primary" title="View Profile">
+                                <i class="fas fa-eye"></i>
+                            </a>
+                            <button type="button" class="btn btn-sm btn-outline-warning delete-item-btn" data-url="{% url 'delete_employee' emp.id %}" data-text="Are you sure you want to archive this employee?" title="Archive">
+                                <i class="fas fa-archive"></i>
+                            </button>
+                        </div>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="8" class="text-center text-muted py-4">
+                        <i class="fas fa-user-slash fa-2x mb-2 d-block" style="opacity: 0.3;"></i>
+                        No active employees found. Click "Add Employee" to get started.
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Active Employees Pagination -->
+    <div class="card-footer bg-light border-top">
+        <nav aria-label="Active employees pagination">
+            <ul class="pagination pagination-sm mb-0 justify-content-end" id="activePaginationContainer">
+                <li class="page-item" id="activePrevPage">
+                    <a class="page-link" href="#" aria-label="Previous">&laquo;</a>
+                </li>
+                <!-- Pages will be generated here -->
+                <li class="page-item" id="activeNextPage">
+                    <a class="page-link" href="#" aria-label="Next">&raquo;</a>
+                </li>
+            </ul>
+        </nav>
+    </div>
+    </div>
+    
+    <!-- Archived Employees Tab -->
+        <div class="tab-pane fade" id="archived-employees" role="tabpanel">
+            <div class="table-responsive" style="min-height: 300px;">
+                <table class="table table-hover mb-0" id="archivedEmployeeTable">
+                    <thead>
+                        <tr>
+                            <th scope="col" class="col-header-text" style="width: 50px;">#</th>
+                            <th scope="col" class="col-header-text sortable" data-column="1">ID <i class="fas fa-sort"></i></th>
+                            <th scope="col" class="col-header-text sortable" data-column="2">Employee <i class="fas fa-sort"></i></th>
+                            <th scope="col" class="col-header-text sortable" data-column="3">Position <i class="fas fa-sort"></i></th>
+                            <th scope="col" class="col-header-text sortable" data-column="4">Department <i class="fas fa-sort"></i></th>
+                            <th scope="col" class="col-header-text sortable" data-column="5">Contact <i class="fas fa-sort"></i></th>
+                            <th scope="col" class="col-header-text sortable" data-column="6">Status <i class="fas fa-sort"></i></th>
+                            <th scope="col" class="col-header-text sortable" data-column="7">Date Hired <i class="fas fa-sort"></i></th>
+                            <th scope="col" class="col-header-text text-center">Actions</th>
+                        </tr>
+                        <!-- Filter Row -->
+                        <tr class="bg-light filter-row">
+                            <td></td>
+                            <td><input type="text" class="form-control form-control-sm column-filter" data-col="1" placeholder="ID"></td>
+                            <td><input type="text" class="form-control form-control-sm column-filter" data-col="2" placeholder="Employee"></td>
+                            <td><input type="text" class="form-control form-control-sm column-filter" data-col="3" placeholder="Position"></td>
+                            <td><input type="text" class="form-control form-control-sm column-filter" data-col="4" placeholder="Department"></td>
+                            <td><input type="text" class="form-control form-control-sm column-filter" data-col="5" placeholder="Contact"></td>
+                            <td></td>
+                            <td><input type="text" class="form-control form-control-sm column-filter" data-col="7" placeholder="Date"></td>
+                            <td></td>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for emp in archived_employees %}
+                        <tr data-name="{{ emp.full_name|lower }}" data-dept="{{ emp.department|lower }}" data-status="{{ emp.status }}">
+                            <td class="text-center text-muted small">{{ forloop.counter }}</td>
+                            <td class="fw-semibold">{{ emp.employee_id }}</td>
+                            <td>
+                                <div class="d-flex align-items-center gap-2">
+                                    {% if emp.avatar %}
+                                    <img src="{{ emp.avatar }}" class="rounded-circle avatar-trigger" style="width: 32px; height: 32px; object-fit: cover; cursor: pointer; filter: grayscale(100%);" alt="" data-bs-toggle="modal" data-bs-target="#avatarModal" data-img-src="{{ emp.avatar }}">
+                                    {% else %}
+                                    <div class="rounded-circle d-flex align-items-center justify-content-center bg-secondary text-white" style="width: 32px; height: 32px; font-weight: 700; font-size: 0.75rem;">
+                                        {{ emp.first_name|first }}{{ emp.last_name|first }}
+                                    </div>
+                                    {% endif %}
+                                    <div>
+                                        <div class="fw-semibold text-muted">{{ emp.full_name }}</div>
+                                        <div class="text-muted" style="font-size: 0.7rem;">{{ emp.work_email }}</div>
+                                    </div>
+                                </div>
+                            </td>
+                            <td class="text-muted">{{ emp.position|default:"-" }}</td>
+                            <td class="text-muted">{{ emp.department|default:"-" }}</td>
+                            <td class="text-muted">{{ emp.phone|default:"-" }}</td>
+                            <td>
+                                <span class="badge bg-secondary">Archived</span>
+                            </td>
+                            <td class="text-muted" data-sort="{{ emp.date_hired|date:'Y-m-d'|default:'' }}">{{ emp.date_hired|default:"-" }}</td>
+                            <td>
+                                <div class="d-flex gap-1 justify-content-center">
+                                    <a href="{% url 'employee_detail' emp.id %}" class="btn btn-sm btn-outline-secondary" title="View Profile">
+                                        <i class="fas fa-eye"></i>
+                                    </a>
+                                    <button type="button" class="btn btn-sm btn-outline-success unarchive-item-btn" data-url="{% url 'unarchive_employee' emp.id %}" data-text="Are you sure you want to unarchive this employee?" title="Unarchive">
+                                        <i class="fas fa-box-open"></i>
+                                    </button>
+                                    <button type="button" class="btn btn-sm btn-outline-danger hard-delete-item-btn" data-url="{% url 'hard_delete_employee' emp.id %}" data-text="Are you sure you want to permanently delete this employee? This action cannot be undone." title="Permanently Delete">
+                                        <i class="fas fa-trash-alt"></i>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="8" class="text-center text-muted py-4">
+                                <i class="fas fa-archive fa-2x mb-2 d-block" style="opacity: 0.3;"></i>
+                                No archived employees found.
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Archived Employees Pagination -->
+            <div class="card-footer bg-light border-top">
+                <nav aria-label="Archived employees pagination">
+                    <ul class="pagination pagination-sm mb-0 justify-content-end" id="archivedPaginationContainer">
+                        <li class="page-item" id="archivedPrevPage">
+                            <a class="page-link" href="#" aria-label="Previous">&laquo;</a>
+                        </li>
+                        <!-- Pages will be generated here -->
+                        <li class="page-item" id="archivedNextPage">
+                            <a class="page-link" href="#" aria-label="Next">&raquo;</a>
+                        </li>
+                    </ul>
+                </nav>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Add Employee Modal -->
+<div class="modal fade" id="addEmployeeModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header" style="background: linear-gradient(135deg, var(--primary-color), var(--primary-dark)); color: #fff;">
+                <h5 class="modal-title"><i class="fas fa-user-plus me-2"></i>Add New Employee</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="addEmployeeForm" enctype="multipart/form-data">
+                {% csrf_token %}
+                <div class="modal-body">
+                    <div class="row g-3">
+                        <div class="col-md-4">
+                            <label class="form-label fw-semibold">First Name *</label>
+                            <input type="text" class="form-control" name="first_name" required>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label fw-semibold">Middle Name</label>
+                            <input type="text" class="form-control" name="middle_name">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label fw-semibold">Last Name *</label>
+                            <input type="text" class="form-control" name="last_name" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold">Work Email</label>
+                            <input type="email" class="form-control" name="work_email">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold">Phone</label>
+                            <input type="text" class="form-control" name="phone">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label fw-semibold">Position</label>
+                            <input type="text" class="form-control" name="position">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label fw-semibold">Department</label>
+                            <input type="text" class="form-control" name="department">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label fw-semibold">Contract Type</label>
+                            <select class="form-select" name="contract_type">
+                                <option value="Full-Time">Full-Time</option>
+                                <option value="Part-Time">Part-Time</option>
+                                <option value="Contract">Contract</option>
+                                <option value="Probationary">Probationary</option>
+                                <option value="Intern">Intern</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label fw-semibold">Gender</label>
+                            <select class="form-select" name="gender">
+                                <option value="Male">Male</option>
+                                <option value="Female">Female</option>
+                                <option value="Other">Other</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label fw-semibold">Date of Birth</label>
+                            <input type="date" class="form-control" name="date_of_birth">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label fw-semibold">Date Hired</label>
+                            <input type="date" class="form-control" name="date_hired">
+                        </div>
+                        <div class="col-md-12">
+                            <label class="form-label fw-semibold">Profile Picture (Avatar)</label>
+                            <input type="file" class="form-control" name="avatar" accept="image/*">
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn" style="background: var(--primary-color); color: #fff;" id="saveEmployeeBtn">
+                        <span class="spinner-border spinner-border-sm d-none me-1" id="saveBtnSpinner"></span>
+                        Save Employee
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Avatar Full Screen Modal -->
+<div class="modal fade" id="avatarModal" tabindex="-1" aria-labelledby="avatarModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content">
+            <div class="modal-header py-2" style="background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-dark) 100%); color: white;">
+                <h6 class="modal-title text-white" id="avatarModalLabel"><i class="fas fa-image me-2"></i>Image Preview</h6>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body text-center p-0 my-3">
+                <img src="" id="avatarModalImg" class="img-fluid" alt="Preview" style="max-height: 70vh;">
+            </div>
+            <div class="modal-footer py-1" style="background: #f8f9fa;">
+                <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Generic Confirm Delete Modal -->
+<div class="modal fade" id="confirmDeleteModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-sm">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header bg-warning text-dark">
+                <h6 class="modal-title"><i class="fas fa-archive me-2"></i>Confirm Archive</h6>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body text-center py-4">
+                <i class="fas fa-archive fa-3x text-warning mb-3 opacity-75"></i>
+                <p class="mb-0 fw-medium" id="confirmDeleteText">Are you sure you want to archive this employee?</p>
+            </div>
+            <div class="modal-footer justify-content-center bg-light">
+                <button type="button" class="btn btn-sm btn-secondary px-3" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-sm btn-warning px-4" id="confirmDeleteBtn">Archive</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Generic Confirm Hard Delete Modal -->
+<div class="modal fade" id="confirmHardDeleteModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-sm">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header bg-danger text-white">
+                <h6 class="modal-title"><i class="fas fa-exclamation-triangle me-2"></i>Permanent Delete</h6>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body text-center py-4">
+                <i class="fas fa-trash-alt fa-3x text-danger mb-3 opacity-75"></i>
+                <p class="mb-0 fw-medium" id="confirmHardDeleteText">Are you sure you want to permanently delete this item?</p>
+                <small class="text-muted d-block mt-2">This action cannot be undone.</small>
+            </div>
+            <div class="modal-footer justify-content-center bg-light">
+                <button type="button" class="btn btn-sm btn-secondary px-3" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-sm btn-danger px-4" id="confirmHardDeleteBtn">Delete Permanently</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Confirm Unarchive Modal -->
+<div class="modal fade" id="confirmUnarchiveModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-sm">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-body text-center p-4">
+                <div class="mb-3">
+                    <div class="rounded-circle bg-success bg-opacity-10 d-flex align-items-center justify-content-center mx-auto" style="width: 60px; height: 60px;">
+                        <i class="fas fa-box-open text-success fs-3"></i>
+                    </div>
+                </div>
+                <h5 class="mb-2">Confirm Unarchive</h5>
+                <p class="text-muted mb-0" id="confirmUnarchiveText">Are you sure you want to unarchive this employee?</p>
+            </div>
+            <div class="modal-footer justify-content-center bg-light">
+                <button type="button" class="btn btn-sm btn-secondary px-3" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-sm btn-success px-4" id="confirmUnarchiveBtn">Unarchive</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // ── Search & Filters & Pagination ──
+    const searchInput = document.getElementById('empSearchInput');
+    const deptFilter = document.getElementById('empDeptFilter');
+    const statusFilter = document.getElementById('empStatusFilter');
+    const activeRows = Array.from(document.querySelectorAll('#employeeTable tbody tr[data-name]'));
+    const archivedRows = Array.from(document.querySelectorAll('#archivedEmployeeTable tbody tr[data-name]'));
+    
+    // Store original indices for sorting reset
+    activeRows.forEach((row, idx) => row.dataset.origIdx = idx);
+    archivedRows.forEach((row, idx) => row.dataset.origIdx = idx);
+
+    // Pagination Settings
+    const rowsPerPage = 15;
+    let currentActivePage = 1;
+    let currentArchivedPage = 1;
+
+    function applyPagination(allRows, page, containerId) {
+        // filter visible rows first
+        const visibleRows = allRows.filter(row => row.getAttribute('data-filtered') !== 'none');
+        const totalPages = Math.ceil(visibleRows.length / rowsPerPage);
+        
+        if (page < 1) page = 1;
+        if (page > totalPages && totalPages > 0) page = totalPages;
+        
+        const start = (page - 1) * rowsPerPage;
+        const end = Math.min(start + rowsPerPage, visibleRows.length);
+        
+        // Hide all visible first, then show only the active page ones
+        allRows.forEach(row => {
+            row.style.display = 'none';
+        });
+        
+        for (let i = start; i < end; i++) {
+            visibleRows[i].style.display = '';
+        }
+
+        updatePaginationUI(totalPages, page, containerId);
+    }
+
+    function updatePaginationUI(totalPages, currentPage, containerId) {
+        const container = document.getElementById(containerId);
+        if(!container) return;
+        container.innerHTML = '';
+
+        // Prev btn
+        const prevLi = document.createElement('li');
+        prevLi.className = 'page-item' + (currentPage === 1 ? ' disabled' : '');
+        prevLi.innerHTML = '<a class="page-link" href="#">&laquo;</a>';
+        prevLi.addEventListener('click', (e) => {
+            e.preventDefault();
+            if (currentPage > 1) {
+                if(containerId === 'activePaginationContainer') {
+                    currentActivePage--;
+                    applyPagination(activeRows, currentActivePage, 'activePaginationContainer');
+                } else {
+                    currentArchivedPage--;
+                    applyPagination(archivedRows, currentArchivedPage, 'archivedPaginationContainer');
+                }
+            }
+        });
+        container.appendChild(prevLi);
+
+        // Pages numbers
+        const maxVisible = 5;
+        const startPage = Math.max(1, currentPage - 2);
+        const endPage = Math.min(totalPages, Math.max(1, startPage + maxVisible - 1));
+
+        for (let i = startPage; i <= endPage; i++) {
+            if (i > totalPages) break;
+            const li = document.createElement('li');
+            li.className = 'page-item' + (i === currentPage ? ' active' : '');
+            li.innerHTML = `<a class="page-link" href="#">${i}</a>`;
+            li.addEventListener('click', (e) => {
+                e.preventDefault();
+                if(containerId === 'activePaginationContainer') {
+                    currentActivePage = i;
+                    applyPagination(activeRows, currentActivePage, 'activePaginationContainer');
+                } else {
+                    currentArchivedPage = i;
+                    applyPagination(archivedRows, currentArchivedPage, 'archivedPaginationContainer');
+                }
+            });
+            container.appendChild(li);
+        }
+
+        // Next btn
+        const nextLi = document.createElement('li');
+        nextLi.className = 'page-item' + (currentPage === totalPages || totalPages === 0 ? ' disabled' : '');
+        nextLi.innerHTML = '<a class="page-link" href="#">&raquo;</a>';
+        nextLi.addEventListener('click', (e) => {
+            e.preventDefault();
+            if (currentPage < totalPages) {
+                if(containerId === 'activePaginationContainer') {
+                    currentActivePage++;
+                    applyPagination(activeRows, currentActivePage, 'activePaginationContainer');
+                } else {
+                    currentArchivedPage++;
+                    applyPagination(archivedRows, currentArchivedPage, 'archivedPaginationContainer');
+                }
+            }
+        });
+        container.appendChild(nextLi);
+    }
+
+    function filterRows() {
+        const searchVal = searchInput.value.toLowerCase();
+        const deptVal = deptFilter.value.toLowerCase();
+        const statusVal = statusFilter.value;
+
+        [...activeRows, ...archivedRows].forEach(row => {
+            const name = row.dataset.name || '';
+            const dept = row.dataset.dept || '';
+            const status = row.dataset.status || '';
+            
+            const matchSearch = !searchVal || name.includes(searchVal);
+            const matchDept = !deptVal || dept === deptVal;
+            const matchStatus = !statusVal || status === statusVal;
+            
+            let matchColumnFilters = true;
+            const tableId = row.closest('table').id;
+            const tableInputs = tableId === 'employeeTable' ? document.querySelectorAll('#employeeTable .column-filter') : document.querySelectorAll('#archivedEmployeeTable .column-filter');
+            
+            tableInputs.forEach(input => {
+                const colIndex = parseInt(input.getAttribute('data-col'));
+                const filterVal = input.value.toLowerCase().trim();
+                if (filterVal) {
+                    const cells = row.querySelectorAll('td');
+                    const cellText = cells[colIndex] ? cells[colIndex].textContent.toLowerCase().trim() : '';
+                    if (!cellText.includes(filterVal)) {
+                        matchColumnFilters = false;
+                    }
+                }
+            });
+
+            if (matchSearch && matchDept && matchStatus && matchColumnFilters) {
+                row.setAttribute('data-filtered', '');
+            } else {
+                row.setAttribute('data-filtered', 'none');
+            }
+        });
+
+        currentActivePage = 1;
+        currentArchivedPage = 1;
+        applyPagination(activeRows, currentActivePage, 'activePaginationContainer');
+        applyPagination(archivedRows, currentArchivedPage, 'archivedPaginationContainer');
+    }
+    
+    searchInput.addEventListener('input', filterRows);
+    deptFilter.addEventListener('change', filterRows);
+    statusFilter.addEventListener('change', filterRows);
+
+    document.querySelectorAll('.column-filter').forEach(input => {
+        input.addEventListener('input', filterRows);
+        input.addEventListener('change', filterRows);
+    });
+
+    // ── Column Sorting ──
+    const sortableHeaders = document.querySelectorAll('th.sortable');
+    let currentSortColumn = null;
+    let currentSortDirection = 'none';
+
+    sortableHeaders.forEach(header => {
+        header.style.cursor = 'pointer';
+        header.addEventListener('click', function() {
+            const tableId = this.closest('table').id;
+            const targetRows = tableId === 'employeeTable' ? activeRows : archivedRows;
+            const containerId = tableId === 'employeeTable' ? 'activePaginationContainer' : 'archivedPaginationContainer';
+            const columnIndex = parseInt(this.getAttribute('data-column'));
+            const icon = this.querySelector('i');
+            
+            // Reset other headers in the SAME table
+            const tableHeaders = this.closest('thead').querySelectorAll('th.sortable');
+            tableHeaders.forEach(h => {
+                if (h !== this) {
+                    const i = h.querySelector('i');
+                    if (i) i.className = 'fas fa-sort';
+                }
+            });
+
+            // Toggle sort direction
+            if (currentSortColumn === columnIndex) {
+                if (currentSortDirection === 'asc') {
+                    currentSortDirection = 'desc';
+                    icon.className = 'fas fa-sort-down';
+                } else if (currentSortDirection === 'desc') {
+                    currentSortDirection = 'none';
+                    icon.className = 'fas fa-sort';
+                    currentSortColumn = null;
+                } else {
+                    currentSortDirection = 'asc';
+                    icon.className = 'fas fa-sort-up';
+                }
+            } else {
+                currentSortColumn = columnIndex;
+                currentSortDirection = 'asc';
+                icon.className = 'fas fa-sort-up';
+            }
+
+            // Sort rows
+            if (currentSortDirection !== 'none') {
+                targetRows.sort((a, b) => {
+                    const aCell = a.querySelectorAll('td')[columnIndex];
+                    const bCell = b.querySelectorAll('td')[columnIndex];
+                    
+                    // Prioritize data-sort attribute for accurate sorting
+                    const aVal = aCell ? (aCell.dataset.sort || aCell.textContent.trim()) : '';
+                    const bVal = bCell ? (bCell.dataset.sort || bCell.textContent.trim()) : '';
+
+                    if (currentSortDirection === 'asc') {
+                        return aVal.localeCompare(bVal, undefined, {numeric: true});
+                    } else {
+                        return bVal.localeCompare(aVal, undefined, {numeric: true});
+                    }
+                });
+            } else {
+                targetRows.sort((a, b) => parseInt(a.dataset.origIdx) - parseInt(b.dataset.origIdx));
+            }
+            
+            // Re-append sorted rows to tbody
+            const tbody = this.closest('table').querySelector('tbody');
+            targetRows.forEach(row => tbody.appendChild(row));
+            
+            // Re-apply pagination logic
+            if (tableId === 'employeeTable') {
+                currentActivePage = 1;
+                applyPagination(targetRows, currentActivePage, containerId);
+            } else {
+                currentArchivedPage = 1;
+                applyPagination(targetRows, currentArchivedPage, containerId);
+            }
+        });
+    });
+
+    // Initial load
+    filterRows();
+
+    // ── Add Employee Form ──
+    const form = document.getElementById('addEmployeeForm');
+    form.addEventListener('submit', function(e) {
+        e.preventDefault();
+        const spinner = document.getElementById('saveBtnSpinner');
+        const btn = document.getElementById('saveEmployeeBtn');
+        spinner.classList.remove('d-none');
+        btn.disabled = true;
+
+        const fd = new FormData(form);
+        fetch("{% url 'create_employee' %}", {
+            method: 'POST',
+            body: fd,
+        })
+        .then(r => r.json())
+        .then(data => {
+            spinner.classList.add('d-none');
+            btn.disabled = false;
+            if (data.success) {
+                showToast('Employee added successfully!', 'success');
+                setTimeout(() => location.reload(), 800);
+            } else {
+                showToast(data.message || 'Error adding employee', 'error');
+            }
+        })
+        .catch(() => {
+            spinner.classList.add('d-none');
+            btn.disabled = false;
+            showToast('Network error', 'error');
+        });
+    });
+
+    // ── Avatar Modal ──
+    document.querySelectorAll('.avatar-trigger').forEach(img => {
+        img.addEventListener('click', function() {
+            document.getElementById('avatarModalImg').src = this.dataset.imgSrc;
+        });
+    });
+
+    // ── Delete Confirmation Logic ──
+    let deleteTargetUrl = '';
+    const confirmDeleteModal = new bootstrap.Modal(document.getElementById('confirmDeleteModal'));
+    const confirmDeleteBtn = document.getElementById('confirmDeleteBtn');
+    const confirmDeleteText = document.getElementById('confirmDeleteText');
+
+    document.querySelectorAll('.delete-item-btn').forEach(btn => {
+        btn.addEventListener('click', function(e) {
+            e.preventDefault();
+            deleteTargetUrl = this.dataset.url;
+            confirmDeleteText.textContent = this.dataset.text || 'Are you sure you want to delete this item?';
+            confirmDeleteModal.show();
+        });
+    });
+
+    confirmDeleteBtn.addEventListener('click', function() {
+        if (!deleteTargetUrl) return;
+        const oldText = this.innerHTML;
+        this.disabled = true;
+        this.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Archiving...';
+        
+        fetch(deleteTargetUrl, {
+            method: 'POST',
+            headers: { 'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value },
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (data.success) {
+                showToast('Archived successfully', 'success');
+                setTimeout(() => location.reload(), 600);
+            } else {
+                showToast(data.message || 'Error archiving employee', 'error');
+                this.disabled = false;
+                this.innerHTML = oldText;
+            }
+        })
+        .catch(() => {
+            showToast('Network error', 'error');
+            this.disabled = false;
+            this.innerHTML = oldText;
+        });
+    });
+
+    // ── Unarchive Confirmation Logic ──
+    let unarchiveTargetUrl = '';
+    const confirmUnarchiveModal = new bootstrap.Modal(document.getElementById('confirmUnarchiveModal'));
+    const confirmUnarchiveBtn = document.getElementById('confirmUnarchiveBtn');
+    const confirmUnarchiveText = document.getElementById('confirmUnarchiveText');
+
+    document.querySelectorAll('.unarchive-item-btn').forEach(btn => {
+        btn.addEventListener('click', function(e) {
+            e.preventDefault();
+            unarchiveTargetUrl = this.dataset.url;
+            confirmUnarchiveText.textContent = this.dataset.text || 'Are you sure you want to unarchive this item?';
+            confirmUnarchiveModal.show();
+        });
+    });
+
+    confirmUnarchiveBtn.addEventListener('click', function() {
+        if (!unarchiveTargetUrl) return;
+        const oldText = this.innerHTML;
+        this.disabled = true;
+        this.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Unarchiving...';
+        
+        fetch(unarchiveTargetUrl, {
+            method: 'POST',
+            headers: { 'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value },
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (data.success) {
+                showToast('Unarchived successfully', 'success');
+                setTimeout(() => location.reload(), 600);
+            } else {
+                showToast(data.message || 'Error unarchiving employee', 'error');
+                this.disabled = false;
+                this.innerHTML = oldText;
+            }
+        })
+        .catch(() => {
+            showToast('Network error', 'error');
+            this.disabled = false;
+            this.innerHTML = oldText;
+        });
+    });
+
+    // ── Hard Delete Confirmation Logic ──
+    let hardDeleteTargetUrl = '';
+    const confirmHardDeleteModal = new bootstrap.Modal(document.getElementById('confirmHardDeleteModal'));
+    const confirmHardDeleteBtn = document.getElementById('confirmHardDeleteBtn');
+    const confirmHardDeleteText = document.getElementById('confirmHardDeleteText');
+
+    document.querySelectorAll('.hard-delete-item-btn').forEach(btn => {
+        btn.addEventListener('click', function(e) {
+            e.preventDefault();
+            hardDeleteTargetUrl = this.dataset.url;
+            confirmHardDeleteText.textContent = this.dataset.text || 'Are you sure you want to permanently delete this item?';
+            confirmHardDeleteModal.show();
+        });
+    });
+
+    confirmHardDeleteBtn.addEventListener('click', function() {
+        if (!hardDeleteTargetUrl) return;
+        const oldText = this.innerHTML;
+        this.disabled = true;
+        this.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Deleting...';
+        
+        fetch(hardDeleteTargetUrl, {
+            method: 'POST',
+            headers: { 'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value },
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (data.success) {
+                showToast('Permanently deleted successfully', 'success');
+                setTimeout(() => location.reload(), 600);
+            } else {
+                showToast(data.message || 'Error deleting employee', 'error');
+                this.disabled = false;
+                this.innerHTML = oldText;
+            }
+        })
+        .catch(() => {
+            showToast('Network error', 'error');
+            this.disabled = false;
+            this.innerHTML = oldText;
+        });
+    });
+});
+</script>
+{% endblock %}

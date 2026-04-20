@@ -1,0 +1,112 @@
+{% extends 'core/base.html' %}
+{% load static humanize %}
+
+{% block title %}Collections Report - The Potter's House{% endblock %}
+
+{% block content %}
+<div class="row align-items-center mb-4">
+    <div class="col">
+        <h4 class="mb-0">Collections Report</h4>
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb breadcrumb-custom mb-0">
+                <li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Home</a></li>
+                <li class="breadcrumb-item"><a href="{% url 'reports' %}">Reports</a></li>
+                <li class="breadcrumb-item active" aria-current="page">Collections</li>
+            </ol>
+        </nav>
+    </div>
+</div>
+
+<!-- Filters -->
+<div class="filter-card mb-4">
+    <div class="filter-card-header">
+        <i class="fas fa-filter"></i> Date Range Filter
+    </div>
+    <div class="filter-card-body">
+        <form method="GET" action="." class="row g-3">
+            <div class="col-md-4">
+                <label class="filter-label">Date From</label>
+                <input type="date" name="date_from" value="{{ date_from }}" class="form-control filter-input">
+            </div>
+            <div class="col-md-4">
+                <label class="filter-label">Date To</label>
+                <input type="date" name="date_to" value="{{ date_to }}" class="form-control filter-input">
+            </div>
+            <div class="col-md-4 d-flex align-items-end">
+                <div class="filter-actions">
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-search me-2"></i>Apply Filter
+                    </button>
+                    <a href="{% url 'report_collections' %}" class="btn btn-outline-secondary">Reset</a>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="row mb-4">
+    <div class="col-md-4">
+        <div class="inventory-card p-3 text-center bg-white">
+            <p class="text-uppercase small text-muted mb-1">CASH</p>
+            <h3 class="fw-bold text-success mb-0">₱{{ cash_total|floatformat:2|intcomma }}</h3>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="inventory-card p-3 text-center bg-white">
+            <p class="text-uppercase small text-muted mb-1">CHEQUE / OTHER</p>
+            <h3 class="fw-bold text-primary mb-0">₱{{ cheque_total|floatformat:2|intcomma }}</h3>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="inventory-card p-3 text-center bg-primary text-white">
+            <p class="text-uppercase small mb-1 opacity-75">TOTAL COLLECTIONS</p>
+            <h3 class="fw-bold mb-0">₱{{ total_collections|floatformat:2|intcomma }}</h3>
+        </div>
+    </div>
+</div>
+
+<div class="inventory-card">
+    <div class="inventory-card-header">
+        <div><i class="fas fa-list"></i> Collections Details</div>
+        <div class="tool-bar">
+            <button class="btn btn-sm btn-outline-success" onclick="exportTableToExcel('collectionsTable', 'Collections_Report')">
+                <i class="fas fa-file-excel me-1"></i> Excel
+            </button>
+        </div>
+    </div>
+    <div class="table-responsive">
+        <table class="table table-hover" id="collectionsTable">
+            <thead>
+                <tr>
+                    <th>DATE</th>
+                    <th>TYPE</th>
+                    <th>WIP#</th>
+                    <th>CLIENT</th>
+                    <th class="text-end">AMOUNT</th>
+                    <th>MODE</th>
+                    <th>REFERENCE NO.</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for log in collections %}
+                <tr>
+                    <td>{{ log.transaction_date|date:"Y-m-d" }}</td>
+                    <td>{{ log.order_type }}</td>
+                    <td>{{ log.wip }}</td>
+                    <td>{{ log.client.full_name }}</td>
+                    <td class="text-end fw-bold">₱{{ log.amount_paid|floatformat:2|intcomma }}</td>
+                    <td>{% if log.order_type == 'Gov' %}Cheque{% else %}Cash{% endif %}</td>
+                    <td>-</td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="7" class="text-center p-5 text-muted">
+                        No collections found for the selected period.
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,159 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Withdrawal Slip WS-{{ slip.id|stringformat:"05d" }}</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            font-size: 14px;
+            margin: 0;
+            padding: 20px;
+        }
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+        }
+        .header-box {
+            border: 1px solid #000;
+            padding: 10px;
+            margin-bottom: 20px;
+        }
+        .header-box h1 {
+            margin: 0 0 10px 0;
+            font-size: 28px;
+            font-weight: bold;
+        }
+        .header-box p {
+            margin: 2px 0;
+            font-size: 14px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 20px;
+        }
+        th, td {
+            border: 1px solid #000;
+            padding: 5px;
+            font-size: 14px;
+        }
+        th {
+            font-weight: bold;
+            text-align: center;
+        }
+        td {
+            text-align: left;
+        }
+        
+        .num-col {
+            width: 30px;
+            text-align: left;
+            border-right: none;
+        }
+        .wip-data-col {
+            border-left: none;
+        }
+        
+        .footer-boxes {
+            margin-top: 20px;
+        }
+        
+        .footer-box {
+            border: 1px solid #000;
+            margin-bottom: 10px;
+        }
+        
+        .footer-table {
+            width: 100%;
+            border: none;
+            margin-bottom: 0;
+        }
+        .footer-table td {
+            width: 50%;
+            border: none;
+            padding: 5px 10px;
+        }
+        .footer-table td:first-child {
+            border-right: 1px solid #000;
+        }
+        
+        @media print {
+            body { 
+                padding: 0; 
+                margin: 0;
+            }
+            .container {
+                max-width: 100%;
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+<body onload="window.print()">
+    <div class="container">
+        <div class="header-box">
+            <h1>Withdrawal Slip</h1>
+            <p>JOB ORDER: (WIP {{ wip }})</p>
+            <p>CLIENT NAME: {{ client_name }},</p>
+            <p>TRANSACTION DATE: {{ transaction_date|date:"Y-m-d H:i:s" }}</p>
+        </div>
+
+        <table>
+            <thead>
+                <tr>
+                    <th colspan="2">WIP</th>
+                    <th>Product Name</th>
+                    <th>Item Name</th>
+                    <th>Unit</th>
+                    <th>Qty Requested</th>
+                    <th>Qty Approved</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in table_data %}
+                <tr>
+                    <td class="num-col">{{ forloop.counter }}</td>
+                    <td class="wip-data-col">{{ row.wip }}</td>
+                    <td>{{ row.product_name }}</td>
+                    <td>{{ row.item_name }}</td>
+                    <td>{{ row.unit }}</td>
+                    <td>{{ row.qty_requested }}</td>
+                    <td>{{ row.qty_approved }}</td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="7" style="text-align: center;">No items found.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        <div class="footer-boxes">
+            <div class="footer-box">
+                <table class="footer-table">
+                    <tr>
+                        <td>Requested By:</td>
+                        <td>Released By:</td>
+                    </tr>
+                </table>
+            </div>
+            
+            <div class="footer-box" style="height: 50px;">
+                <table class="footer-table" style="height: 100%;">
+                    <tr>
+                        <td style="vertical-align: bottom;">
+                            Date: <span style="display:inline-block; border-bottom: 1px solid #000; width: 60%;"></span>
+                        </td>
+                        <td style="vertical-align: bottom;">
+                            Date: <span style="display:inline-block; border-bottom: 1px solid #000; width: 60%;"></span>
+                        </td>
+                    </tr>
+                </table>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

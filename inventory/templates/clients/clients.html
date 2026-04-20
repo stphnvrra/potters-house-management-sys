@@ -1,0 +1,916 @@
+{% extends 'core/base.html' %}
+{% load static humanize %}
+
+{% block title %}Clients Management - The Potter's House{% endblock %}
+
+{% block extra_css %}
+<style>
+    .dropdown-item:hover {
+        text-decoration: none !important;
+        background-color: #f8f9fa;
+    }
+    .compact-dropdown {
+        min-width: 130px !important;
+        padding: 5px 0 !important;
+    }
+    .compact-dropdown .dropdown-item {
+        padding: 5px 15px !important;
+        font-size: 0.85rem;
+    }
+    
+    /* Search & Filter Card Styles */
+    .filter-card {
+        background: #fff;
+        border-radius: 12px;
+        box-shadow: 0 2px 12px rgba(0,0,0,0.05);
+        border: 1px solid #edf2f7;
+        overflow: hidden;
+    }
+    .filter-card-header {
+        padding: 15px 20px;
+        background: #f8f9fa;
+        border-bottom: 1px solid #edf2f7;
+        font-weight: 600;
+        color: #4a5568;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+    .filter-card-body {
+        padding: 20px;
+    }
+    .filter-label {
+        font-size: 0.75rem;
+        font-weight: 600;
+        color: #718096;
+        text-transform: uppercase;
+        margin-bottom: 8px;
+        display: block;
+    }
+    .filter-input {
+        border-radius: 8px;
+        border: 1px solid #e2e8f0;
+        padding: 0.5rem 0.75rem;
+        font-size: 0.875rem;
+        transition: all 0.2s;
+    }
+    .filter-input:focus {
+        border-color: #ec4899;
+        box-shadow: 0 0 0 3px rgba(236, 72, 153, 0.1);
+    }
+    
+    /* Sortable Header Styles */
+    th.sortable {
+        cursor: pointer;
+        transition: background 0.2s;
+    }
+    th.sortable:hover {
+        background: #f1f5f9;
+    }
+    
+    /* Tool Bar Styles */
+    .tool-bar {
+        background: #f8fafc;
+        border-top: 1px solid #e2e8f0;
+        border-bottom: 1px solid #e2e8f0;
+    }
+    
+    /* Pagination Styles */
+    .pagination .page-link {
+        border-radius: 6px;
+        margin: 0 2px;
+        color: #4a5568;
+        border: 1px solid #e2e8f0;
+    }
+    .pagination .page-item.active .page-link {
+        background-color: var(--primary-color);
+        border-color: var(--primary-color);
+        color: white;
+    }
+
+    /* Section Tabs Styles */
+    .section-tab-btn {
+        border-radius: 12px;
+        padding: 10px 24px;
+        font-weight: 700;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        border: 2px solid #ec4899; /* Explicit Pink */
+        display: inline-flex;
+        align-items: center;
+        text-decoration: none !important;
+        font-size: 0.9rem;
+        letter-spacing: 0.3px;
+    }
+    .section-tab-btn.active {
+        background-color: #ec4899;
+        color: white !important;
+        box-shadow: 0 4px 15px rgba(236, 72, 153, 0.3);
+    }
+    .section-tab-btn.inactive {
+        background-color: #fff;
+        color: #ec4899 !important;
+    }
+    .section-tab-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(236, 72, 153, 0.2);
+    }
+    .section-tab-btn .badge {
+        font-size: 0.8rem;
+        padding: 5px 10px;
+        border-radius: 50px;
+        font-weight: 800;
+    }
+    .section-tab-btn.active .badge {
+        background-color: white !important;
+        color: #ec4899 !important;
+    }
+    .section-tab-btn.inactive .badge {
+        background-color: #ec4899 !important;
+        color: white !important;
+    }
+    
+    /* Primary Button Overrides */
+    .btn-primary {
+        background-color: var(--primary-color) !important;
+        border-color: var(--primary-color) !important;
+    }
+    .btn-primary:hover {
+        background-color: var(--primary-dark) !important;
+        border-color: var(--primary-dark) !important;
+    }
+    .btn-outline-primary {
+        color: var(--primary-color) !important;
+        border-color: var(--primary-color) !important;
+    }
+    .btn-outline-primary:hover {
+        background-color: var(--primary-color) !important;
+        color: white !important;
+    }
+    /* Checkbox Styling */
+    .form-check-input:checked {
+        background-color: #ec4899 !important;
+        border-color: #ec4899 !important;
+    }
+    .form-check-input:focus {
+        border-color: #ec4899 !important;
+        box-shadow: 0 0 0 0.25rem rgba(236, 72, 153, 0.25) !important;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="row align-items-center mb-4">
+    <div class="col">
+        <h4 class="mb-0">Clients Management</h4>
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb breadcrumb-custom mb-0">
+                <li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Home</a></li>
+                <li class="breadcrumb-item active" aria-current="page">Clients</li>
+            </ol>
+        </nav>
+    </div>
+</div>
+
+<!-- Content Row -->
+<div class="row g-4">
+    <!-- Sidebar: Add Client (Left Column) -->
+    <div class="col-md-2">
+        <div class="inventory-card">
+            <div class="inventory-card-header">
+                <div><i class="fas fa-user-plus"></i> Add Client</div>
+            </div>
+            <div class="p-4">
+                <form method="POST" action="{% url 'clients' %}" class="row g-3">
+                    {% csrf_token %}
+                    <div class="col-12">
+                        <label class="filter-label">Lastname</label>
+                        <input type="text" name="lastname" class="form-control filter-input" required>
+                    </div>
+                    <div class="col-12">
+                        <label class="filter-label">Firstname</label>
+                        <input type="text" name="firstname" class="form-control filter-input" required>
+                    </div>
+                    <div class="col-12">
+                        <label class="filter-label">Middlename</label>
+                        <input type="text" name="middlename" class="form-control filter-input">
+                    </div>
+                    <div class="col-12">
+                        <label class="filter-label">Businessname</label>
+                        <input type="text" name="businessname" class="form-control filter-input">
+                    </div>
+                    <div class="col-12">
+                        <label class="filter-label">Mobile Number</label>
+                        <input type="text" name="mobile_number" class="form-control filter-input">
+                    </div>
+                    <div class="col-12">
+                        <label class="filter-label">Email Address</label>
+                        <input type="email" name="email_address" class="form-control filter-input">
+                    </div>
+                    <div class="col-12">
+                        <label class="filter-label">TIN</label>
+                        <input type="text" name="tin" class="form-control filter-input">
+                    </div>
+                    <div class="col-12 mt-4">
+                        <button type="submit" class="btn btn-primary w-100" style="background-color: #ec4899 !important; border-color: #ec4899 !important;">
+                            <i class="fas fa-save me-2"></i>Register Client
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Clients Table (Right Column) -->
+    <div class="col-md-10">
+        <!-- Section Tabs -->
+        <div class="d-flex mb-3">
+            <a href="{% url 'clients' %}?filter=active" class="section-tab-btn {% if current_filter != 'archived' %}active{% else %}inactive{% endif %} me-2">
+                Active Clients <span class="badge ms-2">{{ active_count }}</span>
+            </a>
+            <a href="{% url 'clients' %}?filter=archived" class="section-tab-btn {% if current_filter == 'archived' %}active{% else %}inactive{% endif %}">
+                Archived Clients <span class="badge ms-2">{{ archived_count }}</span>
+            </a>
+        </div>
+
+        <div class="inventory-card">
+            <div class="inventory-card-header">
+                <div><i class="fas fa-users"></i> Client Registry <span class="badge bg-light text-primary ms-2">{{ total_count }}</span></div>
+                <div class="text-muted small" id="showingInfo">
+                    Showing <strong>1-15</strong> of <strong>{{ total_count }}</strong> items
+                </div>
+            </div>
+            
+            <div class="p-3 bg-white border-bottom tool-bar">
+                <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+                    <div class="d-flex align-items-center gap-3">
+                        <div class="text-muted small" id="selectionInfo">
+                            <span id="selectedCount">0</span> client(s) selected
+                        </div>
+                        <div class="input-group input-group-sm" style="width: 250px;">
+                            <span class="input-group-text bg-white border-end-0"><i class="fas fa-search text-muted"></i></span>
+                            <input type="text" class="form-control border-start-0" id="globalSearch" placeholder="Global Search...">
+                        </div>
+                    </div>
+                    <div class="d-flex gap-2">
+                        {% if current_filter != 'archived' %}
+                        <button class="btn btn-light btn-sm d-flex align-items-center gap-2 border shadow-sm" id="bulkArchiveBtn" style="border-radius: 8px; font-weight: 600; color: #4a5568;">
+                            <i class="fas fa-archive text-warning"></i> Archive Selected
+                        </button>
+                        {% endif %}
+                        
+                        <div class="dropdown" id="exportDropdown">
+                            <button class="btn btn-light btn-sm d-flex align-items-center gap-2 border shadow-sm" type="button" data-bs-toggle="dropdown" style="border-radius: 8px; font-weight: 600; color: #4a5568;">
+                                <i class="fas fa-file-export text-primary" style="color: #ec4899 !important;"></i> Export
+                                <i class="fas fa-chevron-down small opacity-50"></i>
+                            </button>
+                            <ul class="dropdown-menu dropdown-menu-end shadow border-0 py-2" style="border-radius: 12px;">
+                                <li><a class="dropdown-item py-2" href="#" onclick="exportData('csv')">
+                                        <i class="fas fa-file-csv text-success me-2 fa-lg w-20 text-center"></i> CSV Format
+                                    </a></li>
+                                <li><a class="dropdown-item py-2" href="#" onclick="exportData('json')">
+                                        <i class="fas fa-file-code text-warning me-2 fa-lg w-20 text-center"></i> JSON Data
+                                    </a></li>
+                                <li><a class="dropdown-item py-2" href="#" onclick="exportData('excel')">
+                                        <i class="fas fa-file-excel text-success me-2 fa-lg w-20 text-center"></i> Excel
+                                    </a></li>
+                                <li><a class="dropdown-item py-2" href="#" onclick="exportData('pdf')">
+                                        <i class="fas fa-file-pdf text-danger me-2 fa-lg w-20 text-center"></i> PDF Document
+                                    </a></li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="table-responsive">
+                <table class="table table-hover table-bordered" id="clientsTable">
+                    <thead>
+                        <tr>
+                            <th scope="col" style="width: 40px;">
+                                <input type="checkbox" id="selectAll" class="form-check-input" title="Select All">
+                            </th>
+                            <th class="fw-bold text-dark sortable" data-column="1"># <i class="fas fa-sort"></i></th>
+                            <th class="fw-bold text-dark">Actions</th>
+                            <th class="sortable" data-column="3">Lastname <i class="fas fa-sort"></i></th>
+                            <th class="sortable" data-column="4">Firstname <i class="fas fa-sort"></i></th>
+                            <th class="sortable" data-column="5">Middlename <i class="fas fa-sort"></i></th>
+                            <th class="sortable" data-column="6">Businessname <i class="fas fa-sort"></i></th>
+                            <th class="sortable" data-column="7">Mobile Number <i class="fas fa-sort"></i></th>
+                            <th class="sortable" data-column="8">Email Address <i class="fas fa-sort"></i></th>
+                            <th class="fw-bold text-dark sortable" data-column="9">Total Balance <i class="fas fa-sort"></i></th>
+                            <th class="sortable" data-column="10">Date Enrolled <i class="fas fa-sort"></i></th>
+                            <th class="sortable" data-column="11">Enrolled By <i class="fas fa-sort"></i></th>
+                        </tr>
+                        <tr class="bg-light filter-row">
+                            <td></td>
+                            <td></td>
+                            <td class="text-center"></td>
+                            <td><input type="text" class="form-control form-control-sm column-filter" data-column="3" placeholder="Last Nan" style="font-size: 0.75rem;"></td>
+                            <td><input type="text" class="form-control form-control-sm column-filter" data-column="4" placeholder="First Na" style="font-size: 0.75rem;"></td>
+                            <td><input type="text" class="form-control form-control-sm column-filter" data-column="5" placeholder="Middle Na" style="font-size: 0.75rem;"></td>
+                            <td><input type="text" class="form-control form-control-sm column-filter" data-column="6" placeholder="Business Na" style="font-size: 0.75rem;"></td>
+                            <td><input type="text" class="form-control form-control-sm column-filter" data-column="7" placeholder="Mobile Numb" style="font-size: 0.75rem;"></td>
+                            <td><input type="text" class="form-control form-control-sm column-filter" data-column="8" placeholder="Email Addre" style="font-size: 0.75rem;"></td>
+                            <td></td>
+                            <td><input type="text" class="form-control form-control-sm column-filter" data-column="10" placeholder="Date Enroll" style="font-size: 0.75rem;"></td>
+                            <td><input type="text" class="form-control form-control-sm column-filter" data-column="11" placeholder="Enrolled By" style="font-size: 0.75rem;"></td>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for client in clients %}
+                        <tr>
+                            <td>
+                                <input type="checkbox" class="form-check-input row-checkbox" value="{{ client.id }}">
+                            </td>
+                            <td class="bg-light border-end">{{ forloop.counter }}</td>
+                            <td class="bg-light border-end text-center">
+                                <div class="d-flex align-items-center gap-1">
+                                    <button class="btn btn-primary btn-sm rounded-3 shadow-sm create-jo-btn" data-id="{{ client.id }}" data-name="{{ client.full_name }}" style="width: 32px; height: 32px; padding: 0; display: flex; align-items: center; justify-content: center; background-color: #ec4899; border: none;">
+                                        <i class="fas fa-plus" style="font-size: 0.9rem;"></i>
+                                    </button>
+                                    <div class="dropdown">
+                                        <button class="btn btn-light btn-sm rounded-3 shadow-sm border" type="button" data-bs-toggle="dropdown" style="width: 32px; height: 32px; padding: 0; display: flex; align-items: center; justify-content: center; background-color: #f8f9fa;">
+                                            <i class="fas fa-ellipsis-v" style="font-size: 0.9rem; color: #495057;"></i>
+                                        </button>
+                                        <ul class="dropdown-menu dropdown-menu-end shadow-sm border-0 py-2 mt-1 compact-dropdown" style="border-radius: 12px;">
+                                            <li>
+                                                <a class="dropdown-item d-flex align-items-center gap-3 edit-client-btn" href="#" 
+                                                   data-id="{{ client.id }}" data-first="{{ client.first_name }}" data-last="{{ client.last_name }}" 
+                                                   data-middle="{{ client.middle_name }}" data-business="{{ client.business_name }}" 
+                                                   data-mobile="{{ client.mobile_number }}" data-email="{{ client.email_address }}" 
+                                                   data-tin="{{ client.tin }}" style="color: #ec4899; font-weight: 500;">
+                                                    <i class="far fa-edit" style="width: 15px;"></i>
+                                                    <span>Edit</span>
+                                                </a>
+                                            </li>
+                                            <li><hr class="dropdown-divider opacity-50 my-1"></li>
+                                            <li>
+                                                {% if not client.is_archived %}
+                                                <a class="dropdown-item d-flex align-items-center gap-3 archive-client-btn text-warning" href="#" data-id="{{ client.id }}" data-name="{{ client.full_name }}" style="font-weight: 500;">
+                                                    <i class="fas fa-archive" style="width: 15px;"></i>
+                                                    <span>Archive</span>
+                                                </a>
+                                                {% else %}
+                                                <a class="dropdown-item d-flex align-items-center gap-3 restore-client-btn text-success" href="#" data-id="{{ client.id }}" data-name="{{ client.full_name }}" style="font-weight: 500;">
+                                                    <i class="fas fa-undo" style="width: 15px;"></i>
+                                                    <span>Restore</span>
+                                                </a>
+                                                {% endif %}
+                                            </li>
+                                        </ul>
+                                    </div>
+                                </div>
+                            </td>
+                            <td class="fw-bold">{{ client.last_name }}</td>
+                            <td>{{ client.first_name }}</td>
+                            <td>{{ client.middle_name }}</td>
+                            <td>{{ client.business_name }}</td>
+                            <td>{{ client.mobile_number }}</td>
+                            <td>{{ client.email_address }}</td>
+                            <td class="fw-bold">{% if client.computed_balance > 0 %}{{ client.computed_balance|floatformat:2|intcomma }}{% else %}0.00{% endif %}</td>
+                            <td>{{ client.date_enrolled|date:"d M Y" }}</td>
+                            <td>{{ client.enrolled_by }}</td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="11" class="text-center p-5 text-muted">No clients registered yet.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            <!-- Pagination -->
+            <div class="card-footer bg-light border-top">
+                <nav aria-label="Clients pagination">
+                    <ul class="pagination pagination-sm mb-0 justify-content-center" id="paginationContainer">
+                        <!-- Will be populated by JS -->
+                    </ul>
+                </nav>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Edit Client Modal -->
+<div class="modal fade" id="editClientModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header border-0 pb-0 shadow-sm" style="background: #ec4899;">
+                <h6 class="modal-title fw-bold text-white p-3"><i class="fas fa-user-edit me-2"></i>Edit Client</h6>
+                <button type="button" class="btn-close btn-close-white btn-sm" data-bs-dismiss="modal" aria-label="Close" style="margin: 0.5rem;"></button>
+            </div>
+            <div class="modal-body p-4">
+                <form id="editClientForm" class="row g-3">
+                    <input type="hidden" name="client_id" id="edit_client_id">
+                    <div class="col-md-6">
+                        <label class="filter-label">Firstname</label>
+                        <input type="text" name="firstname" id="edit_firstname" class="form-control filter-input" required>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="filter-label">Lastname</label>
+                        <input type="text" name="lastname" id="edit_lastname" class="form-control filter-input" required>
+                    </div>
+                    <div class="col-12">
+                        <label class="filter-label">Middlename</label>
+                        <input type="text" name="middlename" id="edit_middlename" class="form-control filter-input">
+                    </div>
+                    <div class="col-12">
+                        <label class="filter-label">Businessname</label>
+                        <input type="text" name="businessname" id="edit_businessname" class="form-control filter-input">
+                    </div>
+                    <div class="col-12">
+                        <label class="filter-label">Mobile Number</label>
+                        <input type="text" name="mobile_number" id="edit_mobile_number" class="form-control filter-input">
+                    </div>
+                    <div class="col-12">
+                        <label class="filter-label">Email Address</label>
+                        <input type="email" name="email_address" id="edit_email_address" class="form-control filter-input">
+                    </div>
+                    <div class="col-12">
+                        <label class="filter-label">TIN</label>
+                        <input type="text" name="tin" id="edit_tin" class="form-control filter-input">
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer border-0 d-flex justify-content-end pb-4 gap-2 pt-0">
+                <button type="button" class="btn btn-light px-3 fw-bold border shadow-sm py-1.5 small" data-bs-dismiss="modal" style="font-size: 0.85rem;">Cancel</button>
+                <button type="button" class="btn btn-primary px-3 fw-bold shadow-sm py-1.5 small" id="saveClientEdit" style="background: #ec4899; border: none; min-width: 120px; font-size: 0.85rem;">
+                    <i class="fas fa-save me-2"></i>Save Changes
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Archive Confirmation Modal -->
+<div class="modal fade" id="archiveConfirmModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-sm">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header border-0 pb-0 justify-content-center pt-4">
+                <div class="rounded-circle bg-light d-flex align-items-center justify-content-center" style="width: 60px; height: 60px; background-color: #fff1f2 !important;">
+                    <i class="fas fa-exclamation-triangle fa-2x text-danger"></i>
+                </div>
+            </div>
+            <div class="modal-body py-4 text-center px-4">
+                <h6 class="fw-bold mb-2">Archive Client?</h6>
+                <p class="mb-0 text-muted" style="font-size: 0.85rem;">Are you sure you want to archive <br><strong id="archiveClientName" class="text-dark"></strong>?</p>
+            </div>
+            <div class="modal-footer border-0 d-flex gap-2 p-3 pt-0">
+                <button type="button" class="btn btn-light border flex-grow-1 fw-bold py-1.5 shadow-sm small" data-bs-dismiss="modal" style="font-size: 0.85rem;">Cancel</button>
+                <button type="button" class="btn btn-danger flex-grow-1 fw-bold py-1.5 shadow-sm small" id="confirmArchiveBtn" style="background: #ef4444; border: none; font-size: 0.85rem;">Archive</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Confirmation Modal -->
+<div class="modal fade" id="confirmJOModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-sm modal-dialog-centered">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header border-0 pb-0 shadow-sm" style="background: #ec4899;">
+                <h6 class="modal-title fw-bold text-white p-3"><i class="fas fa-check-circle me-2"></i>Confirmation</h6>
+                <button type="button" class="btn-close btn-close-white btn-sm" data-bs-dismiss="modal" aria-label="Close" style="margin: 0.5rem;"></button>
+            </div>
+            <div class="modal-body py-4 text-center px-4">
+                <p class="mb-0 text-muted" style="font-size: 0.85rem;">Are you sure you want to create a new job order under this client?</p>
+                <h5 class="fw-bold mt-3" style="color: #ec4899;" id="clientNameDisplay"></h5>
+            </div>
+            <div class="modal-footer border-0 d-flex justify-content-center pb-4 gap-2 pt-0">
+                <button type="button" class="btn btn-light px-3 fw-bold border shadow-sm py-1.5 small" data-bs-dismiss="modal" style="background: #f8f9fa; font-size: 0.85rem;">
+                    <i class="fas fa-times me-2"></i>Cancel
+                </button>
+                <button type="button" class="btn btn-primary px-3 fw-bold text-white shadow-sm py-1.5 small" id="confirmCreateJO" style="background: #ec4899; border: none; min-width: 100px; font-size: 0.85rem;">
+                    <i class="fas fa-check me-2"></i>Confirm
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Bulk Archive Modal -->
+<div class="modal fade" id="bulkArchiveConfirmModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-sm modal-dialog-centered">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header border-0 pb-0 justify-content-center pt-4">
+                <div class="rounded-circle bg-light d-flex align-items-center justify-content-center" style="width: 60px; height: 60px; background-color: #fff1f2 !important;">
+                    <i class="fas fa-exclamation-triangle fa-2x text-danger"></i>
+                </div>
+            </div>
+            <div class="modal-body py-4 text-center px-4">
+                <h6 class="fw-bold mb-2">Archive Selected?</h6>
+                <p class="mb-0 text-muted" style="font-size: 0.85rem;">Are you sure you want to archive <br><strong id="bulkArchiveCount" class="text-dark"></strong> selected client(s)?</p>
+            </div>
+            <div class="modal-footer border-0 d-flex gap-2 p-3 pt-0">
+                <button type="button" class="btn btn-light border flex-grow-1 fw-bold py-1.5 shadow-sm small" data-bs-dismiss="modal" style="font-size: 0.85rem;">Cancel</button>
+                <button type="button" class="btn btn-danger flex-grow-1 fw-bold py-1.5 shadow-sm small" id="confirmBulkArchiveBtn" style="background: #ef4444; border: none; font-size: 0.85rem;">Archive</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Restore Confirmation Modal -->
+<div class="modal fade" id="restoreConfirmModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-sm modal-dialog-centered">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header border-0 pb-0 shadow-sm" style="background: #10b981;">
+                <h6 class="modal-title fw-bold text-white p-3"><i class="fas fa-undo me-2"></i>Restore Client</h6>
+                <button type="button" class="btn-close btn-close-white btn-sm" data-bs-dismiss="modal" aria-label="Close" style="margin: 0.5rem;"></button>
+            </div>
+            <div class="modal-body py-4 text-center px-4">
+                <p class="mb-0 text-muted" style="font-size: 0.85rem;">Are you sure you want to restore</p>
+                <h6 class="fw-bold mt-2" style="color: #10b981;" id="restoreClientName"></h6>
+            </div>
+            <div class="modal-footer border-0 d-flex justify-content-center pb-4 gap-2 pt-0">
+                <button type="button" class="btn btn-light px-3 fw-bold border shadow-sm py-1.5 small" data-bs-dismiss="modal" style="font-size: 0.85rem;">Cancel</button>
+                <button type="button" class="btn btn-primary px-3 fw-bold text-white shadow-sm py-1.5 small" id="confirmRestoreBtn" style="background: #10b981; border: none; min-width: 100px; font-size: 0.85rem;">
+                    <i class="fas fa-undo me-2"></i>Restore
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+    $(document).ready(function() {
+        // ========== TABLE ELEMENTS ==========
+        const table = document.getElementById('clientsTable');
+        const tbody = table.querySelector('tbody');
+        const allRows = Array.from(tbody.querySelectorAll('tr'));
+        let filteredRows = allRows.slice();
+
+        // ========== SETTINGS ==========
+        const rowsPerPage = 15;
+        let currentPage = 1;
+
+        // ========== STATE ==========
+        let selectedClientId = null;
+        let clientToArchive = null;
+        let clientToRestore = null;
+
+        // ========== PAGINATION ==========
+        function showPage(page) {
+            allRows.forEach(row => row.style.display = 'none');
+            
+            const totalFiltered = filteredRows.length;
+            const totalPages = Math.ceil(totalFiltered / rowsPerPage);
+            
+            if (page < 1) page = 1;
+            if (page > totalPages && totalPages > 0) page = totalPages;
+            currentPage = page;
+            
+            const start = (page - 1) * rowsPerPage;
+            const end = Math.min(start + rowsPerPage, totalFiltered);
+            
+            for (let i = start; i < end; i++) {
+                filteredRows[i].style.display = '';
+            }
+            
+            // Update showing info
+            const displayStart = totalFiltered > 0 ? start + 1 : 0;
+            const displayEnd = end;
+            const showingInfo = document.getElementById('showingInfo');
+            if (showingInfo) {
+                showingInfo.innerHTML = `Showing <strong>${displayStart}-${displayEnd}</strong> of <strong>${totalFiltered}</strong> clients`;
+            }
+            
+            updatePaginationButtons(totalPages);
+        }
+
+        function updatePaginationButtons(totalPages) {
+            const container = document.getElementById('paginationContainer');
+            if (!container) return;
+            container.innerHTML = '';
+            
+            // Prev
+            const prevLi = document.createElement('li');
+            prevLi.className = `page-item ${currentPage === 1 ? 'disabled' : ''}`;
+            prevLi.innerHTML = '<a class="page-link" href="#">&laquo;</a>';
+            prevLi.onclick = (e) => { e.preventDefault(); if (currentPage > 1) showPage(currentPage - 1); };
+            container.appendChild(prevLi);
+            
+            // Pages
+            for (let i = 1; i <= totalPages; i++) {
+                if (i === 1 || i === totalPages || (i >= currentPage - 2 && i <= currentPage + 2)) {
+                    const li = document.createElement('li');
+                    li.className = `page-item ${i === currentPage ? 'active' : ''}`;
+                    li.innerHTML = `<a class="page-link" href="#">${i}</a>`;
+                    li.onclick = (e) => { e.preventDefault(); showPage(i); };
+                    container.appendChild(li);
+                } else if (i === currentPage - 3 || i === currentPage + 3) {
+                    const li = document.createElement('li');
+                    li.className = 'page-item disabled';
+                    li.innerHTML = '<span class="page-link">...</span>';
+                    container.appendChild(li);
+                }
+            }
+            
+            // Next
+            const nextLi = document.createElement('li');
+            nextLi.className = `page-item ${currentPage === totalPages || totalPages === 0 ? 'disabled' : ''}`;
+            nextLi.innerHTML = '<a class="page-link" href="#">&raquo;</a>';
+            nextLi.onclick = (e) => { e.preventDefault(); if (currentPage < totalPages) showPage(currentPage + 1); };
+            container.appendChild(nextLi);
+        }
+
+        // ========== UNIFIED FILTERING ==========
+        function filterAll() {
+            const searchTerm = $('#globalSearch').val().toLowerCase().trim();
+            
+            filteredRows = allRows.filter(row => {
+                const cells = row.querySelectorAll('td');
+                if (cells.length < 12) return false;
+                
+                const rowText = row.textContent.toLowerCase();
+                
+                // 1. Global Search
+                if (searchTerm && !rowText.includes(searchTerm)) return false;
+                
+                // 2. Column Filters
+                let matchesColumn = true;
+                $('.column-filter').each(function() {
+                    const val = $(this).val().toLowerCase().trim();
+                    if (val) {
+                        const colIdx = $(this).data('column');
+                        const cellText = cells[colIdx].textContent.toLowerCase().trim();
+                        if (!cellText.includes(val)) matchesColumn = false;
+                    }
+                });
+                if (!matchesColumn) return false;
+                
+                return true;
+            });
+            
+            currentPage = 1;
+            showPage(1);
+        }
+
+        $('#globalSearch, .column-filter').on('input', filterAll);
+        
+        // ========== ARCHIVE / RESTORE ==========
+        $(tbody).on('click', '.archive-client-btn', function(e) {
+            e.preventDefault();
+            clientToArchive = $(this).data('id');
+            const clientName = $(this).data('name');
+            $('#archiveClientName').text(clientName);
+            $('#archiveConfirmModal').modal('show');
+        });
+
+        $(tbody).on('click', '.restore-client-btn', function(e) {
+            e.preventDefault();
+            clientToRestore = $(this).data('id');
+            const clientName = $(this).data('name');
+            $('#restoreClientName').text(clientName);
+            $('#restoreConfirmModal').modal('show');
+        });
+
+        $('#confirmRestoreBtn').click(function() {
+            if (clientToRestore) {
+                window.location.href = `/api/client/restore/${clientToRestore}/`;
+            }
+        });
+
+        $('#confirmArchiveBtn').click(function() {
+            if (clientToArchive) {
+                window.location.href = `/api/client/archive/${clientToArchive}/`;
+            }
+        });
+
+        // ========== SORTING ==========
+        $('.sortable').click(function() {
+            const colIdx = $(this).data('column');
+            const icon = $(this).find('i');
+            const isAsc = icon.hasClass('fa-sort-up');
+            
+            $('.sortable i').removeClass('fa-sort-up fa-sort-down').addClass('fa-sort');
+            
+            filteredRows.sort((a, b) => {
+                const aVal = a.querySelectorAll('td')[colIdx].textContent.trim();
+                const bVal = b.querySelectorAll('td')[colIdx].textContent.trim();
+                
+                // Balance sorting
+                if (colIdx === 9) {
+                    const aNum = parseFloat(aVal.replace(/,/g, ''));
+                    const bNum = parseFloat(bVal.replace(/,/g, ''));
+                    return isAsc ? bNum - aNum : aNum - bNum;
+                }
+                
+                // Date sorting
+                if (colIdx === 10) {
+                    return isAsc ? new Date(bVal) - new Date(aVal) : new Date(aVal) - new Date(bVal);
+                }
+                
+                return isAsc ? bVal.localeCompare(aVal) : aVal.localeCompare(bVal);
+            });
+            
+            icon.removeClass('fa-sort').addClass(isAsc ? 'fa-sort-down' : 'fa-sort-up');
+            currentPage = 1;
+            showPage(1);
+        });
+
+        // ========== BULK SELECTION ==========
+        $('#selectAll').change(function() {
+            const checked = $(this).is(':checked');
+            $('.row-checkbox:visible').prop('checked', checked);
+            updateSelectedCount();
+        });
+
+        $(tbody).on('change', '.row-checkbox', updateSelectedCount);
+
+        function updateSelectedCount() {
+            const count = $('.row-checkbox:checked').length;
+            $('#selectedCount').text(count);
+            const visible = $('.row-checkbox:visible').length;
+            $('#selectAll').prop('checked', count === visible && visible > 0);
+            $('#selectAll').prop('indeterminate', count > 0 && count < visible);
+        }
+
+        // ========== EXISTING ACTIONS (EDIT, JO, ARCHIVE) ==========
+        $(tbody).on('click', '.create-jo-btn', function() {
+            selectedClientId = $(this).data('id');
+            $('#clientNameDisplay').text($(this).data('name'));
+            $('#confirmJOModal').modal('show');
+        });
+
+        $(tbody).on('click', '.edit-client-btn', function() {
+            const btn = $(this);
+            $('#edit_client_id').val(btn.data('id'));
+            $('#edit_firstname').val(btn.data('first'));
+            $('#edit_lastname').val(btn.data('last'));
+            $('#edit_middlename').val(btn.data('middle'));
+            $('#edit_businessname').val(btn.data('business'));
+            $('#edit_mobile_number').val(btn.data('mobile'));
+            $('#edit_email_address').val(btn.data('email'));
+            $('#edit_tin').val(btn.data('tin'));
+            $('#editClientModal').modal('show');
+        });
+
+        $('#saveClientEdit').click(function() {
+            const clientId = $('#edit_client_id').val();
+            const formData = $('#editClientForm').serialize();
+            const btn = $(this);
+            btn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin me-2"></i>Saving...');
+            
+            $.post(`/api/client/update/${clientId}/`, formData, function(data) {
+                if (data.success) {
+                    window.location.reload();
+                } else {
+                    showToast('Error: ' + data.message, 'error');
+                    btn.prop('disabled', false).html('<i class="fas fa-save me-2"></i>Save Changes');
+                }
+            }).fail(function() {
+                showToast('An error occurred while updating the client.', 'error');
+                btn.prop('disabled', false).html('<i class="fas fa-save me-2"></i>Save Changes');
+            });
+        });
+
+        $('#confirmCreateJO').click(function() {
+            if (selectedClientId) {
+                const btn = $(this);
+                btn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin me-2"></i>Creating...');
+                $.post("{% url 'create_job_order' %}", {
+                    'client_id': selectedClientId,
+                    'csrfmiddlewaretoken': '{{ csrf_token }}'
+                }, function(data) {
+                    if (data.success) {
+                        window.location.reload();
+                    } else {
+                        showToast('Error: ' + data.message, 'error');
+                        btn.prop('disabled', false).html('<i class="fas fa-check me-2"></i>Ok');
+                    }
+                }).fail(function() {
+                    showToast('An error occurred while creating the job order.', 'error');
+                    btn.prop('disabled', false).html('<i class="fas fa-check me-2"></i>Ok');
+                });
+            }
+        });
+
+        $('#confirmArchiveBtn').click(function() {
+            if (clientToArchive) {
+                window.location.href = `/api/client/archive/${clientToArchive}/`;
+            }
+        });
+
+        // ========== BULK ARCHIVE ==========
+        $('#bulkArchiveBtn').click(function() {
+            const checked = $('.row-checkbox:checked');
+            if (checked.length === 0) {
+                showToast('Please select at least one client to archive.', 'warning');
+                return;
+            }
+
+            $('#bulkArchiveCount').text(checked.length);
+            $('#bulkArchiveConfirmModal').modal('show');
+        });
+
+        $('#confirmBulkArchiveBtn').click(function() {
+            const checked = $('.row-checkbox:checked');
+            const ids = checked.map(function() { return $(this).val(); }).get();
+            const btn = $(this);
+            const originalHtml = btn.html();
+            
+            btn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin me-2"></i>Archiving...');
+
+            fetch('/inventory/bulk-archive-clients/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': '{{ csrf_token }}'
+                },
+                body: JSON.stringify({ ids: ids })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showToast('Clients archived successfully.');
+                    window.location.reload();
+                } else {
+                    showToast('Error: ' + data.message, 'error');
+                    btn.prop('disabled', false).html(originalHtml);
+                }
+            })
+            .catch(err => {
+                console.error('Bulk archive error:', err);
+                showToast('An error occurred during bulk archiving.', 'error');
+                btn.prop('disabled', false).html(originalHtml);
+            });
+        });
+
+        // ========== EXPORT ==========
+        window.exportData = function(format) {
+            const checked = $('.row-checkbox:checked');
+            let rowsToExport = [];
+            
+            if (checked.length > 0) {
+                checked.each(function() {
+                    rowsToExport.push($(this).closest('tr')[0]);
+                });
+            } else {
+                rowsToExport = filteredRows;
+            }
+
+            const headers = ['#', 'Lastname', 'Firstname', 'Middlename', 'Business', 'Mobile', 'Email', 'Balance', 'Enrolled'];
+            const data = rowsToExport.map((row, index) => {
+                const cells = row.querySelectorAll('td');
+                return [
+                    index + 1,
+                    cells[3].textContent.trim(),
+                    cells[4].textContent.trim(),
+                    cells[5].textContent.trim(),
+                    cells[6].textContent.trim(),
+                    cells[7].textContent.trim(),
+                    cells[8].textContent.trim(),
+                    cells[9].textContent.trim(),
+                    cells[10].textContent.trim()
+                ];
+            });
+
+            const filename = `Clients_Registry_${new Date().toISOString().slice(0,10)}`;
+
+            if (format === 'csv') {
+                let content = headers.join(',') + '\n';
+                data.forEach(row => content += row.map(c => `"${c.replace(/"/g, '""')}"`).join(',') + '\n');
+                downloadFile(content, filename + '.csv', 'text/csv');
+            } else if (format === 'json') {
+                const json = data.map(row => {
+                    let obj = {};
+                    headers.forEach((h, i) => obj[h] = row[i]);
+                    return obj;
+                });
+                downloadFile(JSON.stringify(json, null, 2), filename + '.json', 'application/json');
+            } else if (format === 'excel') {
+                const wb = XLSX.utils.book_new();
+                const ws = XLSX.utils.aoa_to_sheet([headers, ...data]);
+                XLSX.utils.book_append_sheet(wb, ws, "Clients");
+                XLSX.writeFile(wb, `${filename}.xlsx`);
+            } else if (format === 'pdf') {
+                const { jsPDF } = window.jspdf;
+                const doc = new jsPDF('l', 'mm', 'a4');
+                doc.setFontSize(16);
+                doc.text("Client Registry", 14, 15);
+                doc.autoTable({
+                    head: [headers],
+                    body: data,
+                    startY: 20,
+                    theme: 'grid',
+                    styles: { fontSize: 8 }
+                });
+                doc.save(`${filename}.pdf`);
+            }
+        };
+
+        function downloadFile(content, name, mime) {
+            const blob = new Blob([content], { type: mime });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = name;
+            link.click();
+        }
+
+        // Initialize
+        showPage(1);
+    });
+</script>
+{% endblock %}

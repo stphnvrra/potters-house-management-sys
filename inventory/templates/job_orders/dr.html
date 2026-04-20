@@ -1,0 +1,706 @@
+{% extends 'core/base.html' %}
+{% load static %}
+
+{% block title %}Delivery Receipts - The Potter's House{% endblock %}
+
+{% block content %}
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb breadcrumb-custom mb-0">
+                <li class="breadcrumb-item"><a href="/">Home</a></li>
+                <li class="breadcrumb-item active" aria-current="page">Delivery Receipts</li>
+            </ol>
+        </nav>
+    </div>
+
+    <!-- Stat Cards -->
+    <div class="row g-3 mb-4">
+        <div class="col-md-4">
+            <a href="?filter=all" class="text-decoration-none">
+                <div class="stat-card {% if stats.current_filter == 'all' or not stats.current_filter %}stat-card-active{% endif %} p-3 d-flex align-items-center">
+                    <div class="stat-icon bg-pink-subtle text-pink shadow-sm">
+                        <i class="fas fa-truck border-0"></i>
+                    </div>
+                    <div class="ms-3 text-start">
+                        <div class="text-muted small text-uppercase fw-bold" style="font-size: 0.7rem; letter-spacing: 1px;">TOTAL RECEIPTS</div>
+                        <div id="stat-total" class="h4 mb-0 fw-bold counter-value text-pink">{{ stats.total }}</div>
+                    </div>
+                </div>
+            </a>
+        </div>
+        <div class="col-md-4">
+            <a href="?filter=open" class="text-decoration-none">
+                <div class="stat-card {% if stats.current_filter == 'open' %}stat-card-active{% endif %} p-3 d-flex align-items-center">
+                    <div class="stat-icon bg-info-subtle text-info shadow-sm">
+                        <i class="fas fa-box border-0"></i>
+                    </div>
+                    <div class="ms-3 text-start">
+                        <div class="text-muted small text-uppercase fw-bold" style="font-size: 0.7rem; letter-spacing: 1px;">OPEN RECEIPTS</div>
+                        <div id="stat-open" class="h4 mb-0 fw-bold counter-value text-info">{{ stats.open }}</div>
+                    </div>
+                </div>
+            </a>
+        </div>
+        <div class="col-md-4">
+            <a href="?filter=locked" class="text-decoration-none">
+                <div class="stat-card {% if stats.current_filter == 'locked' %}stat-card-active{% endif %} p-3 d-flex align-items-center">
+                    <div class="stat-icon bg-secondary-subtle text-secondary shadow-sm">
+                        <i class="fas fa-lock border-0"></i>
+                    </div>
+                    <div class="ms-3 text-start">
+                        <div class="text-muted small text-uppercase fw-bold" style="font-size: 0.7rem; letter-spacing: 1px;">LOCKED RECEIPTS</div>
+                        <div id="stat-locked" class="h4 mb-0 fw-bold counter-value text-secondary">{{ stats.locked }}</div>
+                    </div>
+                </div>
+            </a>
+        </div>
+    </div>
+
+    <!-- Filters moved to table header -->
+
+    <div class="inventory-card">
+        <div class="inventory-card-header">
+            <div>
+                <i class="fas fa-truck-loading me-2"></i> Delivery Receipt Registry
+            </div>
+            <div class="text-muted small">
+                Showing Detailed Records
+            </div>
+        </div>
+
+        <div class="p-3 bg-white border-bottom tool-bar">
+            <div class="d-flex justify-content-between align-items-center">
+                <div class="d-flex align-items-center flex-grow-1">
+                    <div class="d-flex align-items-center me-3">
+                        <label class="small text-muted me-2 mb-0">From:</label>
+                        <input type="date" id="dateStart" class="form-control form-control-sm" style="width: 140px;">
+                    </div>
+                    <div class="d-flex align-items-center me-3">
+                        <label class="small text-muted me-2 mb-0">To:</label>
+                        <input type="date" id="dateEnd" class="form-control form-control-sm" style="width: 140px;">
+                    </div>
+                    <div class="btn-group me-3 shadow-sm border rounded">
+                        <button type="button" id="applyFilterBtn" class="btn btn-sm btn-white d-flex align-items-center">
+                            <span class="icon-box me-1">
+                                <i class="fas fa-filter"></i>
+                            </span>
+                            Filter
+                        </button>
+                        <button type="button" id="clearFilterBtn" class="btn btn-sm btn-white d-flex align-items-center" title="Clear Filters">
+                            <span class="icon-box">
+                                <i class="fas fa-times"></i>
+                            </span>
+                        </button>
+                    </div>
+                    <div class="text-muted small">
+                        Showing <span id="paginationInfo" class="fw-bold">0</span> of <span id="paginationTotal" class="fw-bold">{{ items|length }}</span> entries
+                    </div>
+                </div>
+                <div class="btn-group">
+                    <button type="button" class="btn btn-sm" data-bs-toggle="modal" data-bs-target="#createDRModal">
+                        <i class="fas fa-plus me-1"></i> New Receipt
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Table -->
+        <div class="table-responsive">
+            <table class="table table-bordered table-hover mb-0">
+                <thead>
+                    <tr>
+                        <th scope="col" style="width: 50px;">#</th>
+                        <th scope="col" class="text-center">Actions</th>
+                        <th scope="col" class="sortable col-highlight" data-sort="po">Purchase Order ID <i class="fas fa-sort"></i></th>
+                        <th scope="col" class="sortable" data-sort="supplier">Supplier <i class="fas fa-sort"></i></th>
+                        <th scope="col" class="sortable" data-sort="date">Date <i class="fas fa-sort"></i></th>
+                        <th scope="col" class="sortable" data-sort="status">Status <i class="fas fa-sort"></i></th>
+                        <th scope="col" class="sortable" data-sort="created">Datetime Created <i class="fas fa-sort"></i></th>
+                        <th scope="col" class="sortable" data-sort="delivered_by">Delivered By <i class="fas fa-sort"></i></th>
+                        <th scope="col">Comments</th>
+                    </tr>
+                    <tr class="bg-light filter-row">
+                        <td></td>
+                        <td></td> <!-- Removed Reset button from here to match request -->
+                        <td><input type="text" class="form-control filter-input" name="po" placeholder="PO..."></td>
+                        <td><input type="text" class="form-control filter-input" name="supplier" placeholder="Supplier..."></td>
+                        <td></td>
+                        <td>
+                            <select class="form-select filter-input" name="status">
+                                <option value="">All</option>
+                                <option value="Open">Open</option>
+                                <option value="Locked">Locked</option>
+                            </select>
+                        </td>
+                        <td></td>
+                        <td><input type="text" class="form-control filter-input" name="delivered_by" placeholder="User..."></td>
+                        <td></td>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in items %}
+                    <tr>
+                        <td class="text-muted small">{{ forloop.counter }}</td>
+                        <td class="text-center">
+                            <a href="{% url 'dr_detail' item.id %}" class="btn btn-light btn-sm rounded-circle shadow-sm" title="View">
+                                <i class="far fa-eye"></i>
+                            </a>
+                        </td>
+                        <td class="font-monospace">
+                            {% if item.purchase_order %}
+                            <a href="{% url 'purchase_order_detail' item.purchase_order.id %}" class="text-pink fw-bold text-decoration-none">PO-{{ item.purchase_order.id }}</a>
+                            {% else %}
+                            <span class="text-muted italic small">No PO linked</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ item.supplier }}</td>
+                        <td class="small" data-date="{{ item.date|date:'Y-m-d' }}">{{ item.date|date:"Y-m-d" }}</td>
+                        <td>
+                            <span class="badge {% if item.status == 'Open' %}bg-info-subtle text-dark border border-info{% else %}bg-secondary-subtle text-dark border border-secondary{% endif %}">
+                                {{ item.status }}
+                            </span>
+                        </td>
+                        <td class="small text-muted">{{ item.datetime_created|date:"Y-m-d H:i:s" }}</td>
+                        <td class="small">{{ item.tag_delivered_by }}</td>
+                        <td class="small text-muted text-truncate" style="max-width: 150px;" title="{{ item.comments }}">{{ item.comments }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="9" class="text-center py-5 text-muted">
+                            <i class="fas fa-truck fa-3x mb-3 opacity-25 text-pink"></i>
+                            <p>No delivery receipts found.</p>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        <!-- Pagination -->
+        <div class="p-3 bg-white border-top d-flex justify-content-end align-items-center">
+            <ul class="pagination pagination-sm mb-0 shadow-sm" id="paginationContainer"></ul>
+        </div>
+        
+    </div>
+
+    <!-- Create DR Modal -->
+    <div class="modal fade" id="createDRModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Create Delivery Receipt</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <form id="createDRForm">
+                    {% csrf_token %}
+                    <div class="modal-body">
+                        <div class="mb-3">
+                            <label class="form-label">Purchase Order ID (Optional)</label>
+                            <select name="purchase_order_id" class="form-select">
+                                <option value="">None</option>
+                                {% for po in purchase_orders %}
+                                <option value="{{ po.id }}">PO-{{ po.id }} ({{ po.supplier }})</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Supplier</label>
+                            <input type="text" list="supplierList" name="supplier" class="form-control" placeholder="Type or select supplier..." required>
+                            <datalist id="supplierList">
+                                {% for s in suppliers %}
+                                <option value="{{ s.name }}">
+                                {% endfor %}
+                            </datalist>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Date</label>
+                            <input type="date" name="date" class="form-control" value="{{ today|date:'Y-m-d' }}">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Comments</label>
+                            <textarea name="comments" class="form-control" rows="3"></textarea>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn btn-primary">Create Receipt</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Delivery Receipt Activity Logs -->
+    <div class="inventory-card mt-4">
+        <div class="inventory-card-header bg-light py-2 px-3 border-bottom d-flex justify-content-between align-items-center">
+            <div class="d-flex align-items-center">
+                <div class="icon-box me-2">
+                    <i class="fas fa-history"></i>
+                </div>
+                <h6 class="mb-0 fw-bold text-pink" style="font-size: 0.85rem;">Delivery Receipt Activity Logs</h6>
+            </div>
+            <div class="d-flex align-items-center gap-2">
+                <div class="d-flex align-items-center">
+                    <label class="extra-small text-muted me-1 mb-0">From:</label>
+                    <input type="date" id="logDateStart" class="form-control form-control-sm" style="width: 120px; font-size: 0.7rem; height: 26px;" value="{{ log_date_start }}">
+                </div>
+                <div class="d-flex align-items-center">
+                    <label class="extra-small text-muted me-1 mb-0">To:</label>
+                    <input type="date" id="logDateEnd" class="form-control form-control-sm" style="width: 120px; font-size: 0.7rem; height: 26px;" value="{{ log_date_end }}">
+                </div>
+                <div class="btn-group shadow-sm">
+                    <button type="button" class="btn btn-sm btn-outline-secondary" style="font-size: 0.7rem;" id="applyLogFilterBtn">
+                        <span class="icon-box" style="width: 18px; height: 18px; margin-right: 3px; border-radius: 3px;">
+                            <i class="fas fa-filter" style="font-size: 0.65rem;"></i>
+                        </span>
+                        Filter
+                    </button>
+                    <button type="button" class="btn btn-sm btn-outline-secondary" style="font-size: 0.7rem; padding-left: 4px; padding-right: 4px;" id="clearLogFilterBtn">
+                        <span class="icon-box" style="width: 18px; height: 18px; margin-right: 0; border-radius: 3px;">
+                            <i class="fas fa-times" style="font-size: 0.65rem;"></i>
+                        </span>
+                    </button>
+                </div>
+            </div>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-hover mb-0" id="drLogsTable">
+                <thead>
+                    <tr>
+                        <th style="width: 40px;">#</th>
+                        <th style="width: 180px;">Timestamp</th>
+                        <th style="width: 100px;">Action</th>
+                        <th style="width: 120px;">User</th>
+                        <th>Description</th>
+                    </tr>
+                    <tr class="bg-light filter-row">
+                        <td></td>
+                        <td><input type="text" class="form-control form-control-sm column-filter-log" data-column="1" placeholder="Timestamp" style="font-size: 0.7rem; height: 24px;"></td>
+                        <td><input type="text" class="form-control form-control-sm column-filter-log" data-column="2" placeholder="Action" style="font-size: 0.7rem; height: 24px;"></td>
+                        <td><input type="text" class="form-control form-control-sm column-filter-log" data-column="3" placeholder="User" style="font-size: 0.7rem; height: 24px;"></td>
+                        <td><input type="text" class="form-control form-control-sm column-filter-log" data-column="4" placeholder="Description" style="font-size: 0.7rem; height: 24px;"></td>
+                    </tr>
+                </thead>
+                <tbody id="drLogsBody">
+                    {% for log in dr_logs %}
+                    <tr>
+                        <td>{{ forloop.counter }}</td>
+                        <td class="text-muted small">{{ log.timestamp|date:"Y-m-d H:i:s" }}</td>
+                        <td>
+                            {% if log.action == 'created' %}
+                            <span class="badge bg-success-subtle text-success extra-small border border-success-subtle">CREATED</span>
+                            {% elif log.action == 'updated' %}
+                            <span class="badge bg-primary-subtle text-primary extra-small border border-primary-subtle">UPDATED</span>
+                            {% elif log.action == 'status_change' %}
+                            <span class="badge bg-info-subtle text-info extra-small border border-info-subtle">STATUS CHANGE</span>
+                            {% elif log.action == 'deleted' %}
+                            <span class="badge bg-danger-subtle text-danger extra-small border border-danger-subtle">DELETED</span>
+                            {% else %}
+                            <span class="badge bg-secondary-subtle text-secondary extra-small border border-secondary-subtle">{{ log.action|upper }}</span>
+                            {% endif %}
+                        </td>
+                        <td class="fw-bold">{{ log.user }}</td>
+                        <td class="small">{{ log.description|linebreaksbr }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr class="no-results-log">
+                        <td colspan="5" class="text-center p-4 text-muted small">No delivery receipt activity logs found.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        <!-- Log Pagination -->
+        <div class="p-3 bg-white border-top d-flex justify-content-between align-items-center">
+            <div class="small text-muted">
+                Showing <span id="logPaginationInfo" class="fw-bold">0</span> of <span id="logPaginationTotal" class="fw-bold">{{ dr_logs|length }}</span> items
+            </div>
+            <ul class="pagination pagination-sm mb-0 shadow-sm" id="logPaginationContainer"></ul>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const table = document.querySelector('table');
+            const tbody = table.querySelector('tbody');
+            const allRows = Array.from(tbody.querySelectorAll('tr:not(.no-results)'));
+            const inputs = document.querySelectorAll('.filter-input');
+            const paginationContainer = document.getElementById('paginationContainer');
+            const paginationInfo = document.getElementById('paginationInfo');
+            const paginationTotal = document.getElementById('paginationTotal');
+            
+            const statTotal = document.getElementById('stat-total');
+            const statOpen = document.getElementById('stat-open');
+            const statLocked = document.getElementById('stat-locked');
+            
+            const dateStart = document.getElementById('dateStart');
+            const dateEnd = document.getElementById('dateEnd');
+            
+            let filteredRows = [...allRows];
+            let currentPage = 1;
+            const rowsPerPage = 10;
+            let currentSortCol = -1;
+            let currentSortDir = 'asc';
+
+            function updateFilteredRows() {
+                const ds = dateStart ? dateStart.value : '';
+                const de = dateEnd ? dateEnd.value : '';
+
+                filteredRows = allRows.filter(row => {
+                    let show = true;
+                    
+                    // 1. Date Range Check (Column index 4) - Using data-date attribute for precision
+                    const dateCell = row.cells[4];
+                    const rowDateStr = dateCell.dataset.date || dateCell.textContent.trim();
+                    if (ds && rowDateStr < ds) show = false;
+                    if (de && rowDateStr > de) show = false;
+
+                    if (show) {
+                        // 2. Keyword Filters (PO, Supplier, Status, User)
+                        inputs.forEach(input => {
+                            const val = input.value.toLowerCase().trim();
+                            if (val) {
+                                let text = '';
+                                if (input.name === 'po') text = row.cells[2].textContent;
+                                if (input.name === 'supplier') text = row.cells[3].textContent;
+                                if (input.name === 'status') text = row.cells[5].textContent;
+                                if (input.name === 'delivered_by') text = row.cells[7].textContent;
+                                
+                                if (!text.toLowerCase().includes(val)) show = false;
+                            }
+                        });
+                    }
+                    return show;
+                });
+
+                // Update Stat Cards Dynamic Counts
+                const openCount = filteredRows.filter(r => r.cells[5].textContent.trim().toLowerCase().includes('open')).length;
+                const lockedCount = filteredRows.filter(r => r.cells[5].textContent.trim().toLowerCase().includes('locked')).length;
+                
+                if (statTotal) statTotal.textContent = filteredRows.length;
+                if (statOpen) statOpen.textContent = openCount;
+                if (statLocked) statLocked.textContent = lockedCount;
+
+                tbody.querySelectorAll('.no-results').forEach(r => r.remove());
+                if (filteredRows.length === 0) {
+                    const noResults = document.createElement('tr');
+                    noResults.className = 'no-results';
+                    noResults.innerHTML = `<td colspan="10" class="text-center p-5 text-muted small">No matching records found.</td>`;
+                    tbody.appendChild(noResults);
+                }
+            }
+
+            window.resetAllFilters = function() {
+                inputs.forEach(i => i.value = '');
+                dateStart.value = '';
+                dateEnd.value = '';
+                handleFilter();
+            };
+
+            const applyFilterBtn = document.getElementById('applyFilterBtn');
+            const clearFilterBtn = document.getElementById('clearFilterBtn');
+            if (applyFilterBtn) applyFilterBtn.addEventListener('click', handleFilter);
+            if (clearFilterBtn) clearFilterBtn.addEventListener('click', resetAllFilters);
+
+            // Date range listeners removed for non-real-time behavior as requested
+            // Use the "Filter" button (handleFilter) and "x" button (resetAllFilters) instead
+
+            function renderTable() {
+                allRows.forEach(row => row.style.display = 'none');
+                
+                const start = (currentPage - 1) * rowsPerPage;
+                const end = start + rowsPerPage;
+                const pageRows = filteredRows.slice(start, end);
+                
+                pageRows.forEach(row => row.style.display = '');
+                
+                if (filteredRows.length > 0) {
+                    paginationInfo.textContent = `${start + 1}-${Math.min(end, filteredRows.length)}`;
+                    paginationTotal.textContent = filteredRows.length;
+                } else {
+                    paginationInfo.textContent = '0';
+                    paginationTotal.textContent = '0';
+                }
+            }
+
+            function buildPagination() {
+                paginationContainer.innerHTML = '';
+                const totalPages = Math.ceil(filteredRows.length / rowsPerPage);
+                if (totalPages <= 0) return;
+
+                const createItem = (label, page, active = false, disabled = false) => {
+                    const li = document.createElement('li');
+                    li.className = `page-item ${active ? 'active' : ''} ${disabled ? 'disabled' : ''}`;
+                    li.innerHTML = `<a class="page-link shadow-sm border border-light-subtle rounded-3 text-muted ${active ? 'bg-pink text-white border-0' : 'fw-bold'}" href="#">${label}</a>`;
+                    li.onclick = (e) => {
+                        e.preventDefault();
+                        if (!disabled && currentPage !== page) {
+                            currentPage = page;
+                            renderTable();
+                            buildPagination();
+                        }
+                    };
+                    return li;
+                };
+
+                // Prev
+                paginationContainer.appendChild(createItem('&laquo;', currentPage - 1, false, currentPage === 1));
+
+                // Pages
+                for (let i = 1; i <= totalPages; i++) {
+                    if (i === 1 || i === totalPages || (i >= currentPage - 1 && i <= currentPage + 1)) {
+                        paginationContainer.appendChild(createItem(i, i, i === currentPage));
+                    } else if (i === currentPage - 2 || i === currentPage + 2) {
+                        const dots = document.createElement('li');
+                        dots.className = 'page-item disabled';
+                        dots.innerHTML = '<span class="page-link shadow-sm border-0 bg-transparent text-muted">...</span>';
+                        paginationContainer.appendChild(dots);
+                    }
+                }
+
+                // Next
+                paginationContainer.appendChild(createItem('&raquo;', currentPage + 1, false, currentPage === totalPages));
+            }
+
+            function handleFilter() {
+                currentPage = 1;
+                updateFilteredRows();
+                renderTable();
+                buildPagination();
+            }
+
+            inputs.forEach(input => {
+                input.addEventListener('input', handleFilter);
+                if (input.tagName === 'SELECT') {
+                    input.addEventListener('change', handleFilter);
+                }
+            });
+
+            // Sorting
+            document.querySelectorAll('.sortable').forEach(th => {
+                th.onclick = () => {
+                    const sortKey = th.dataset.sort;
+                    const colIdx = Array.from(th.parentNode.cells).indexOf(th);
+                    
+                    currentSortDir = (currentSortCol === colIdx && currentSortDir === 'asc') ? 'desc' : 'asc';
+                    currentSortCol = colIdx;
+
+                    // Update icons
+                    document.querySelectorAll('.sortable i').forEach(i => i.className = 'fas fa-sort');
+                    th.querySelector('i').className = currentSortDir === 'asc' ? 'fas fa-sort-up' : 'fas fa-sort-down';
+                    document.querySelectorAll('.sortable').forEach(h => h.classList.remove('active-sort'));
+                    th.classList.add('active-sort');
+
+                    filteredRows.sort((a, b) => {
+                        let aVal = a.cells[colIdx].textContent.trim();
+                        let bVal = b.cells[colIdx].textContent.trim();
+                        
+                        // Handle PO sorting (numeric-like)
+                        if (sortKey === 'po') {
+                            const aNum = parseInt(aVal.replace(/\D/g, '')) || 0;
+                            const bNum = parseInt(bVal.replace(/\D/g, '')) || 0;
+                            return currentSortDir === 'asc' ? aNum - bNum : bNum - aNum;
+                        }
+
+                        return currentSortDir === 'asc' ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
+                    });
+
+                    currentPage = 1;
+                    renderTable();
+                    buildPagination();
+                };
+            });
+
+            // Initial render
+            handleFilter();
+        });
+
+        document.getElementById('createDRForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            const formData = new FormData(this);
+            fetch("{% url 'api_create_dr' %}", {
+                method: 'POST', body: formData,
+                headers: { 'X-CSRFToken': '{{ csrf_token }}' }
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) window.location.href = `/dr/${data.dr_id}/`;
+                else alert('Error: ' + data.message);
+            });
+        });
+
+        // ==========================================
+        // ACTIVITY LOGS LOGIC
+        // ==========================================
+        
+        // Log Pagination Variables
+        let currentLogPage = 1;
+        const logsPerPage = 10;
+        const logTbody = document.getElementById('drLogsBody');
+        const logPaginationContainer = document.getElementById('logPaginationContainer');
+        const logPaginationInfo = document.getElementById('logPaginationInfo');
+        const logPaginationTotal = document.getElementById('logPaginationTotal');
+        let allLogRows = Array.from(logTbody.querySelectorAll('tr:not(.no-results-log)'));
+        let filteredLogRows = [...allLogRows];
+
+        function filterLogs() {
+            filteredLogRows = allLogRows.filter(row => {
+                const cells = row.cells;
+                if (cells.length < 5) return false;
+
+                let matches = true;
+                const filterInputs = document.querySelectorAll('.column-filter-log');
+                filterInputs.forEach(input => {
+                    const colIdx = parseInt(input.getAttribute('data-column'));
+                    const filterVal = input.value.toLowerCase().trim();
+                    if (filterVal) {
+                        const cellText = cells[colIdx] ? cells[colIdx].textContent.toLowerCase().trim() : '';
+                        if (cellText.indexOf(filterVal) === -1) {
+                            matches = false;
+                        }
+                    }
+                });
+                return matches;
+            });
+
+            currentLogPage = 1;
+            updateLogsView();
+        }
+
+        document.querySelectorAll('.column-filter-log').forEach(input => {
+            input.addEventListener('input', filterLogs);
+        });
+
+        function updateLogsView() {
+            if (filteredLogRows.length === 0) {
+                logTbody.querySelectorAll('tr').forEach(row => row.style.display = 'none');
+                const existingNoResults = logTbody.querySelector('.no-results-log');
+                if (existingNoResults) existingNoResults.remove();
+
+                const noResults = document.createElement('tr');
+                noResults.className = 'no-results-log';
+                noResults.innerHTML = `<td colspan="5" class="text-center p-4 text-muted small">No matching activity logs found.</td>`;
+                logTbody.appendChild(noResults);
+
+                if (logPaginationInfo) logPaginationInfo.textContent = '0';
+                if (logPaginationTotal) logPaginationTotal.textContent = '0';
+                if (logPaginationContainer) logPaginationContainer.innerHTML = '';
+                return;
+            }
+
+            // Remove no results row if it exists
+            const existingNoResults = logTbody.querySelector('.no-results-log');
+            if (existingNoResults) existingNoResults.remove();
+
+            // Hide all
+            allLogRows.forEach(row => row.style.display = 'none');
+
+            // Paginate
+            const start = (currentLogPage - 1) * logsPerPage;
+            const end = start + logsPerPage;
+            const pageRows = filteredLogRows.slice(start, end);
+            pageRows.forEach(row => row.style.display = '');
+
+            // Update Info
+            const rowStart = start + 1;
+            const rowEnd = Math.min(end, filteredLogRows.length);
+            if (logPaginationInfo) logPaginationInfo.textContent = `${rowStart}-${rowEnd}`;
+            if (logPaginationTotal) logPaginationTotal.textContent = filteredLogRows.length;
+
+            // Build Pagination
+            logPaginationContainer.innerHTML = '';
+            const totalPages = Math.ceil(filteredLogRows.length / logsPerPage);
+            if (totalPages < 1) return;
+
+            const createPageItem = (label, page, active = false, disabled = false) => {
+                const li = document.createElement('li');
+                li.className = `page-item ${active ? 'active' : ''} ${disabled ? 'disabled' : ''}`;
+                li.innerHTML = `<a class="page-link shadow-sm border border-light-subtle rounded-3 text-muted ${active ? 'bg-pink text-white border-0' : 'fw-bold'}" href="#">${label}</a>`;
+                li.onclick = (e) => {
+                    e.preventDefault();
+                    if (!disabled && currentLogPage !== page) {
+                        currentLogPage = page;
+                        updateLogsView();
+                        const logTable = document.getElementById('drLogsTable');
+                        if (logTable) logTable.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    }
+                };
+                return li;
+            };
+
+            logPaginationContainer.appendChild(createPageItem('&laquo;', currentLogPage - 1, false, currentLogPage === 1));
+            for (let i = 1; i <= totalPages; i++) {
+                if (i === 1 || i === totalPages || (i >= currentLogPage - 2 && i <= currentLogPage + 2)) {
+                    logPaginationContainer.appendChild(createPageItem(i, i, i === currentLogPage));
+                } else if (i === currentLogPage - 3 || i === currentLogPage + 3) {
+                    const dots = document.createElement('li');
+                    dots.className = 'page-item disabled';
+                    dots.innerHTML = '<span class="page-link shadow-sm border-0 bg-transparent text-muted">...</span>';
+                    logPaginationContainer.appendChild(dots);
+                }
+            }
+            logPaginationContainer.appendChild(createPageItem('&raquo;', currentLogPage + 1, false, currentLogPage === totalPages));
+        }
+
+        // Initial logs render
+        updateLogsView();
+
+        // Date filtering for logs
+        window.applyLogDateFilter = function() {
+            const s = document.getElementById('logDateStart').value;
+            const e = document.getElementById('logDateEnd').value;
+            const url = new URL(window.location);
+            url.searchParams.set('log_date_start', s);
+            url.searchParams.set('log_date_end', e);
+            window.location.href = url.toString();
+        };
+
+        window.clearLogDateFilter = function() {
+            const url = new URL(window.location);
+            url.searchParams.delete('log_date_start');
+            url.searchParams.delete('log_date_end');
+            window.location.href = url.toString();
+        };
+
+        const applyLogFilterBtn = document.getElementById('applyLogFilterBtn');
+        const clearLogFilterBtn = document.getElementById('clearLogFilterBtn');
+        if (applyLogFilterBtn) applyLogFilterBtn.addEventListener('click', applyLogDateFilter);
+        if (clearLogFilterBtn) clearLogFilterBtn.addEventListener('click', clearLogDateFilter);
+    </script>
+
+    <style>
+        .filter-row td {
+            padding: 5px 8px !important;
+            background-color: #ffffff !important;
+        }
+        .filter-input {
+            height: 28px !important;
+            font-size: 0.7rem !important;
+            border-color: #fce7f3 !important;
+        }
+        .sortable { cursor: pointer; }
+        .sortable i {
+            font-size: 0.6rem;
+            margin-left: 2px;
+            opacity: 0.5;
+        }
+        .sortable i.fa-sort-up, .sortable i.fa-sort-down {
+            opacity: 1;
+            color: #ec4899 !important;
+        }
+        .active-sort { color: #ec4899 !important; }
+        .btn-xs { padding: 1px 5px; font-size: 0.75rem; }
+        .extra-small { font-size: 0.65rem; padding: 0.2rem 0.4rem; }
+        .text-pink { color: #db2777 !important; }
+        .bg-pink { background-color: #db2777 !important; }
+        .icon-box {
+            width: 20px;
+            height: 20px;
+            background-color: transparent;
+            color: #db2777;
+            border-radius: 4px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.7rem;
+        }
+    </style>
+{% endblock %}

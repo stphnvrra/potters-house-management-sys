@@ -1,0 +1,977 @@
+{% extends 'core/base.html' %}
+{% block title %}Purchase Requests{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb breadcrumb-custom mb-0">
+            <li class="breadcrumb-item"><a href="#">Home</a></li>
+            <li class="breadcrumb-item active" aria-current="page">Purchase Order Requests</li>
+        </ol>
+    </nav>
+</div>
+
+<h4 class="mb-3">Purchase Order Requests</h4>
+
+<div class="inventory-card">
+    <div class="inventory-card-header">
+        <div>
+            <i class="fas fa-clipboard-list me-2"></i> Purchase Order Requests
+        </div>
+        <div class="text-muted small">
+            Showing <strong id="showStart">1</strong>-<strong id="showEnd">20</strong> of <strong id="totalItems">{{ total_count }}</strong> items.
+        </div>
+    </div>
+
+    <div class="p-3 bg-white border-bottom tool-bar">
+        <div class="d-flex justify-content-between align-items-center">
+            <div class="text-muted small" id="selectionInfo">
+                <span id="selectedCount">0</span> item(s) selected
+            </div>
+            <div class="btn-group">
+                <button type="button" class="btn btn-sm" data-bs-toggle="modal" data-bs-target="#newPRModal">
+                    <i class="fas fa-plus me-1"></i> New PR
+                </button>
+                <button type="button" class="btn btn-sm" id="addToPOBtn">
+                    <i class="fas fa-file-invoice me-1"></i> Add to PO
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Table -->
+    <div class="table-responsive">
+        <table id="purchaseOrderTable" class="table table-bordered table-hover mb-0">
+            <thead>
+                <tr>
+                    <th scope="col" style="width: 40px;">
+                        <input type="checkbox" id="selectAll" class="form-check-input" title="Select All">
+                    </th>
+                    <th scope="col" style="width: 50px;" class="sortable" data-column="1"># <i class="fas fa-sort"></i>
+                    </th>
+                    <th scope="col" class="col-header-text sortable" data-column="2">Type <i class="fas fa-sort"></i>
+                    </th>
+                    <th scope="col" class="col-header-text sortable" data-column="3">Name <i class="fas fa-sort"></i>
+                    </th>
+                    <th scope="col" class="col-header-text sortable" data-column="4">Remarks <i class="fas fa-sort"></i>
+                    </th>
+                    <th scope="col" class="col-header-text sortable" data-column="5">Quantity <i
+                            class="fas fa-sort"></i></th>
+                    <th scope="col" class="col-header-text sortable" data-column="6">Unit <i class="fas fa-sort"></i>
+                    </th>
+                    <th scope="col" class="col-header-text sortable" data-column="7">Status <i class="fas fa-sort"></i>
+                    </th>
+                    <th scope="col" class="col-header-text sortable" data-column="8">Purchase Order ID <i
+                            class="fas fa-sort"></i></th>
+                    <th scope="col" class="col-header-text sortable" data-column="9">Supplier <i
+                            class="fas fa-sort"></i></th>
+                    <th scope="col" class="col-header-text sortable" data-column="10">Datetime Created <i
+                            class="fas fa-sort"></i></th>
+                    <th scope="col" class="col-header-text sortable" data-column="11">Created By <i
+                            class="fas fa-sort"></i></th>
+                    <th scope="col" class="col-header-text sortable" data-column="12">Datetime Added <i
+                            class="fas fa-sort"></i></th>
+                    <th scope="col" class="col-header-text sortable" data-column="13">Added By <i
+                            class="fas fa-sort"></i></th>
+                    <th scope="col" class="col-header-text">Actions</th>
+                </tr>
+                <!-- Filter Row -->
+                <tr class="bg-light filter-row">
+                    <td></td>
+                    <td></td>
+                    <td>
+                        <select class="form-select form-select-sm column-filter" data-column="2">
+                            <option value="">All</option>
+                            <option value="ASAP">ASAP</option>
+                            <option value="STOCKING">STOCKING</option>
+                            <option value="-">-</option>
+                        </select>
+                    </td>
+                    <td><input type="text" class="form-control form-control-sm column-filter" data-column="3"
+                            placeholder="Name"></td>
+                    <td><input type="text" class="form-control form-control-sm column-filter" data-column="4"
+                            placeholder="Remarks"></td>
+                    <td><input type="text" class="form-control form-control-sm column-filter" data-column="5"
+                            placeholder="Qty"></td>
+                    <td><input type="text" class="form-control form-control-sm column-filter" data-column="6"
+                            placeholder="Unit"></td>
+                    <td>
+                        <select class="form-select form-select-sm column-filter" data-column="7">
+                            <option value="">All</option>
+                            <option value="created">created</option>
+                            <option value="ordered">ordered</option>
+                            <option value="cancelled">cancelled</option>
+                        </select>
+                    </td>
+                    <td><input type="text" class="form-control form-control-sm column-filter" data-column="8"
+                            placeholder="PO ID"></td>
+                    <td>
+                        <div class="dropdown" id="supplierDropdownContainer">
+                            <button
+                                class="btn btn-outline-secondary btn-sm dropdown-toggle w-100 text-start d-flex justify-content-between align-items-center bg-white border-0"
+                                type="button" data-bs-toggle="dropdown" style="font-size: 0.8rem;">
+                                <span id="selectedSupplier">Select supplier...</span>
+                            </button>
+                            <ul class="dropdown-menu p-2 shadow" style="min-width: 200px;">
+                                <li><input type="text" class="form-control form-control-sm mb-2"
+                                        id="supplierSearchInput" placeholder="Search..."></li>
+                                <div id="supplierOptions" style="max-height: 200px; overflow-y: auto;">
+                                    <li><a class="dropdown-item active" href="#" data-value="">All</a></li>
+                                    {% for supplier in suppliers %}
+                                    <li><a class="dropdown-item" href="#" data-value="{{ supplier }}">{{ supplier }}</a>
+                                    </li>
+                                    {% endfor %}
+                                </div>
+                            </ul>
+                        </div>
+                    </td>
+                    <td><input type="text" class="form-control form-control-sm column-filter" data-column="10"
+                            placeholder="Search..."></td>
+                    <td><input type="text" class="form-control form-control-sm column-filter" data-column="11"
+                            placeholder="Search..."></td>
+                    <td><input type="text" class="form-control form-control-sm column-filter" data-column="12"
+                            placeholder="Search..."></td>
+                    <td><input type="text" class="form-control form-control-sm column-filter" data-column="13"
+                            placeholder="Search..."></td>
+                    <td></td>
+                </tr>
+            </thead>
+            <tbody>
+                {% for req in requests %}
+                <tr>
+                    <td>
+                        {% if req.status == 'created' %}
+                        <input type="checkbox" class="form-check-input row-checkbox" value="{{ req.id }}">
+                        {% endif %}
+                    </td>
+                    <td>{{ forloop.counter }}</td>
+                    <td>
+                        {% if req.request_type == 'ASAP' %}
+                        <span class="badge bg-danger">ASAP</span>
+                        {% elif req.request_type == 'STOCKING' %}
+                        <span class="badge bg-warning text-dark">STOCKING</span>
+                        {% else %}
+                        <span class="text-muted">-</span>
+                        {% endif %}
+                    </td>
+                    <td>{{ req.name }}</td>
+                    <td>{{ req.remarks }}</td>
+                    <td class="fw-bold">{{ req.quantity }}</td>
+                    <td>{{ req.unit }}</td>
+                    <td>
+                        {% if req.status == 'ordered' %}
+                        <span class="badge bg-success">ordered</span>
+                        {% elif req.status == 'created' %}
+                        <span class="badge bg-info">created</span>
+                        {% elif req.status == 'cancelled' %}
+                        <span class="badge bg-secondary">cancelled</span>
+                        {% else %}
+                        <span class="badge bg-dark">{{ req.status }}</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if req.purchase_order_id %}
+                        <a href="#" class="text-decoration-none text-primary">{{ req.purchase_order_id }}</a>
+                        {% endif %}
+                    </td>
+                    <td>{{ req.supplier }}</td>
+                    <td>{{ req.datetime_created }}</td>
+                    <td>{{ req.created_by }}</td>
+                    <td>{% if req.datetime_added %}{{ req.datetime_added }}{% else %}-{% endif %}</td>
+                    <td>{% if req.added_by %}{{ req.added_by }}{% else %}-{% endif %}</td>
+                    <td>
+                        {% if req.status == 'created' %}
+                        <button type="button" class="btn btn-outline-primary btn-sm edit-pr-btn" title="Edit"
+                            data-id="{{ req.id }}" data-type="{{ req.request_type }}" data-name="{{ req.name }}"
+                            data-quantity="{{ req.quantity }}" data-unit="{{ req.unit }}"
+                            data-remarks="{{ req.remarks }}">
+                            <i class="fas fa-edit"></i>
+                        </button>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="15" class="text-center py-5 text-muted">
+                        <i class="fas fa-clipboard-list fa-3x mb-3 opacity-50"></i>
+                        <p class="mb-0">No purchase order requests found.</p>
+                        <button type="button" class="btn btn-sm mt-3" data-bs-toggle="modal"
+                            data-bs-target="#newPRModal">
+                            <i class="fas fa-plus me-1"></i> Create New PR
+                        </button>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Pagination -->
+    <div class="card-footer bg-light border-top">
+        <div class="d-flex justify-content-between align-items-center">
+            <div class="text-muted small">
+                Showing <span id="paginationShowStart">1</span> to <span id="paginationShowEnd">{{ requests|length }}</span> of <span id="paginationTotalItems">{{ requests|length }}</span> items
+            </div>
+            <nav aria-label="Purchase Order pagination">
+                <ul class="pagination pagination-sm mb-0" id="paginationContainer">
+                </ul>
+            </nav>
+        </div>
+    </div>
+</div>
+
+<!-- New PR Modal -->
+<div class="modal fade" id="newPRModal" tabindex="-1" aria-labelledby="newPRModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header border-bottom" style="background: #fff;">
+                <h5 class="modal-title fw-bold" id="newPRModalLabel" style="color: var(--text-color);">
+                    Create
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form id="newPRForm" method="POST" action="/purchase-order-request/create">
+                {% csrf_token %}
+                <div class="modal-body" style="background: #fff;">
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold" style="color: var(--primary-color);">Type</label>
+                        <select class="form-select" name="request_type" required
+                            style="border: 1px solid var(--primary-color); border-radius: 4px;">
+                            <option value="ASAP" selected>ASAP</option>
+                            <option value="STOCKING">STOCKING</option>
+                            <option value="-">-</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold" style="color: var(--text-color);">Product ID</label>
+                        <div class="searchable-dropdown" id="newProductIdDropdown" style="position: relative;">
+                            <div class="dropdown-toggle-box" onclick="toggleProductDropdown('new')"
+                                style="border: 1px solid var(--primary-color); border-radius: 4px; padding: 8px 12px; cursor: pointer; background: #fff; display: flex; justify-content: space-between; align-items: center;">
+                                <span id="newSelectedProductText" style="color: var(--text-muted);">Select product...</span>
+                                <i class="fas fa-chevron-down" style="color: var(--text-muted); font-size: 0.8rem;"></i>
+                            </div>
+                            <div class="dropdown-menu-box" id="newProductDropdownMenu"
+                                style="display: none; position: absolute; top: 100%; left: 0; right: 0; z-index: 1050; background: #fff; border: 1px solid var(--primary-color); border-radius: 4px; margin-top: 2px; box-shadow: 0 4px 12px rgba(0,0,0,0.15);">
+                                <div style="padding: 8px;">
+                                    <input type="text" class="form-control form-control-sm" id="newProductSearchInput"
+                                        placeholder="Search..." style="border-radius: 4px;"
+                                        oninput="filterProductOptions('new')">
+                                </div>
+                                <div id="newProductOptionsList" style="max-height: 200px; overflow-y: auto;">
+                                    {% for item in inventory_items %}
+                                    <div class="product-option" data-value="{{ item.id }}" data-name="{{ item.name }}"
+                                        onclick="selectProduct('{{ item.id }}', '{{ item.name }}', 'new')"
+                                        style="padding: 8px 12px; cursor: pointer; transition: background 0.2s;">
+                                        {{ item.name }}
+                                    </div>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                            <input type="hidden" name="product_id" id="newProductId">
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold" style="color: var(--text-color);">Quantity</label>
+                        <input type="number" step="0.01" class="form-control" name="quantity"
+                            style="border-radius: 4px;" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold" style="color: var(--text-color);">Unit</label>
+                        <input type="text" class="form-control" name="unit" style="border-radius: 4px;">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold" style="color: var(--text-color);">Remarks</label>
+                        <textarea class="form-control" name="remarks" rows="3" style="border-radius: 4px;"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer border-0" style="background: #fff;">
+                    <button type="submit" class="btn"
+                        style="background: var(--primary-color); color: #fff; border-radius: 4px; padding: 8px 24px;">
+                        Save
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Update PR Modal -->
+<div class="modal fade" id="updatePRModal" tabindex="-1" aria-labelledby="updatePRModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header border-bottom" style="background: #fff;">
+                <h5 class="modal-title fw-bold" id="updatePRModalLabel" style="color: var(--text-color);">
+                    Update
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form id="updatePRForm" method="POST">
+                {% csrf_token %}
+                <input type="hidden" name="pr_id" id="updatePrId">
+                <div class="modal-body" style="background: #fff;">
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold" style="color: var(--text-color);">Type</label>
+                        <select class="form-select" name="request_type" id="updateRequestType"
+                            style="border: 1px solid var(--border-color); border-radius: 4px;">
+                            <option value="ASAP">ASAP</option>
+                            <option value="STOCKING">STOCKING</option>
+                            <option value="-">-</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold" style="color: var(--text-color);">Product ID</label>
+                        <div class="searchable-dropdown" id="updateProductIdDropdown" style="position: relative;">
+                            <div class="dropdown-toggle-box" onclick="toggleProductDropdown('update')"
+                                style="border: 1px solid var(--border-color); border-radius: 4px; padding: 8px 12px; cursor: pointer; background: #fff; display: flex; justify-content: space-between; align-items: center;">
+                                <span id="updateSelectedProductText" style="color: var(--text-muted);"></span>
+                                <i class="fas fa-chevron-down" style="color: var(--text-muted); font-size: 0.8rem;"></i>
+                            </div>
+                            <div class="dropdown-menu-box" id="updateProductDropdownMenu"
+                                style="display: none; position: absolute; top: 100%; left: 0; right: 0; z-index: 1050; background: #fff; border: 1px solid var(--border-color); border-radius: 4px; margin-top: 2px; box-shadow: 0 4px 12px rgba(0,0,0,0.15);">
+                                <div style="padding: 8px;">
+                                    <input type="text" class="form-control form-control-sm" id="updateProductSearchInput"
+                                        placeholder="Search..." style="border-radius: 4px;"
+                                        oninput="filterProductOptions('update')">
+                                </div>
+                                <div id="updateProductOptionsList" style="max-height: 200px; overflow-y: auto;">
+                                    <div class="product-option text-muted italic" data-value="" data-name=""
+                                        onclick="selectProduct('', 'Select product...', 'update')"
+                                        style="padding: 8px 12px; cursor: pointer; transition: background 0.2s; font-style: italic;">
+                                        None
+                                    </div>
+                                    {% for item in inventory_items %}
+                                    <div class="product-option" data-value="{{ item.id }}" data-name="{{ item.name }}"
+                                        onclick="selectProduct('{{ item.id }}', '{{ item.name }}', 'update')"
+                                        style="padding: 8px 12px; cursor: pointer; transition: background 0.2s;">
+                                        {{ item.name }}
+                                    </div>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                            <input type="hidden" name="product_id" id="updateProductId">
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold" style="color: var(--text-color);">Quantity</label>
+                        <input type="number" step="0.01" class="form-control" name="quantity" id="updateQuantity"
+                            style="border-radius: 4px;" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold" style="color: var(--text-color);">Unit</label>
+                        <input type="text" class="form-control" name="unit" id="updateUnit" style="border-radius: 4px;">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold" style="color: var(--text-color);">Remarks</label>
+                        <textarea class="form-control" name="remarks" id="updateRemarks" rows="3"
+                            style="border-radius: 4px;"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer border-0 d-flex justify-content-between" style="background: #fff;">
+                    <div>
+                        <button type="submit" class="btn"
+                            style="background: var(--primary-color); color: #fff; border-radius: 4px; padding: 8px 24px;">
+                            Save
+                        </button>
+                        <button type="button" class="btn btn-warning" id="triggerCancelPRBtn"
+                            style="border-radius: 4px; padding: 8px 24px; color: #000;">
+                            Cancel
+                        </button>
+                    </div>
+                    <button type="button" class="btn btn-danger" id="deletePRBtn"
+                        style="border-radius: 4px; padding: 8px 24px;">
+                        Delete
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Confirmation Modal -->
+<div class="modal fade" id="deleteConfirmModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-sm">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header border-0 pb-0">
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body text-center pt-0">
+                <div class="mb-3 text-danger">
+                    <i class="fas fa-exclamation-triangle fa-3x"></i>
+                </div>
+                <h5 class="fw-bold mb-2">Are you sure?</h5>
+                <p class="text-muted small mb-4">You are about to delete this Purchase Order Request. This action cannot be undone.</p>
+                <div class="d-grid gap-2">
+                    <form id="deletePRForm" method="POST">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-danger w-100 mb-2">Confirm Delete</button>
+                    </form>
+                    <button type="button" class="btn btn-light w-100" data-bs-dismiss="modal">Keep PR</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Cancel Confirmation Modal -->
+<div class="modal fade" id="cancelConfirmModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-sm">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header border-0 pb-0">
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body text-center pt-0">
+                <div class="mb-3 text-warning">
+                    <i class="fas fa-exclamation-triangle fa-3x"></i>
+                </div>
+                <h5 class="fw-bold mb-2">Confirm Cancel?</h5>
+                <p class="text-muted small mb-4">Are you sure you want to cancel this request? The status will be updated to "cancelled".</p>
+                <div class="d-grid gap-2">
+                    <form id="cancelPRForm" method="POST">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-warning w-100 mb-2">Confirm Cancel</button>
+                    </form>
+                    <button type="button" class="btn btn-light w-100" data-bs-dismiss="modal">Keep Active</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+<!-- Add to PO Modal -->
+<div class="modal fade" id="addToPOModal" tabindex="-1" aria-labelledby="addToPOModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header border-bottom" style="background: #fff;">
+                <h5 class="modal-title fw-bold" id="addToPOModalLabel" style="color: var(--text-color);">
+                    Add to Purchase Order
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form id="addToPOForm" method="POST" action="/purchase-order-request/add-to-po">
+                {% csrf_token %}
+                <input type="hidden" name="pr_ids_string" id="prIdsString">
+                <div class="modal-body" style="background: #fff;">
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold" style="color: var(--text-color);">Purchase Order ID</label>
+                        <div class="searchable-dropdown" id="poIdDropdown" style="position: relative;">
+                            <div class="dropdown-toggle-box" onclick="toggleProductDropdown('po')"
+                                style="border: 1px solid var(--border-color); border-radius: 4px; padding: 8px 12px; cursor: pointer; background: #fff; display: flex; justify-content: space-between; align-items: center;">
+                                <span id="poSelectedProductText" style="color: var(--text-color);">Create New PO</span>
+                                <i class="fas fa-chevron-down" style="color: var(--text-muted); font-size: 0.8rem;"></i>
+                            </div>
+                            <div class="dropdown-menu-box" id="poProductDropdownMenu"
+                                style="display: none; position: absolute; top: 100%; left: 0; right: 0; z-index: 1050; background: #fff; border: 1px solid var(--border-color); border-radius: 4px; margin-top: 2px; box-shadow: 0 4px 12px rgba(0,0,0,0.15);">
+                                <div style="padding: 8px;">
+                                    <input type="text" class="form-control form-control-sm" id="poProductSearchInput"
+                                        placeholder="Search..." style="border-radius: 4px;"
+                                        oninput="filterProductOptions('po')">
+                                </div>
+                                <div id="poProductOptionsList" style="max-height: 200px; overflow-y: auto;">
+                                    <div class="product-option" data-value="new" data-name="Create New PO"
+                                        onclick="selectProduct('new', 'Create New PO', 'po')"
+                                        style="padding: 8px 12px; cursor: pointer; transition: background 0.2s; background: #4a90a4; color: #fff;">
+                                        Create New PO
+                                    </div>
+                                    {% for po in open_pos %}
+                                    <div class="product-option" data-value="{{ po.id }}" data-name="{{ po.po_number }} - {{ po.supplier }}"
+                                        onclick="selectProduct('{{ po.id }}', '{{ po.po_number }} - {{ po.supplier }}', 'po')"
+                                        style="padding: 8px 12px; cursor: pointer; transition: background 0.2s;">
+                                        {{ po.po_number }} - {{ po.supplier }}
+                                    </div>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                            <input type="hidden" name="purchase_order_id" id="poProductId" value="new">
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer border-0" style="background: #fff;">
+                    <button type="submit" class="btn" id="confirmAddToPOBtn"
+                        style="background: var(--primary-color); color: #fff; border-radius: 4px; padding: 8px 24px;">
+                        Save
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        // Select All functionality
+        const selectAll = document.getElementById('selectAll');
+        const rowCheckboxes = document.querySelectorAll('.row-checkbox');
+        const selectedCountSpan = document.getElementById('selectedCount');
+
+        if (selectAll) {
+            selectAll.addEventListener('change', function () {
+                // Only check visible rows
+                const visibleCheckboxes = Array.from(rowCheckboxes).filter(cb => cb.closest('tr').style.display !== 'none');
+                visibleCheckboxes.forEach(cb => cb.checked = this.checked);
+                updateSelectedCount();
+            });
+        }
+
+        rowCheckboxes.forEach(cb => {
+            cb.addEventListener('change', updateSelectedCount);
+        });
+
+        function updateSelectedCount() {
+            const count = document.querySelectorAll('.row-checkbox:checked').length;
+            selectedCountSpan.textContent = count;
+        }
+
+        // Form submissions are now native to ensure page refresh
+        // No longer using fetch for New PR and Update PR forms
+
+        // Column filtering
+        const columnFilters = document.querySelectorAll('.column-filter');
+        columnFilters.forEach(filter => {
+            filter.addEventListener('input', filterTable);
+            filter.addEventListener('change', filterTable);
+        });
+
+        function filterTable() {
+            const table = document.getElementById('purchaseOrderTable');
+            const rows = table.querySelectorAll('tbody tr');
+
+            rows.forEach(row => {
+                let show = true;
+                columnFilters.forEach(filter => {
+                    const column = parseInt(filter.dataset.column);
+                    const value = filter.value.toLowerCase();
+                    if (value && row.cells[column]) {
+                        const cellText = row.cells[column].textContent.toLowerCase();
+                        if (!cellText.includes(value)) {
+                            show = false;
+                        }
+                    }
+                });
+                row.style.display = show ? '' : 'none';
+            });
+
+            // Update pagination after filtering
+            allRows = Array.from(document.querySelectorAll('#purchaseOrderTable tbody tr')).filter(r => r.style.display !== 'none');
+            showPage(1);
+        }
+
+        // Supplier dropdown search
+        const supplierSearchInput = document.getElementById('supplierSearchInput');
+        const supplierOptions = document.getElementById('supplierOptions');
+
+        if (supplierSearchInput) {
+            supplierSearchInput.addEventListener('input', function () {
+                const searchTerm = this.value.toLowerCase();
+                const options = supplierOptions.querySelectorAll('.dropdown-item');
+                options.forEach(option => {
+                    const text = option.textContent.toLowerCase();
+                    option.style.display = text.includes(searchTerm) ? '' : 'none';
+                });
+            });
+        }
+
+        // Supplier selection
+        const supplierDropdownItems = document.querySelectorAll('#supplierOptions .dropdown-item');
+        supplierDropdownItems.forEach(item => {
+            item.addEventListener('click', function (e) {
+                e.preventDefault();
+                const value = this.dataset.value;
+                document.getElementById('selectedSupplier').textContent = value || 'Select supplier...';
+                supplierDropdownItems.forEach(i => i.classList.remove('active'));
+                this.classList.add('active');
+
+                // Filter by supplier column (9)
+                const table = document.getElementById('purchaseOrderTable');
+                const rows = table.querySelectorAll('tbody tr');
+                rows.forEach(row => {
+                    if (!value) {
+                        row.style.display = '';
+                    } else {
+                        const cellText = row.cells[9] ? row.cells[9].textContent.trim().toLowerCase() : '';
+                        row.style.display = cellText.includes(value.toLowerCase()) ? '' : 'none';
+                    }
+                });
+
+                allRows = Array.from(document.querySelectorAll('#purchaseOrderTable tbody tr')).filter(r => r.style.display !== 'none');
+                showPage(1);
+            });
+        });
+
+        // Sorting functionality
+        const sortableHeaders = document.querySelectorAll('.sortable');
+        let currentSort = { column: null, direction: 'asc' };
+
+        sortableHeaders.forEach(header => {
+            header.style.cursor = 'pointer';
+            header.addEventListener('click', function () {
+                const column = parseInt(this.dataset.column);
+
+                if (currentSort.column === column) {
+                    currentSort.direction = currentSort.direction === 'asc' ? 'desc' : 'asc';
+                } else {
+                    currentSort.column = column;
+                    currentSort.direction = 'asc';
+                }
+
+                sortTable(column, currentSort.direction);
+
+                // Update sort icons
+                sortableHeaders.forEach(h => {
+                    const icon = h.querySelector('i');
+                    icon.className = 'fas fa-sort';
+                });
+                const icon = this.querySelector('i');
+                icon.className = currentSort.direction === 'asc' ? 'fas fa-sort-up' : 'fas fa-sort-down';
+
+                // Re-paginate
+                allRows = Array.from(document.querySelectorAll('#purchaseOrderTable tbody tr'));
+                showPage(1);
+            });
+        });
+
+        function sortTable(column, direction) {
+            const table = document.getElementById('purchaseOrderTable');
+            const tbody = table.querySelector('tbody');
+            const rows = Array.from(tbody.querySelectorAll('tr'));
+
+            rows.sort((a, b) => {
+                // Handle rows with colspan (empty msg) - push to bottom
+                const aIsColspan = !!a.querySelector('td[colspan]');
+                const bIsColspan = !!b.querySelector('td[colspan]');
+
+                if (aIsColspan && bIsColspan) return 0;
+                if (aIsColspan) return 1;
+                if (bIsColspan) return -1;
+
+                const aVal = a.cells[column]?.textContent.trim() || '';
+                const bVal = b.cells[column]?.textContent.trim() || '';
+
+                // Try numeric comparison
+                const aNum = parseFloat(aVal);
+                const bNum = parseFloat(bVal);
+
+                if (!isNaN(aNum) && !isNaN(bNum)) {
+                    return direction === 'asc' ? aNum - bNum : bNum - aNum;
+                }
+
+                // String comparison
+                return direction === 'asc' ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
+            });
+
+            rows.forEach(row => tbody.appendChild(row));
+        }
+
+        // Pagination
+        const itemsPerPage = 20;
+        let allRows = Array.from(document.querySelectorAll('#purchaseOrderTable tbody tr'));
+        let currentPage = 1;
+
+        function showPage(page) {
+            currentPage = page;
+            const total = allRows.length;
+            const totalPages = Math.ceil(total / itemsPerPage) || 1;
+            const start = (page - 1) * itemsPerPage;
+            const end = start + itemsPerPage;
+
+            allRows.forEach((row, index) => {
+                row.style.display = (index >= start && index < end) ? '' : 'none';
+            });
+
+            document.getElementById('paginationShowStart').textContent = total > 0 ? start + 1 : 0;
+            document.getElementById('paginationShowEnd').textContent = Math.min(end, total);
+            document.getElementById('paginationTotalItems').textContent = total;
+
+            // Update header count too
+            document.getElementById('showStart').textContent = total > 0 ? start + 1 : 0;
+            document.getElementById('showEnd').textContent = Math.min(end, total);
+            document.getElementById('totalItems').textContent = total;
+
+            updatePagination(totalPages);
+        }
+
+        function updatePagination(totalPages) {
+            const container = document.getElementById('paginationContainer');
+            container.innerHTML = '';
+
+            if (totalPages <= 1) return;
+
+            // Previous
+            const prevLi = document.createElement('li');
+            prevLi.className = 'page-item' + (currentPage === 1 ? ' disabled' : '');
+            prevLi.innerHTML = '<a class="page-link" href="#">&laquo;</a>';
+            prevLi.addEventListener('click', (e) => { e.preventDefault(); if (currentPage > 1) showPage(currentPage - 1); });
+            container.appendChild(prevLi);
+
+            // Page numbers
+            for (let i = 1; i <= totalPages; i++) {
+                const li = document.createElement('li');
+                li.className = 'page-item' + (i === currentPage ? ' active' : '');
+                li.innerHTML = '<a class="page-link" href="#">' + i + '</a>';
+                li.addEventListener('click', function (e) { e.preventDefault(); showPage(i); });
+                container.appendChild(li);
+            }
+
+            // Next
+            const nextLi = document.createElement('li');
+            nextLi.className = 'page-item' + (currentPage === totalPages ? ' disabled' : '');
+            nextLi.innerHTML = '<a class="page-link" href="#">&raquo;</a>';
+            nextLi.addEventListener('click', (e) => { e.preventDefault(); if (currentPage < totalPages) showPage(currentPage + 1); });
+            container.appendChild(nextLi);
+        }
+
+        // Initialize pagination
+        if (allRows.length > 0) {
+            showPage(1);
+        }
+
+    });
+
+    // Export functions
+    function exportPRData(format) {
+        const table = document.getElementById('purchaseOrderTable');
+        const rows = table.querySelectorAll('tbody tr');
+        const headers = ['#', 'Type', 'Name', 'Remarks', 'Quantity', 'Unit', 'Status', 'PO ID', 'Supplier', 'Created', 'Created By', 'Added', 'Added By'];
+
+        let data = [];
+        rows.forEach((row, index) => {
+            if (row.style.display === 'none' || row.cells.length < 5) return;
+            let rowData = {};
+            headers.forEach((header, i) => {
+                rowData[header] = row.cells[i + 1]?.textContent.trim() || '';
+            });
+            data.push(rowData);
+        });
+
+        if (format === 'csv') {
+            let csv = headers.join(',') + '\n';
+            data.forEach(row => {
+                csv += headers.map(h => '"' + (row[h] || '').replace(/"/g, '""') + '"').join(',') + '\n';
+            });
+            downloadFile(csv, 'purchase_order_requests.csv', 'text/csv');
+        } else if (format === 'json') {
+            downloadFile(JSON.stringify(data, null, 2), 'purchase_order_requests.json', 'application/json');
+        } else if (format === 'txt') {
+            let txt = headers.join('\t') + '\n';
+            data.forEach(row => {
+                txt += headers.map(h => row[h] || '').join('\t') + '\n';
+            });
+            downloadFile(txt, 'purchase_order_requests.txt', 'text/plain');
+        } else if (format === 'html') {
+            let html = '<table border="1"><tr>' + headers.map(h => '<th>' + h + '</th>').join('') + '</tr>';
+            data.forEach(row => {
+                html += '<tr>' + headers.map(h => '<td>' + (row[h] || '') + '</td>').join('') + '</tr>';
+            });
+            html += '</table>';
+            downloadFile(html, 'purchase_order_requests.html', 'text/html');
+        } else if (format === 'excel' || format === 'pdf') {
+            showToast(format.toUpperCase() + ' export requires additional libraries. CSV export is available.', 'info');
+        }
+    }
+
+    function downloadFile(content, filename, mimeType) {
+        const blob = new Blob([content], { type: mimeType });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        a.click();
+        URL.revokeObjectURL(url);
+    }
+
+    // Product ID Searchable Dropdown Functions
+    let openDropdownId = null;
+
+    function toggleProductDropdown(prefix) {
+        const menuId = prefix + 'ProductDropdownMenu';
+        const searchInputId = prefix + 'ProductSearchInput';
+        const menu = document.getElementById(menuId);
+        
+        if (openDropdownId && openDropdownId !== menuId) {
+            document.getElementById(openDropdownId).style.display = 'none';
+        }
+
+        if (menu.style.display === 'block') {
+            menu.style.display = 'none';
+            openDropdownId = null;
+        } else {
+            menu.style.display = 'block';
+            openDropdownId = menuId;
+            document.getElementById(searchInputId).focus();
+            // Clear search on open for fresh experience
+            document.getElementById(searchInputId).value = '';
+            filterProductOptions(prefix);
+        }
+    }
+
+    function filterProductOptions(prefix) {
+        const searchInputId = prefix + 'ProductSearchInput';
+        const optionsListId = prefix + 'ProductOptionsList';
+        const searchValue = document.getElementById(searchInputId).value.toLowerCase();
+        const options = document.getElementById(optionsListId).querySelectorAll('.product-option');
+
+        options.forEach(option => {
+            const name = option.getAttribute('data-name').toLowerCase();
+            if (name.includes(searchValue)) {
+                option.style.display = 'block';
+            } else {
+                option.style.display = 'none';
+            }
+        });
+    }
+
+    function selectProduct(id, name, prefix) {
+        const inputId = prefix + 'ProductId';
+        const textId = prefix + 'SelectedProductText';
+        const menuId = prefix + 'ProductDropdownMenu';
+        const optionsListId = prefix + 'ProductOptionsList';
+
+        document.getElementById(inputId).value = id;
+        document.getElementById(textId).textContent = name || 'Select product...';
+        document.getElementById(textId).style.color = id ? 'var(--text-color)' : 'var(--text-muted)';
+        document.getElementById(menuId).style.display = 'none';
+        openDropdownId = null;
+
+        // Highlight selected option
+        document.getElementById(optionsListId).querySelectorAll('.product-option').forEach(opt => {
+            opt.style.background = '';
+            opt.style.color = '';
+        });
+        const selectedOpt = document.querySelector(`#${optionsListId} .product-option[data-value="${id}"]`);
+        if (selectedOpt && id) {
+            selectedOpt.style.background = '#4a90a4';
+            selectedOpt.style.color = '#fff';
+        }
+    }
+
+    // Close dropdown when clicking outside
+    document.addEventListener('click', function (e) {
+        if (openDropdownId) {
+            const dropdown = document.getElementById(openDropdownId).parentElement;
+            if (dropdown && !dropdown.contains(e.target)) {
+                document.getElementById(openDropdownId).style.display = 'none';
+                openDropdownId = null;
+            }
+        }
+    });
+
+    // Add hover effects to product options
+    document.querySelectorAll('.product-option').forEach(option => {
+        option.addEventListener('mouseenter', function () {
+            if (!this.style.background || this.style.background === '') {
+                this.style.background = '#e8f4f8';
+            }
+        });
+        option.addEventListener('mouseleave', function () {
+            // Check both dropdowns for selected state
+            const newId = document.getElementById('newProductId') ? document.getElementById('newProductId').value : '';
+            const updateId = document.getElementById('updateProductId') ? document.getElementById('updateProductId').value : '';
+            const dataValue = this.getAttribute('data-value');
+            if (dataValue !== newId && dataValue !== updateId) {
+                this.style.background = '';
+                this.style.color = '';
+            }
+        });
+    });
+
+    // Edit PR Button Handler
+    document.querySelectorAll('.edit-pr-btn').forEach(btn => {
+        btn.addEventListener('click', function () {
+            const id = this.dataset.id;
+            const type = this.dataset.type;
+            const name = this.dataset.name;
+            const quantity = this.dataset.quantity;
+            const unit = this.dataset.unit;
+            const remarks = this.dataset.remarks;
+
+            // Populate the update modal
+            document.getElementById('updatePrId').value = id;
+            document.getElementById('updateRequestType').value = type;
+            document.getElementById('updateQuantity').value = quantity;
+            document.getElementById('updateUnit').value = unit;
+            document.getElementById('updateRemarks').value = remarks;
+
+            // Try to find and select the product by name in the custom dropdown
+            const options = document.querySelectorAll('#updateProductOptionsList .product-option');
+            let productId = '';
+            let productName = 'Select product...';
+
+            options.forEach(opt => {
+                const optName = opt.getAttribute('data-name');
+                if (optName === name) {
+                    productId = opt.getAttribute('data-value');
+                    productName = optName;
+                }
+            });
+
+            selectProduct(productId, productName, 'update');
+
+            // Open the modal
+            const updateModal = new bootstrap.Modal(document.getElementById('updatePRModal'));
+            document.getElementById('updatePRForm').action = `/purchase-order-request/update/${id}`;
+            updateModal.show();
+        });
+    });
+
+        // Update PR Form submission is now native
+
+    // Cancel PR Button Handler
+    const triggerCancelPRBtn = document.getElementById('triggerCancelPRBtn');
+    if (triggerCancelPRBtn) {
+        triggerCancelPRBtn.addEventListener('click', function () {
+            const prId = document.getElementById('updatePrId').value;
+            document.getElementById('cancelPRForm').action = `/purchase-order-request/cancel/${prId}`;
+            
+            // Show bootstrap modal
+            const cancelModal = new bootstrap.Modal(document.getElementById('cancelConfirmModal'));
+            cancelModal.show();
+        });
+    }
+
+    // Delete PR Button Handler
+    const deletePRBtn = document.getElementById('deletePRBtn');
+    if (deletePRBtn) {
+        deletePRBtn.addEventListener('click', function () {
+            const prId = document.getElementById('updatePrId').value;
+            document.getElementById('deletePRForm').action = `/purchase-order-request/delete/${prId}`;
+            
+            // Show new bootstrap modal
+            const deleteModal = new bootstrap.Modal(document.getElementById('deleteConfirmModal'));
+            deleteModal.show();
+        });
+    }
+
+    // Add to PO Button Handler
+    const addToPOBtn = document.getElementById('addToPOBtn');
+    if (addToPOBtn) {
+        addToPOBtn.addEventListener('click', function () {
+            const selectedCheckboxes = document.querySelectorAll('.row-checkbox:checked');
+
+            if (selectedCheckboxes.length === 0) {
+                showToast('Please select at least one item to add.', 'info');
+                return;
+            }
+
+            // Show modal
+            const modal = new bootstrap.Modal(document.getElementById('addToPOModal'));
+            modal.show();
+        });
+    }
+
+    // Confirm Add to PO Handler
+    const addToPOForm = document.getElementById('addToPOForm');
+    if (addToPOForm) {
+        addToPOForm.addEventListener('submit', function (e) {
+            const selectedCheckboxes = document.querySelectorAll('.row-checkbox:checked');
+            const prIds = Array.from(selectedCheckboxes).map(cb => cb.value).join(',');
+            document.getElementById('prIdsString').value = prIds;
+            
+            // Allow native submission
+        });
+    }
+
+</script>
+{% endblock %}

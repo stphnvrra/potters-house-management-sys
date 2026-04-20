@@ -1,0 +1,158 @@
+{% extends 'core/base.html' %}
+{% load static %}
+
+{% block title %}Expense Categories - The Potter's House{% endblock %}
+
+{% block content %}
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb breadcrumb-custom mb-0">
+                <li class="breadcrumb-item"><a href="/">Home</a></li>
+                <li class="breadcrumb-item"><a href="{% url 'expenses' %}">Expenses</a></li>
+                <li class="breadcrumb-item active" aria-current="page">Categories</li>
+            </ol>
+        </nav>
+    </div>
+
+    <div class="row g-4">
+        <!-- Sidebar Form -->
+        <div class="col-md-4">
+            <div class="inventory-card">
+                <div class="inventory-card-header">
+                    <i class="fas fa-plus-circle me-2"></i> New Category
+                </div>
+                <div class="p-4 bg-white">
+                    <form method="POST">
+                        {% csrf_token %}
+                        <div class="mb-4">
+                            <label class="filter-label mb-2">Category Name</label>
+                            <input type="text" name="name" class="form-control filter-input" placeholder="e.g. Asset, Labor, Bills" required>
+                        </div>
+                        <button type="submit" class="btn w-100 text-white" style="background-color: #e92487ff">
+                            <i class="fas fa-save me-1"></i> Save Category
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Table -->
+        <div class="col-md-8">
+            <div class="inventory-card">
+                <div class="inventory-card-header d-flex justify-content-between align-items-center">
+                    <div>
+                        <i class="fas fa-tags me-2"></i> Category Registry
+                    </div>
+                    <div class="text-muted small">
+                        Total: <strong>{{ items|length }}</strong>
+                    </div>
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-bordered table-hover mb-0">
+                        <thead>
+                            <tr>
+                                <th style="width: 50px;">#</th>
+                                <th>Category Name</th>
+                                <th class="text-center" style="width: 100px;">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in items %}
+                            <tr>
+                                <td class="text-muted small">{{ forloop.counter }}</td>
+                                <td><span class="text-pink fw-bold">{{ item.name }}</span></td>
+                                <td class="text-center">
+                                    <div class="btn-group">
+                                        <button class="btn btn-sm btn-light rounded-circle shadow-sm me-1" 
+                                                title="Edit"
+                                                onclick="openEditModal('{{ item.id }}', '{{ item.name|escapejs }}')">
+                                            <i class="fas fa-pencil-alt text-secondary"></i>
+                                        </button>
+                                        <button class="btn btn-sm btn-light rounded-circle shadow-sm text-danger" 
+                                                title="Delete"
+                                                onclick="openDeleteModal('{{ item.id }}', '{{ item.name|escapejs }}')">
+                                            <i class="fas fa-trash-alt"></i>
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="3" class="text-center py-5 text-muted">
+                                    <i class="fas fa-folder-open fa-3x mb-3 opacity-25 text-pink"></i>
+                                    <p>No categories found.</p>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Edit Category Modal -->
+    <div class="modal fade" id="editCategoryModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content border-0 shadow">
+                <div class="modal-header bg-light border-bottom-0 py-3">
+                    <h5 class="modal-title fw-bold"><i class="fas fa-edit me-2 text-pink"></i>Edit Category</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <form id="editCategoryForm" method="POST">
+                    {% csrf_token %}
+                    <div class="modal-body p-4">
+                        <div class="mb-0">
+                            <label class="filter-label mb-2">Category Name</label>
+                            <input type="text" name="name" id="edit_category_name" class="form-control filter-input" required>
+                        </div>
+                    </div>
+                    <div class="modal-footer border-top-0 p-4 pt-0">
+                        <button type="button" class="btn btn-light px-4" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn btn-primary px-4">Update Category</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Delete Category Modal -->
+    <div class="modal fade" id="deleteCategoryModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content border-0 shadow">
+                <div class="modal-header bg-light border-bottom-0 py-3">
+                    <h5 class="modal-title fw-bold text-danger"><i class="fas fa-exclamation-triangle me-2"></i>Confirm Delete</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body p-4 text-center">
+                    <i class="fas fa-trash-alt fa-3x text-danger mb-3 opacity-25"></i>
+                    <p class="mb-0">Are you sure you want to delete <strong id="deleteCategoryName" class="text-pink"></strong>?</p>
+                    <p class="text-muted small mt-2">This will fail if there are active expense types under this category.</p>
+                </div>
+                <div class="modal-footer border-top-0 p-4 pt-0 justify-content-center">
+                    <button type="button" class="btn btn-light px-4" data-bs-dismiss="modal">Cancel</button>
+                    <form id="deleteCategoryForm" method="POST" class="d-inline">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-danger px-4">Delete Category</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function openEditModal(id, name) {
+            const form = document.getElementById('editCategoryForm');
+            form.action = `/api/expense-category/update/${id}/`;
+            document.getElementById('edit_category_name').value = name;
+            new bootstrap.Modal(document.getElementById('editCategoryModal')).show();
+        }
+
+        function openDeleteModal(id, name) {
+            const form = document.getElementById('deleteCategoryForm');
+            form.action = `/api/expense-category/delete/${id}/`;
+            document.getElementById('deleteCategoryName').textContent = name;
+            new bootstrap.Modal(document.getElementById('deleteCategoryModal')).show();
+        }
+    </script>
+{% endblock %}

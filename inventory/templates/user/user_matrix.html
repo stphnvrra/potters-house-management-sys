@@ -1,0 +1,268 @@
+{% extends 'core/base.html' %}
+{% load static %}
+{% load inventory_extras %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <!-- Header/Tabs -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h4 class="fw-bold text-pink mb-0">User Access Matrix</h4>
+            <p class="text-muted small">Bulk manage system permissions and production roles in a consolidated grid.</p>
+        </div>
+        <div class="search-box">
+             <div class="input-group shadow-sm" style="width: 300px;">
+                <span class="input-group-text bg-white border-end-0"><i class="fas fa-search text-muted"></i></span>
+                <input type="text" id="matrixSearch" class="form-control border-start-0 ps-0" placeholder="Search user or permission...">
+            </div>
+        </div>
+    </div>
+
+    <!-- Navigation Tabs -->
+    <div class="user-management-nav mb-4 bg-white p-2 rounded-3 shadow-sm d-flex gap-2 text-nowrap overflow-auto">
+        <a href="{% url 'user_index' %}" class="btn {% if active_page == 'user_management' %}btn-pink text-white{% else %}btn-light text-muted{% endif %} px-4">
+            <i class="fas fa-users me-2"></i>Users
+        </a>
+        <a href="{% url 'auth_assignment' %}" class="btn {% if active_page == 'user_management_assignment' %}btn-pink text-white{% else %}btn-light text-muted{% endif %} px-4">
+            <i class="fas fa-user-shield me-2"></i>Assignments
+        </a>
+        <a href="{% url 'auth_item' %}" class="btn {% if active_page == 'user_management_items' %}btn-pink text-white{% else %}btn-light text-muted{% endif %} px-4">
+            <i class="fas fa-list-ul me-2"></i>Roles & Permissions
+        </a>
+        <a href="{% url 'user_matrix' %}" class="btn {% if active_page == 'user_management_matrix' %}btn-pink text-white{% else %}btn-light text-muted{% endif %} px-4">
+            <i class="fas fa-th me-2"></i>Matrix
+        </a>
+    </div>
+
+    <!-- Matrix Card -->
+    <div class="inventory-card shadow-sm border-0 mb-5">
+        <div class="inventory-card-header bg-white py-3 px-4 border-bottom d-flex justify-content-between align-items-center">
+            <h6 class="mb-0 fw-bold"><i class="fas fa-shield-alt me-2 text-pink"></i>Section 1: System Permissions</h6>
+            <div class="small text-muted"><i class="fas fa-info-circle me-1"></i>Toggles administrative and functional access</div>
+        </div>
+        <div class="table-responsive matrix-container">
+            <table class="table table-bordered align-middle mb-0 text-center" id="systemMatrix">
+                <thead class="bg-light sticky-top">
+                    <tr>
+                        <th class="text-start ps-4 bg-light shadow-sm sticky-left" style="min-width: 200px; z-index: 10;">System Users</th>
+                        {% for item in system_permissions %}
+                        <th class="matrix-header permission-col" title="{{ item.description }}">
+                            <div class="vertical-text small text-uppercase fw-bold">{{ item.name }}</div>
+                        </th>
+                        {% endfor %}
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for u in users %}
+                    <tr class="user-row" data-username="{{ u.username }}">
+                        <th class="text-start ps-4 fw-bold small sticky-left bg-white shadow-sm">
+                            <span class="text-pink">{{ u.username }}</span>
+                        </th>
+                        {% for item in system_permissions %}
+                        <td class="matrix-cell permission-col">
+                            <i class="permission-check fas {% if item.id in matrix_data|get_item:u.id %}fa-check-circle text-pink active{% else %}fa-circle text-muted opacity-10{% endif %}"
+                               data-user-id="{{ u.id }}" data-item-id="{{ item.id }}" style="cursor: pointer; font-size: 1.3rem;"></i>
+                        </td>
+                        {% endfor %}
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Production Matrix Card -->
+    <div class="inventory-card shadow-sm border-0">
+        <div class="inventory-card-header bg-white py-3 px-4 border-bottom d-flex justify-content-between align-items-center">
+            <h6 class="mb-0 fw-bold"><i class="fas fa-industry me-2 text-pink"></i>Section 2: Production Roles & Specialties</h6>
+            <div class="small text-muted"><i class="fas fa-info-circle me-1"></i>Defines departments and job specialties</div>
+        </div>
+        <div class="table-responsive matrix-container">
+            <table class="table table-bordered align-middle mb-0 text-center" id="roleMatrix">
+                <thead class="bg-light sticky-top">
+                    <tr>
+                        <th class="text-start ps-4 bg-light shadow-sm sticky-left" style="min-width: 200px; z-index: 10;">System Users</th>
+                        {% for item in role_permissions %}
+                        <th class="matrix-header permission-col" title="{{ item.description }}">
+                            <div class="vertical-text small text-uppercase fw-bold">{{ item.name }}</div>
+                        </th>
+                        {% endfor %}
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for u in users %}
+                    <tr class="user-row" data-username="{{ u.username }}">
+                        <th class="text-start ps-4 fw-bold small sticky-left bg-white shadow-sm">
+                            <span class="text-pink">{{ u.username }}</span>
+                        </th>
+                        {% for item in role_permissions %}
+                        <td class="matrix-cell permission-col">
+                            <i class="permission-check fas {% if item.id in matrix_data|get_item:u.id %}fa-check-circle text-pink active{% else %}fa-circle text-muted opacity-10{% endif %}"
+                               data-user-id="{{ u.id }}" data-item-id="{{ item.id }}" style="cursor: pointer; font-size: 1.3rem;"></i>
+                        </td>
+                        {% endfor %}
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    .text-pink { color: #D63384 !important; }
+    .btn-pink { background-color: #D63384; border-color: #D63384; }
+    .bg-pink { background-color: #D63384 !important; }
+    
+    .matrix-container {
+        max-height: 60vh;
+        overflow: auto;
+        scrollbar-width: thin;
+        scrollbar-color: #D63384 #f1f1f1;
+    }
+    
+    .matrix-header {
+        height: 180px;
+        min-width: 55px;
+        vertical-align: bottom !important;
+        padding-bottom: 20px !important;
+        background-color: #f8f9fa !important;
+    }
+    
+    .vertical-text {
+        writing-mode: vertical-rl;
+        transform: rotate(180deg);
+        white-space: nowrap;
+        margin: 0 auto;
+        color: #333;
+        font-size: 0.75rem;
+    }
+    
+    .matrix-cell:hover {
+        background-color: rgba(214, 51, 132, 0.03);
+    }
+    
+    .permission-check {
+        transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    }
+    
+    .permission-check:hover {
+        transform: scale(1.4);
+        opacity: 1 !important;
+    }
+    
+    .permission-check.active {
+        filter: drop-shadow(0 2px 4px rgba(214, 51, 132, 0.3));
+    }
+
+    .sticky-left {
+        position: sticky;
+        left: 0;
+        z-index: 5;
+    }
+    
+    .sticky-top {
+        position: sticky;
+        top: 0;
+        z-index: 10;
+    }
+
+    .user-row:hover th {
+        background-color: #fff9fc !important;
+    }
+    
+    .opacity-10 { opacity: 0.15 !important; }
+
+    /* Custom Scrollbar */
+    ::-webkit-scrollbar { height: 8px; width: 8px; }
+    ::-webkit-scrollbar-track { background: #f1f1f1; }
+    ::-webkit-scrollbar-thumb { background: #D63384; border-radius: 10px; }
+    ::-webkit-scrollbar-thumb:hover { background: #c82c77; }
+</style>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Search functionality
+        const searchInput = document.getElementById('matrixSearch');
+        searchInput.addEventListener('input', function() {
+            const term = this.value.toLowerCase();
+            
+            // Filter Users (Rows)
+            document.querySelectorAll('.user-row').forEach(row => {
+                const username = row.getAttribute('data-username').toLowerCase();
+                row.style.display = username.includes(term) ? '' : 'none';
+            });
+
+            // Filter Columns in both tables
+            ['systemMatrix', 'roleMatrix'].forEach(tableId => {
+                const table = document.getElementById(tableId);
+                if (!table) return;
+                
+                const headers = table.querySelectorAll('.matrix-header.permission-col');
+                headers.forEach((header, index) => {
+                    const text = header.textContent.toLowerCase();
+                    const visible = term === "" || text.includes(term);
+                    
+                    header.style.display = visible ? '' : 'none';
+                    
+                    // Toggle corresponding cells in every row
+                    table.querySelectorAll('tbody tr').forEach(tr => {
+                        const cell = tr.children[index + 1]; // +1 due to sticky username column
+                        if (cell) cell.style.display = visible ? '' : 'none';
+                    });
+                });
+            });
+        });
+
+        // Toggle Icons
+        document.querySelectorAll('.permission-check').forEach(icon => {
+            icon.addEventListener('click', function() {
+                const userId = this.getAttribute('data-user-id');
+                const itemId = this.getAttribute('data-item-id');
+                
+                // Visual feedback (immediate)
+                const isActive = this.classList.contains('active');
+                if (isActive) {
+                    this.className = 'permission-check fas fa-circle text-muted opacity-10';
+                } else {
+                    this.className = 'permission-check fas fa-check-circle text-pink active';
+                }
+
+                fetch('{% url "api_toggle_auth_item" %}', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': '{{ csrf_token }}'
+                    },
+                    body: JSON.stringify({ user_id: userId, item_id: itemId })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status !== 'success') {
+                        alert('Error: ' + data.message);
+                        // Revert visual
+                        if (isActive) {
+                            this.className = 'permission-check fas fa-check-circle text-pink active';
+                        } else {
+                            this.className = 'permission-check fas fa-circle text-muted opacity-10';
+                        }
+                    }
+                })
+                .catch(err => {
+                    console.error(err);
+                    // Revert
+                    if (isActive) {
+                        this.className = 'permission-check fas fa-check-circle text-pink active';
+                    } else {
+                        this.className = 'permission-check fas fa-circle text-muted opacity-10';
+                    }
+                });
+            });
+        });
+    });
+</script>
+{% endblock %}

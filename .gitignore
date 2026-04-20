@@ -1,0 +1,9 @@
+.venv/
+__pycache__/
+*.pyc
+db.sqlite3
+.DS_Store
+manage.py
+requirements.txt
+run.sh
+potters_inventory_prod/

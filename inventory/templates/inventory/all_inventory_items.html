@@ -1,0 +1,1652 @@
+{% extends 'core/base.html' %}
+{% load static humanize %}
+{% block title %}All Inventory{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb breadcrumb-custom mb-0">
+            <li class="breadcrumb-item"><a href="#">Home</a></li>
+            <li class="breadcrumb-item active" aria-current="page">Inventory Items</li>
+        </ol>
+    </nav>
+</div>
+
+<!-- Statistics Cards -->
+<div class="row g-3 mb-4">
+    <div class="col-xl col-md-6">
+        <a href="{% url 'all_inventory_items' %}?filter=all" class="text-decoration-none">
+            <div
+                class="card stat-card border-0 shadow-sm {% if stats.current_filter == 'all' %}stat-card-active{% endif %}">
+                <div class="card-body d-flex align-items-center">
+                    <div class="stat-icon bg-primary text-white rounded-circle me-3">
+                        <i class="fas fa-boxes"></i>
+                    </div>
+                    <div class="stat-details">
+                        <div class="stat-label text-muted small">TOTAL ITEMS</div>
+                        <div class="stat-value fw-bold">{{ stats.total_items }}</div>
+                    </div>
+                </div>
+            </div>
+        </a>
+    </div>
+    <div class="col-xl col-md-6">
+        <a href="{% url 'all_inventory_items' %}?filter=in_stock" class="text-decoration-none">
+            <div
+                class="card stat-card border-0 shadow-sm {% if stats.current_filter == 'in_stock' %}stat-card-active{% endif %}">
+                <div class="card-body d-flex align-items-center">
+                    <div class="stat-icon bg-success text-white rounded-circle me-3">
+                        <i class="fas fa-check-circle"></i>
+                    </div>
+                    <div class="stat-details">
+                        <div class="stat-label text-muted small">IN STOCK</div>
+                        <div class="stat-value fw-bold text-success">{{ stats.in_stock }}</div>
+                    </div>
+                </div>
+            </div>
+        </a>
+    </div>
+    <div class="col-xl col-md-6">
+        <a href="{% url 'all_inventory_items' %}?filter=out_of_stock" class="text-decoration-none">
+            <div
+                class="card stat-card border-0 shadow-sm {% if stats.current_filter == 'out_of_stock' %}stat-card-active{% endif %}">
+                <div class="card-body d-flex align-items-center">
+                    <div class="stat-icon bg-danger text-white rounded-circle me-3">
+                        <i class="fas fa-exclamation-triangle"></i>
+                    </div>
+                    <div class="stat-details">
+                        <div class="stat-label text-muted small">OUT OF STOCK</div>
+                        <div class="stat-value fw-bold text-danger">{{ stats.out_of_stock }}</div>
+                    </div>
+                </div>
+            </div>
+        </a>
+    </div>
+    <div class="col-xl col-md-6">
+        <a href="{% url 'all_inventory_items' %}?filter=low_stock" class="text-decoration-none">
+            <div
+                class="card stat-card border-0 shadow-sm {% if stats.current_filter == 'low_stock' %}stat-card-active{% endif %}">
+                <div class="card-body d-flex align-items-center">
+                    <div class="stat-icon bg-warning text-white rounded-circle me-3">
+                        <i class="fas fa-arrow-down"></i>
+                    </div>
+                    <div class="stat-details">
+                        <div class="stat-label text-muted small">LOW STOCK</div>
+                        <div class="stat-value fw-bold text-warning">{{ stats.low_stock }}</div>
+                    </div>
+                </div>
+            </div>
+        </a>
+    </div>
+    <div class="col-xl col-md-6">
+        <a href="{% url 'all_inventory_items' %}?filter=archived" class="text-decoration-none">
+            <div
+                class="card stat-card border-0 shadow-sm {% if stats.current_filter == 'archived' %}stat-card-active{% endif %}">
+                <div class="card-body d-flex align-items-center">
+                    <div class="stat-icon bg-secondary text-white rounded-circle me-3">
+                        <i class="fas fa-archive"></i>
+                    </div>
+                    <div class="stat-details">
+                        <div class="stat-label text-muted small">ARCHIVED</div>
+                        <div class="stat-value fw-bold text-secondary">{{ stats.archived }}</div>
+                    </div>
+                </div>
+            </div>
+        </a>
+    </div>
+</div>
+
+<!-- Search & Filter Card -->
+<div class="filter-card mb-4">
+    <div class="filter-card-header d-flex align-items-center text-pink">
+        <div class="icon-box">
+            <i class="fas fa-filter"></i>
+        </div>
+        Search & Filter
+    </div>
+    <div class="filter-card-body">
+        <div class="row g-3">
+            <div class="col-md-4">
+                <label class="filter-label">Search</label>
+                <input type="text" class="form-control filter-input" id="globalSearch"
+                    placeholder="Search by Name, SKU, Color...">
+            </div>
+            <div class="col-md-2">
+                <label class="filter-label">Item Type</label>
+                <select class="form-select filter-input" id="filterItemType">
+                    <option value="">All Types</option>
+                    <option value="RAW Materials">RAW Materials</option>
+                    <option value="Indirect Materials">Indirect Materials</option>
+                    <option value="Print Materials">Print Materials</option>
+                    <option value="Special Boards/Papers">Special Boards/Papers</option>
+                    <option value="Printing Process">Printing Process</option>
+                    <option value="Garments">Garments</option>
+                    <option value="Office Supplies">Office Supplies</option>
+                    <option value="Assets">Assets</option>
+                    <option value="Obsolete">Obsolete</option>
+                </select>
+            </div>
+
+            <div class="col-md-2">
+                <label class="filter-label">From Date</label>
+                <input type="date" class="form-control filter-input" id="filterFromDate">
+            </div>
+            <div class="col-md-2">
+                <label class="filter-label">To Date</label>
+                <input type="date" class="form-control filter-input" id="filterToDate">
+            </div>
+        </div>
+        <div class="filter-actions mt-3">
+            <button type="button" class="btn btn-outline-secondary btn-sm" id="clearFiltersBtn">
+                <span class="icon-box" style="width: 20px; height: 20px; margin-right: 4px; border-radius: 4px;">
+                    <i class="fas fa-times-circle" style="font-size: 0.7rem;"></i>
+                </span>
+                Clear Filters
+            </button>
+
+            <!-- Export Dropdown -->
+            <div class="dropdown d-inline-block">
+                <button class="btn btn-outline-secondary dropdown-toggle" type="button" id="exportDropdown"
+                    data-bs-toggle="dropdown" aria-expanded="false">
+                    <i class="fas fa-file-export me-1"></i> Export
+                </button>
+                <ul class="dropdown-menu shadow" aria-labelledby="exportDropdown">
+                    <li><a class="dropdown-item py-2" href="#" onclick="exportData('csv')">
+                            <i class="fas fa-file-csv text-success me-2 fa-lg w-20 text-center"></i> CSV Format
+                        </a></li>
+                    <li><a class="dropdown-item py-2" href="#" onclick="exportData('json')">
+                            <i class="fas fa-file-code text-warning me-2 fa-lg w-20 text-center"></i> JSON Data
+                        </a></li>
+                    <li><a class="dropdown-item py-2" href="#" onclick="exportData('excel')">
+                            <i class="fas fa-file-excel text-success me-2 fa-lg w-20 text-center"></i> Excel
+                        </a></li>
+                    <li><a class="dropdown-item py-2" href="#" onclick="exportData('pdf')">
+                            <i class="fas fa-file-pdf text-danger me-2 fa-lg w-20 text-center"></i> PDF Document
+                        </a></li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="inventory-card">
+    <div class="inventory-card-header">
+        <div>
+            <i class="fas fa-boxes me-2"></i> Inventory Items
+        </div>
+        <div class="text-muted small">
+            Showing <strong>1-20</strong> of <strong>{{ total_count }}</strong> items
+        </div>
+    </div>
+
+    <div class="p-3 bg-white border-bottom tool-bar">
+        <div class="d-flex justify-content-between align-items-center">
+            <div class="text-muted small" id="selectionInfo">
+                <span id="selectedCount">0</span> item(s) selected
+            </div>
+            <div class="btn-group">
+                <button type="button" class="btn btn-sm" data-bs-toggle="modal" data-bs-target="#newItemModal"><i
+                        class="fas fa-plus me-1"></i> New</button>
+                <button type="button" class="btn btn-outline-warning btn-sm" id="archiveBtn"><i
+                        class="fas fa-archive me-1"></i>
+                    Archive</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Table -->
+    <div class="table-responsive">
+        <table id="allInventoryTable" class="table table-bordered table-hover mb-0">
+            <thead>
+                <tr>
+                    <th scope="col" style="width: 40px;">
+                        <input type="checkbox" id="selectAll" class="form-check-input" title="Select All">
+                    </th>
+                    <th scope="col" style="width: 50px;" class="sortable" data-column="1"># <i class="fas fa-sort"></i>
+                    </th>
+                    <th scope="col" class="col-header-text sortable" data-column="2">Inventory Item Type <i
+                            class="fas fa-sort"></i></th>
+                    <th scope="col" class="col-header-text sortable" data-column="3">SKU CODE <i
+                            class="fas fa-sort"></i></th>
+                    <th scope="col">Image</th>
+                    <th scope="col" class="col-header-text sortable" data-column="5">Name <i class="fas fa-sort"></i>
+                    </th>
+                    <th scope="col" class="col-header-text sortable" data-column="6">Description <i
+                            class="fas fa-sort"></i>
+                    </th>
+                    <th scope="col" class="col-header-text sortable" data-column="7">Sub Unit <i
+                            class="fas fa-sort"></i></th>
+                    <th scope="col" class="col-header-text sortable col-highlight" data-column="8">Cost <i
+                            class="fas fa-sort"></i></th>
+                    <th scope="col" class="col-header-text sortable" data-column="9">Shipping Fee <i
+                            class="fas fa-sort"></i></th>
+                    <th scope="col" class="col-header-text sortable col-highlight" data-column="10">Total <i
+                            class="fas fa-sort"></i></th>
+                    <th scope="col" class="col-header-text sortable col-highlight" data-column="11">Price <i
+                            class="fas fa-sort"></i></th>
+                    <th scope="col" class="col-header-text sortable col-highlight" data-column="12">Qty <i
+                            class="fas fa-sort"></i></th>
+                    <th scope="col" class="col-header-text sortable" data-column="13">Stock Status <i
+                            class="fas fa-sort"></i></th>
+                    <th scope="col" class="col-header-text sortable" data-column="14">Status <i class="fas fa-sort"></i>
+                    </th>
+                    <th scope="col" class="col-header-text sortable" data-column="15">Updated By <i
+                            class="fas fa-sort"></i></th>
+                    <th scope="col" class="col-header-text sortable" data-column="16">Datetime Updated <i
+                            class="fas fa-sort-down"></i></th>
+                    <th scope="col" class="col-header-text">Actions</th>
+                </tr>
+                <!-- Filter Row -->
+                <tr class="bg-light filter-row">
+                    <td></td>
+                    <td></td>
+                    <td>
+                        <div class="dropdown" id="typeDropdownContainer">
+                            <button
+                                class="btn btn-outline-secondary btn-sm dropdown-toggle w-100 text-start d-flex justify-content-between align-items-center bg-white border-0"
+                                type="button" data-bs-toggle="dropdown" style="font-size: 0.8rem;">
+                                <span id="selectedType">All</span>
+                            </button>
+                            <ul class="dropdown-menu p-2 shadow" style="min-width: 200px;">
+                                <li><input type="text" class="form-control form-control-sm mb-2" id="typeSearchInput"
+                                        placeholder="Search..."></li>
+                                <div id="typeOptions" style="max-height: 200px; overflow-y: auto;">
+                                    <li><a class="dropdown-item active" href="#" data-value="">All</a></li>
+                                    <li><a class="dropdown-item" href="#" data-value="RAW Materials">RAW Materials</a>
+                                    </li>
+                                    <li><a class="dropdown-item" href="#" data-value="Indirect Materials">Indirect
+                                            Materials</a></li>
+                                    <li><a class="dropdown-item" href="#" data-value="Print Materials">Print
+                                            Materials</a></li>
+                                    <li><a class="dropdown-item" href="#" data-value="Special Boards/Papers">Special
+                                            Boards/Papers</a></li>
+                                    <li><a class="dropdown-item" href="#" data-value="Printing Process">Printing
+                                            Process</a></li>
+                                    <li><a class="dropdown-item" href="#" data-value="Garments">Garments</a></li>
+                                    <li><a class="dropdown-item" href="#" data-value="Office Supplies">Office
+                                            Supplies</a></li>
+                                    <li><a class="dropdown-item" href="#" data-value="Assets">Assets</a></li>
+                                    <li><a class="dropdown-item" href="#" data-value="Obsolete">Obsolete</a></li>
+                                </div>
+                            </ul>
+                        </div>
+                    </td>
+                    <td><input type="text" class="form-control form-control-sm column-filter" data-column="3"
+                            placeholder="SKU"></td>
+                    <td></td>
+                    <td><input type="text" class="form-control form-control-sm column-filter" data-column="5"
+                            placeholder="Name"></td>
+                    <td><input type="text" class="form-control form-control-sm column-filter" data-column="6"
+                            placeholder="Description"></td>
+                    <td><input type="text" class="form-control form-control-sm column-filter" data-column="7"
+                            placeholder="Sub Unit"></td>
+                    <td><input type="text" class="form-control form-control-sm column-filter" data-column="8"
+                            placeholder="Cost"></td>
+                    <td><input type="text" class="form-control form-control-sm column-filter" data-column="9"
+                            placeholder="Fee"></td>
+                    <td><input type="text" class="form-control form-control-sm column-filter" data-column="10"
+                            placeholder="Total"></td>
+                    <td><input type="text" class="form-control form-control-sm column-filter" data-column="11"
+                            placeholder="Price"></td>
+                    <td><input type="text" class="form-control form-control-sm column-filter" data-column="12"
+                            placeholder="Qty"></td>
+                    <td></td>
+                    <td></td>
+                    <td>
+                        <select class="form-select form-select-sm">
+                            <option value="">-</option>
+                            <option value="admin">admin</option>
+                            <option value="chin">chin</option>
+                        </select>
+                    </td>
+                    <td>
+                        <div class="dropdown">
+                            <button
+                                class="btn btn-outline-secondary btn-sm dropdown-toggle w-100 text-start bg-white border-0"
+                                type="button" data-bs-toggle="dropdown" style="font-size: 0.75rem;">
+                                Select range...
+                            </button>
+                            <ul class="dropdown-menu p-2 shadow">
+                                <li><input type="date" class="form-control form-control-sm mb-2" placeholder="From">
+                                </li>
+                                <li><input type="date" class="form-control form-control-sm" placeholder="To"></li>
+                            </ul>
+                        </div>
+                    </td>
+                    <td></td>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in inventory %}
+                <tr class="{% if item.stock_status == 'Out of Stock' %}row-out-of-stock{% endif %}">
+                    <td>
+                        <input type="checkbox" class="form-check-input row-checkbox" value="{{ item.id }}">
+                    </td>
+                    <td>{{ forloop.counter }}</td>
+                    <td>{{ item.item_type }}</td>
+                    <td>{{ item.sku }}</td>
+                    <td>
+                        {% if item.image %}
+                        <img src="{{ item.image }}" alt="img" class="table-img">
+                        {% endif %}
+                    </td>
+                    <td>
+                        <a href="#" class="text-decoration-none item-name-link" data-item-id="{{ item.id }}"
+                            data-item-type="{{ item.item_type }}" data-item-sku="{{ item.sku }}"
+                            data-item-name="{{ item.name }}" data-item-image="{{ item.image }}"
+                            data-item-color="{{ item.color }}" data-item-model="{{ item.model }}"
+                            data-item-shape="{{ item.shape }}" data-item-size="{{ item.size }}"
+                            data-item-dimensions="{{ item.dimensions }}" data-item-volume="{{ item.volume }}"
+                            data-item-material="{{ item.material }}" data-item-addon="{{ item.addon }}"
+                            data-item-other="{{ item.other }}" data-item-occasion="{{ item.occasion }}"
+                            data-item-subunit="{{ item.sub_unit }}" data-item-cost="{{ item.cost }}"
+                            data-item-shipping="{{ item.shipping_fee }}" data-item-price="{{ item.price }}"
+                            data-item-balance="{{ item.total_balance }}">
+                            {{ item.name }}
+                        </a>
+                    </td>
+                    <td>
+                        {{ item.full_description }}
+                    </td>
+                    <td>{{ item.sub_unit }}</td>
+                    <td class="col-highlight-cell">₱{{ item.cost|floatformat:2|intcomma }}</td>
+                    <td>₱{{ item.shipping_fee|floatformat:2|intcomma }}</td>
+                    <td class="col-highlight-cell">
+                        ₱{{ item.total_cost|floatformat:2|intcomma }}
+                    </td>
+                    <td class="col-highlight-cell">₱{{ item.price|floatformat:2|intcomma }}</td>
+                    <td class="col-highlight-cell fw-bold">{{ item.total_balance }}</td>
+                    <td>
+                        {% if item.stock_status == 'In Stock' %}
+                        <span class="badge bg-success">In Stock</span>
+                        {% elif item.stock_status == 'Low Stock' %}
+                        <span class="badge bg-warning text-dark">Low Stock</span>
+                        {% else %}
+                        <span class="badge bg-danger">Out of Stock</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if item.is_archived %}
+                        <span class="badge bg-secondary">Archived</span>
+                        {% else %}
+                        <span class="badge bg-info text-dark">In Use</span>
+                        {% endif %}
+                    </td>
+                    <td>{{ item.updated_by }}</td>
+                    <td>{{ item.datetime_updated }}</td>
+                    <td>
+                        <form action="/inventory/archive/{{ item.id }}/" method="POST" style="display:inline;" class="archive-form">
+                            {% csrf_token %}
+                            {% if item.is_archived %}
+                            <button type="button" class="btn btn-sm btn-outline-success archive-btn" title="Unarchive"
+                                data-item-name="{{ item.name }}" data-action="unarchive">
+                                <i class="fas fa-box-open"></i>
+                            </button>
+                            {% else %}
+                            <button type="button" class="btn btn-sm btn-outline-secondary archive-btn" title="Archive"
+                                data-item-name="{{ item.name }}" data-action="archive">
+                                <i class="fas fa-archive"></i>
+                            </button>
+                            {% endif %}
+                        </form>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Pagination -->
+    <div class="card-footer bg-light border-top">
+        <nav aria-label="Inventory pagination">
+            <ul class="pagination pagination-sm mb-0" id="paginationContainer">
+                <li class="page-item" id="prevPage">
+                    <a class="page-link" href="#" aria-label="Previous">&laquo;</a>
+                </li>
+                <li class="page-item active"><a class="page-link" href="#">1</a></li>
+                <li class="page-item"><a class="page-link" href="#">2</a></li>
+                <li class="page-item"><a class="page-link" href="#">3</a></li>
+                <li class="page-item" id="nextPage">
+                    <a class="page-link" href="#" aria-label="Next">&raquo;</a>
+                </li>
+            </ul>
+        </nav>
+    </div>
+</div>
+
+<!-- Recent Logs Section -->
+<div class="inventory-card mt-4">
+    <div class="inventory-card-header">
+        <div>
+            <i class="fas fa-history"></i> Recent Inventory Item Logs
+        </div>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-striped table-hover mb-0 align-middle">
+                <thead class="bg-light">
+                    <tr>
+                        <th class="ps-3">Date & Time</th>
+                        <th>Item</th>
+                        <th>SKU</th>
+                        <th>User</th>
+                        <th>Action</th>
+                        <th>Quantity</th>
+                        <th>Notes</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% if recent_logs %}
+                    {% for log in recent_logs %}
+                    <tr>
+                        <td class="ps-3 text-muted small">{{ log.timestamp|date:'Y-m-d H:i:s' }}</td>
+                        <td class="fw-bold text-dark">{{ log.item.name }}</td>
+                        <td class="text-muted small">{{ log.item.sku }}</td>
+                        <td>
+                            <div class="d-flex align-items-center">
+                                <div class="avatar-sm bg-light rounded-circle text-center me-2"
+                                    style="width: 24px; height: 24px; line-height: 24px;">
+                                    <i class="fas fa-user-circle text-secondary"></i>
+                                </div>
+                                <span class="small">{{ log.user }}</span>
+                            </div>
+                        </td>
+                        <td>
+                            {% if log.transaction_type == 'purchase' %}
+                            <span class="badge bg-success">Purchase</span>
+                            {% elif log.transaction_type == 'withdrawal' %}
+                            <span class="badge bg-warning text-dark">Withdrawal</span>
+                            {% elif log.transaction_type == 'damage' %}
+                            <span class="badge bg-danger">Damage</span>
+                            {% elif log.transaction_type == 'returned' %}
+                            <span class="badge bg-info">Returned</span>
+                            {% elif log.transaction_type == 'create' %}
+                            <span class="badge bg-primary">Create</span>
+                            {% elif log.transaction_type == 'update' %}
+                            <span class="badge bg-secondary">Update</span>
+                            {% elif log.transaction_type == 'archive' %}
+                            <span class="badge bg-dark">Archive</span>
+                            {% elif log.transaction_type == 'restore' %}
+                            <span class="badge bg-success">Restore</span>
+                            {% else %}
+                            <span class="badge bg-secondary">{{ log.transaction_type|capfirst }}</span>
+                            {% endif %}
+                        </td>
+                        <td class="fw-bold font-monospace">{{ log.quantity }}</td>
+                        <td class="text-muted small text-truncate" style="max-width: 200px;">{{ log.notes }}</td>
+                    </tr>
+                    {% endfor %}
+                    {% else %}
+                    <tr>
+                        <td colspan="7" class="text-center py-4 text-muted">
+                            <i class="fas fa-clipboard-list fa-2x mb-2 text-secondary"></i>
+                            <p class="mb-0">No recent activity found.</p>
+                        </td>
+                    </tr>
+                    {% endif %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- New Item Modal -->
+<div class="modal fade" id="newItemModal" tabindex="-1" aria-labelledby="newItemModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content" style="max-height: 90vh; display: flex; flex-direction: column;">
+            <div class="modal-header"
+                style="background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-dark) 100%); color: white; flex-shrink: 0;">
+                <h5 class="modal-title text-white" id="newItemModalLabel"><i
+                        class="fas fa-plus-circle me-2 text-white"></i>Create
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"
+                    aria-label="Close"></button>
+            </div>
+            <form id="newItemForm" method="POST" enctype="multipart/form-data"
+                style="display: flex; flex-direction: column; overflow: hidden; flex: 1;">
+                <div class="modal-body" style="overflow-y: auto; flex: 1;">
+                    <!-- Basic Information -->
+                    <h6 class="text-primary border-bottom pb-2 mb-3"><i class="fas fa-info-circle me-2"></i>Basic
+                        Information</h6>
+                    <div class="row g-3 mb-4">
+                        <div class="col-md-4">
+                            <label class="form-label">Inventory Item Type <span class="text-danger">*</span></label>
+                            <select class="form-select" name="item_type" required>
+                                <option value="">Select Type</option>
+                                <option value="RAW Materials">RAW Materials</option>
+                                <option value="Indirect Materials">Indirect Materials</option>
+                                <option value="Print Materials">Print Materials</option>
+                                <option value="Special Boards/Papers">Special Boards/Papers</option>
+                                <option value="Printing Process">Printing Process</option>
+                                <option value="Garments">Garments</option>
+                                <option value="Office Supplies">Office Supplies</option>
+                                <option value="Assets">Assets</option>
+                                <option value="Obsolete">Obsolete</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">SKU CODE <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" name="sku" placeholder="e.g., PROD-001" required>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Name <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" name="name" placeholder="Item name" required>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Sub Unit</label>
+                            <input type="text" class="form-control" name="sub_unit" placeholder="e.g., pcs, kg, box">
+                        </div>
+                    </div>
+
+                    <!-- Image Upload -->
+                    <h6 class="text-primary border-bottom pb-2 mb-3"><i class="fas fa-image me-2"></i>Image</h6>
+                    <div class="row g-3 mb-4">
+                        <div class="col-md-6">
+                            <label class="form-label">Upload Photo</label>
+                            <input type="file" class="form-control" name="image" id="imageInput" accept="image/*">
+                            <small class="text-muted">Supported formats: JPG, PNG, GIF (max 5MB)</small>
+                        </div>
+                        <div class="col-md-6">
+                            <div id="imagePreview" class="border rounded p-3 text-center"
+                                style="min-height: 150px; background: #f8f9fa;">
+                                <i class="fas fa-image fa-3x text-muted mb-2"></i>
+                                <p class="text-muted mb-0 small">Image preview will appear here</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Item Attributes -->
+                    <h6 class="text-primary border-bottom pb-2 mb-3"><i class="fas fa-tags me-2"></i>Item Attributes
+                    </h6>
+                    <div class="row g-3 mb-4">
+                        <div class="col-md-4">
+                            <label class="form-label">Color</label>
+                            <input type="text" class="form-control" name="color" placeholder="e.g., Red, Blue">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Model/Type</label>
+                            <input type="text" class="form-control" name="model" placeholder="e.g., Model X">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Shape</label>
+                            <input type="text" class="form-control" name="shape" placeholder="e.g., Round, Square">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Size</label>
+                            <input type="text" class="form-control" name="size"
+                                placeholder="e.g., Small, Medium, Large">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Dimensions</label>
+                            <input type="text" class="form-control" name="dimensions" placeholder="e.g., 10x20x5 cm">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Volume</label>
+                            <input type="text" class="form-control" name="volume" placeholder="e.g., 500ml, 1L">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Material</label>
+                            <input type="text" class="form-control" name="material" placeholder="e.g., Wood, Plastic">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Add-on/Feature</label>
+                            <input type="text" class="form-control" name="addon" placeholder="e.g., With handle">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Other</label>
+                            <input type="text" class="form-control" name="other" placeholder="Additional info">
+                        </div>
+                        <div class="col-md-12">
+                            <label class="form-label">Occasion/Use</label>
+                            <input type="text" class="form-control" name="occasion"
+                                placeholder="e.g., Birthday, Wedding, Corporate">
+                        </div>
+                    </div>
+
+                    <!-- Pricing Information -->
+                    <h6 class="text-primary border-bottom pb-2 mb-3"><i class="fas fa-dollar-sign me-2"></i>Pricing &
+                        Stock</h6>
+                    <div class="row g-3">
+                        <div class="col-md-3">
+                            <label class="form-label">Cost</label>
+                            <div class="input-group">
+                                <span class="input-group-text">₱</span>
+                                <input type="number" step="0.01" class="form-control" name="cost" placeholder="0.00">
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">Shipping Fee</label>
+                            <div class="input-group">
+                                <span class="input-group-text">₱</span>
+                                <input type="number" step="0.01" class="form-control" name="shipping_fee"
+                                    placeholder="0.00">
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">Price</label>
+                            <div class="input-group">
+                                <span class="input-group-text">₱</span>
+                                <input type="number" step="0.01" class="form-control" name="price" placeholder="0.00">
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">Initial Stock</label>
+                            <input type="number" class="form-control" name="total_balance" placeholder="0" value="0">
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer" style="flex-shrink: 0;">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">
+                        <i class="fas fa-times me-1"></i> Cancel
+                    </button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-save me-1"></i> Save Item
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+<!-- Image Preview Modal -->
+<div class="modal fade" id="imageModal" tabindex="-1" aria-labelledby="imageModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content">
+            <div class="modal-header py-2"
+                style="background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-dark) 100%); color: white;">
+                <h6 class="modal-title text-white" id="imageModalLabel"><i class="fas fa-image me-2"></i>Image Preview
+                </h6>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"
+                    aria-label="Close"></button>
+            </div>
+            <div class="modal-body text-center p-0 my-3">
+                <img src="" id="modalImage" class="img-fluid" alt="Preview" style="max-height: 70vh;">
+            </div>
+            <div class="modal-footer py-1" style="background: #f8f9fa;">
+                <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Update Item Modal -->
+<div class="modal fade" id="updateItemModal" tabindex="-1" aria-labelledby="updateItemModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content" style="max-height: 90vh; display: flex; flex-direction: column;">
+            <div class="modal-header py-2"
+                style="background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-dark) 100%); color: white; flex-shrink: 0;">
+                <h5 class="modal-title text-white" id="updateItemModalLabel"><i class="fas fa-edit me-2"></i>Update</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"
+                    aria-label="Close"></button>
+            </div>
+            <form id="updateItemForm" enctype="multipart/form-data"
+                style="display: flex; flex-direction: column; overflow: hidden; flex: 1;">
+                <input type="hidden" id="updateItemId" name="item_id">
+                <div class="modal-body" style="overflow-y: auto; flex: 1;">
+                    <!-- Basic Information -->
+                    <h6 class="text-primary border-bottom pb-2 mb-3"><i class="fas fa-info-circle me-2"></i>Basic
+                        Information</h6>
+                    <div class="row g-3 mb-4">
+                        <div class="col-md-4">
+                            <label class="form-label">Inventory Item Type <span class="text-danger">*</span></label>
+                            <select class="form-select" name="item_type" id="updateItemType" required>
+                                <option value="">Select Type</option>
+                                <option value="RAW Materials">RAW Materials</option>
+                                <option value="Indirect Materials">Indirect Materials</option>
+                                <option value="Print Materials">Print Materials</option>
+                                <option value="Special Boards/Papers">Special Boards/Papers</option>
+                                <option value="Printing Process">Printing Process</option>
+                                <option value="Garments">Garments</option>
+                                <option value="Office Supplies">Office Supplies</option>
+                                <option value="Assets">Assets</option>
+                                <option value="Obsolete">Obsolete</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">SKU CODE <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" name="sku" id="updateSku" required>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Name <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" name="name" id="updateName" required>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Sub Unit</label>
+                            <input type="text" class="form-control" name="sub_unit" id="updateSubUnit">
+                        </div>
+                    </div>
+
+                    <!-- Image Upload -->
+                    <h6 class="text-primary border-bottom pb-2 mb-3"><i class="fas fa-image me-2"></i>Image</h6>
+                    <div class="row g-3 mb-4">
+                        <div class="col-md-6">
+                            <label class="form-label">Upload New Photo</label>
+                            <input type="file" class="form-control" name="image" id="updateImageInput" accept="image/*">
+                            <small class="text-muted">Leave empty to keep current image</small>
+                        </div>
+                        <div class="col-md-6">
+                            <div id="updateImagePreview" class="border rounded p-3 text-center"
+                                style="min-height: 150px; background: #f8f9fa;">
+                                <i class="fas fa-image fa-3x text-muted mb-2"></i>
+                                <p class="text-muted mb-0 small">Current image preview</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Item Attributes -->
+                    <h6 class="text-primary border-bottom pb-2 mb-3"><i class="fas fa-tags me-2"></i>Item Attributes
+                    </h6>
+                    <div class="row g-3 mb-4">
+                        <div class="col-md-4">
+                            <label class="form-label">Color</label>
+                            <input type="text" class="form-control" name="color" id="updateColor">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Model/Type</label>
+                            <input type="text" class="form-control" name="model" id="updateModel">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Shape</label>
+                            <input type="text" class="form-control" name="shape" id="updateShape">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Size</label>
+                            <input type="text" class="form-control" name="size" id="updateSize">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Dimensions</label>
+                            <input type="text" class="form-control" name="dimensions" id="updateDimensions">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Volume</label>
+                            <input type="text" class="form-control" name="volume" id="updateVolume">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Material</label>
+                            <input type="text" class="form-control" name="material" id="updateMaterial">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Add-on/Feature</label>
+                            <input type="text" class="form-control" name="addon" id="updateAddon">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Other</label>
+                            <input type="text" class="form-control" name="other" id="updateOther">
+                        </div>
+                        <div class="col-md-12">
+                            <label class="form-label">Occasion/Use</label>
+                            <input type="text" class="form-control" name="occasion" id="updateOccasion">
+                        </div>
+                    </div>
+
+                    <!-- Pricing Information -->
+                    <h6 class="text-primary border-bottom pb-2 mb-3"><i class="fas fa-dollar-sign me-2"></i>Pricing</h6>
+                    <div class="row g-3">
+                        <div class="col-md-4">
+                            <label class="form-label">Cost</label>
+                            <div class="input-group">
+                                <span class="input-group-text">₱</span>
+                                <input type="number" step="0.01" class="form-control" name="cost" id="updateCost">
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Shipping Fee</label>
+                            <div class="input-group">
+                                <span class="input-group-text">₱</span>
+                                <input type="number" step="0.01" class="form-control" name="shipping_fee"
+                                    id="updateShipping">
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Price</label>
+                            <div class="input-group">
+                                <span class="input-group-text">₱</span>
+                                <input type="number" step="0.01" class="form-control" name="price" id="updatePrice">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer" style="flex-shrink: 0;">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">
+                        <i class="fas fa-times me-1"></i> Cancel
+                    </button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-save me-1"></i> Save Changes
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Archive Confirmation Modal -->
+<div class="modal fade" id="archiveModal" tabindex="-1" aria-labelledby="archiveModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header py-2"
+                style="background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); color: white;">
+                <h5 class="modal-title text-white" id="archiveModalLabel"><i class="fas fa-archive me-2"></i>Archive
+                    Items</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"
+                    aria-label="Close"></button>
+            </div>
+            <div class="modal-body text-center py-4">
+                <i class="fas fa-archive fa-3x text-warning mb-3"></i>
+                <p class="mb-1">Are you sure you want to archive</p>
+                <p class="fw-bold fs-5 mb-0"><span id="archiveItemCount">0</span> item(s)?</p>
+                <p class="text-muted small mt-2">Archived items can be restored later from the Archived filter.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">
+                    <i class="fas fa-times me-1"></i> Cancel
+                </button>
+                <button type="button" class="btn btn-warning" id="confirmArchiveBtn">
+                    <i class="fas fa-archive me-1"></i> Archive
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Single-Item Archive Confirmation Modal -->
+<div class="modal fade" id="singleArchiveModal" tabindex="-1" aria-labelledby="singleArchiveModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header border-0">
+                <h5 class="modal-title" id="singleArchiveModalLabel">
+                    <i class="fas fa-archive me-2 text-secondary"></i>
+                    <span id="singleArchiveAction">Archive</span> Item
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>Are you sure you want to <strong><span id="singleArchiveActionText">archive</span></strong> the item: <strong id="singleArchiveItemName"></strong>?</p>
+            </div>
+            <div class="modal-footer border-0">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="confirmSingleArchiveBtn">Confirm</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        // ============ IMAGE MODAL FUNCTIONALITY ============
+        var imageModal = document.getElementById('imageModal');
+        var modalImage = document.getElementById('modalImage');
+
+        // ============ SINGLE-ITEM ARCHIVE CONFIRMATION ============
+        var pendingArchiveForm = null;
+        var singleArchiveModal = new bootstrap.Modal(document.getElementById('singleArchiveModal'));
+
+        document.addEventListener('click', function (e) {
+            var btn = e.target.closest('.archive-btn');
+            if (!btn) return;
+
+            e.preventDefault();
+            pendingArchiveForm = btn.closest('.archive-form');
+            var action = btn.getAttribute('data-action');
+            var itemName = btn.getAttribute('data-item-name');
+
+            document.getElementById('singleArchiveAction').textContent = action === 'archive' ? 'Archive' : 'Unarchive';
+            document.getElementById('singleArchiveActionText').textContent = action === 'archive' ? 'archive' : 'unarchive';
+            document.getElementById('singleArchiveItemName').textContent = itemName;
+
+            singleArchiveModal.show();
+        });
+
+        document.getElementById('confirmSingleArchiveBtn').addEventListener('click', function () {
+            singleArchiveModal.hide();
+            if (pendingArchiveForm) {
+                pendingArchiveForm.submit();
+                pendingArchiveForm = null;
+            }
+        });
+
+
+        // Attach click event to all table images
+        var tableImages = document.querySelectorAll('.table-img');
+        tableImages.forEach(function (img) {
+            img.style.cursor = 'pointer';
+            img.addEventListener('click', function () {
+                var src = this.getAttribute('src');
+                modalImage.setAttribute('src', src);
+
+                var myModal = new bootstrap.Modal(imageModal);
+                myModal.show();
+            });
+        });
+
+        // ============ UPDATE ITEM MODAL FUNCTIONALITY ============
+        var updateItemModal = document.getElementById('updateItemModal');
+        var updateItemForm = document.getElementById('updateItemForm');
+
+        // Handle click on item name
+        document.querySelectorAll('.item-name-link').forEach(function (link) {
+            link.addEventListener('click', function (e) {
+                e.preventDefault();
+
+                // Get data from attributes
+                var itemId = this.getAttribute('data-item-id');
+                var itemType = this.getAttribute('data-item-type') || '';
+                var itemSku = this.getAttribute('data-item-sku') || '';
+                var itemName = this.getAttribute('data-item-name') || '';
+                var itemImage = this.getAttribute('data-item-image') || '';
+                var itemColor = this.getAttribute('data-item-color') || '';
+                var itemModel = this.getAttribute('data-item-model') || '';
+                var itemShape = this.getAttribute('data-item-shape') || '';
+                var itemSize = this.getAttribute('data-item-size') || '';
+                var itemDimensions = this.getAttribute('data-item-dimensions') || '';
+                var itemVolume = this.getAttribute('data-item-volume') || '';
+                var itemMaterial = this.getAttribute('data-item-material') || '';
+                var itemAddon = this.getAttribute('data-item-addon') || '';
+                var itemOther = this.getAttribute('data-item-other') || '';
+                var itemOccasion = this.getAttribute('data-item-occasion') || '';
+                var itemSubunit = this.getAttribute('data-item-subunit') || '';
+                var itemCost = this.getAttribute('data-item-cost') || '';
+                var itemShipping = this.getAttribute('data-item-shipping') || '';
+                var itemPrice = this.getAttribute('data-item-price') || '';
+
+                // Populate form fields
+                document.getElementById('updateItemId').value = itemId;
+                document.getElementById('updateItemType').value = itemType;
+                document.getElementById('updateSku').value = itemSku;
+                document.getElementById('updateName').value = itemName;
+                document.getElementById('updateSubUnit').value = itemSubunit;
+                document.getElementById('updateColor').value = itemColor;
+                document.getElementById('updateModel').value = itemModel;
+                document.getElementById('updateShape').value = itemShape;
+                document.getElementById('updateSize').value = itemSize;
+                document.getElementById('updateDimensions').value = itemDimensions;
+                document.getElementById('updateVolume').value = itemVolume;
+                document.getElementById('updateMaterial').value = itemMaterial;
+                document.getElementById('updateAddon').value = itemAddon;
+                document.getElementById('updateOther').value = itemOther;
+                document.getElementById('updateOccasion').value = itemOccasion;
+                document.getElementById('updateCost').value = itemCost;
+                document.getElementById('updateShipping').value = itemShipping;
+                document.getElementById('updatePrice').value = itemPrice;
+
+                // Show current image preview
+                var previewContainer = document.getElementById('updateImagePreview');
+                if (itemImage && itemImage !== 'None') {
+                    previewContainer.innerHTML = '<img src="' + itemImage + '" class="img-fluid rounded" style="max-height: 140px;">';
+                } else {
+                    previewContainer.innerHTML = '<i class="fas fa-image fa-3x text-muted mb-2"></i><p class="text-muted mb-0 small">No image</p>';
+                }
+
+                // Show modal
+                var modal = new bootstrap.Modal(updateItemModal);
+                modal.show();
+            });
+        });
+
+        // Image preview on file select
+        document.getElementById('updateImageInput').addEventListener('change', function (e) {
+            var file = e.target.files[0];
+            if (file) {
+                var reader = new FileReader();
+                reader.onload = function (e) {
+                    document.getElementById('updateImagePreview').innerHTML = '<img src="' + e.target.result + '" class="img-fluid rounded" style="max-height: 140px;">';
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+
+        // Handle Update form submission
+        updateItemForm.addEventListener('submit', function (e) {
+            e.preventDefault();
+
+            var formData = new FormData(updateItemForm);
+
+            fetch('/inventory/update/' + formData.get('item_id') + '/', {
+                method: 'POST',
+                body: formData
+            })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        bootstrap.Modal.getInstance(updateItemModal).hide();
+                        window.location.reload();
+                    } else {
+                        showToast('Error: ' + (data.message || 'Failed to update item'), 'error');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    showToast('An error occurred while updating the item', 'error');
+                });
+        });
+
+        // Table elements
+        var table = document.getElementById('allInventoryTable');
+        var tbody = table.querySelector('tbody');
+        var allRows = Array.from(tbody.querySelectorAll('tr'));
+        var filteredRows = allRows.slice(); // Copy of rows for filtering
+
+        // Pagination settings
+        var rowsPerPage = 20;
+        var currentPage = 1;
+
+        // Select All checkbox functionality
+        var selectAllCheckbox = document.getElementById('selectAll');
+        var selectedCountSpan = document.getElementById('selectedCount');
+
+        function updateSelectedCount() {
+            var count = document.querySelectorAll('.row-checkbox:checked').length;
+            selectedCountSpan.textContent = count;
+        }
+
+        selectAllCheckbox.addEventListener('change', function () {
+            var visibleCheckboxes = Array.from(document.querySelectorAll('.row-checkbox')).filter(function (checkbox) {
+                return checkbox.closest('tr').style.display !== 'none';
+            });
+            visibleCheckboxes.forEach(function (checkbox) {
+                checkbox.checked = selectAllCheckbox.checked;
+            });
+            // Reset indeterminate
+            selectAllCheckbox.indeterminate = false;
+            updateSelectedCount();
+        });
+
+        tbody.addEventListener('change', function (e) {
+            if (e.target.classList.contains('row-checkbox')) {
+                updateSelectedCount();
+                // Sync selectAll state
+                var visibleCheckboxes = Array.from(document.querySelectorAll('.row-checkbox')).filter(function (cb) {
+                    return cb.closest('tr').style.display !== 'none';
+                });
+                var checkedCount = visibleCheckboxes.filter(function (cb) { return cb.checked; }).length;
+                selectAllCheckbox.checked = checkedCount === visibleCheckboxes.length && visibleCheckboxes.length > 0;
+                selectAllCheckbox.indeterminate = checkedCount > 0 && checkedCount < visibleCheckboxes.length;
+            }
+        });
+
+        // ============ SEARCH & FILTER FUNCTIONALITY ============
+        var globalSearchInput = document.getElementById('globalSearch');
+        var itemTypeSelect = document.getElementById('filterItemType');
+        var fromDateInput = document.getElementById('filterFromDate');
+        var toDateInput = document.getElementById('filterToDate');
+        var applyFiltersBtn = document.getElementById('applyFiltersBtn');
+        var clearFiltersBtn = document.getElementById('clearFiltersBtn');
+
+        // ============ UNIFIED FILTER FUNCTION ============
+        // This single function considers ALL filter inputs at once.
+        // This prevents the two old filter functions from overwriting each other.
+        var columnTypeFilter = ''; // Tracks the column-level type dropdown
+
+        function filterAll() {
+            var searchTerm = globalSearchInput.value.toLowerCase().trim();
+            var itemType = itemTypeSelect.value;
+            var fromDate = fromDateInput.value;
+            var toDate = toDateInput.value;
+
+            filteredRows = allRows.filter(function (row) {
+                var cells = row.querySelectorAll('td');
+                var rowText = row.textContent.toLowerCase();
+                var rowItemType = cells[2] ? cells[2].textContent.trim() : '';
+                var rowDateTime = cells[16] ? cells[16].textContent.trim() : '';
+
+                // 1. Top-bar global text search (immediate, no prerequisites)
+                if (searchTerm && rowText.indexOf(searchTerm) === -1) {
+                    return false;
+                }
+
+                // 2. Top-bar Item Type dropdown filter
+                if (itemType && rowItemType !== itemType) {
+                    return false;
+                }
+
+                // 3. Column-level Type dropdown (from filter row)
+                if (columnTypeFilter && rowItemType !== columnTypeFilter) {
+                    return false;
+                }
+
+                // 4. Date range filter
+                if (fromDate || toDate) {
+                    var rowDate = rowDateTime.split(' ')[0];
+                    if (fromDate && rowDate < fromDate) return false;
+                    if (toDate && rowDate > toDate) return false;
+                }
+
+                // 5. Column-level text filters
+                var matchesAll = true;
+                document.querySelectorAll('.column-filter').forEach(function (input) {
+                    var filterVal = input.value.toLowerCase().trim();
+                    if (filterVal) {
+                        var colIndex = parseInt(input.getAttribute('data-column'));
+                        var cellText = cells[colIndex] ? cells[colIndex].textContent.toLowerCase().trim() : '';
+                        if (cellText.indexOf(filterVal) === -1) {
+                            matchesAll = false;
+                        }
+                    }
+                });
+                if (!matchesAll) return false;
+
+                // 6. Updated By select filter (column 15)
+                var updatedBySelect = document.querySelector('.filter-row select');
+                if (updatedBySelect && updatedBySelect.value) {
+                    var updatedByCell = cells[15] ? cells[15].textContent.toLowerCase().trim() : '';
+                    if (updatedByCell.indexOf(updatedBySelect.value.toLowerCase()) === -1) {
+                        return false;
+                    }
+                }
+
+                return true;
+            });
+
+            currentPage = 1;
+            showPage(currentPage);
+        }
+
+        function clearFilters() {
+            globalSearchInput.value = '';
+            itemTypeSelect.value = '';
+            fromDateInput.value = '';
+            toDateInput.value = '';
+            columnTypeFilter = '';
+            document.querySelector('#selectedType').textContent = 'All';
+            document.querySelectorAll('.column-filter').forEach(function(i) { i.value = ''; });
+            var updatedBySelect = document.querySelector('.filter-row select');
+            if (updatedBySelect) updatedBySelect.value = '';
+            filteredRows = allRows.slice();
+            currentPage = 1;
+            showPage(currentPage);
+        }
+
+        // Attach all event listeners to the unified filterAll function
+        clearFiltersBtn.addEventListener('click', clearFilters);
+        globalSearchInput.addEventListener('input', filterAll);
+        itemTypeSelect.addEventListener('change', filterAll);
+        fromDateInput.addEventListener('change', filterAll);
+        toDateInput.addEventListener('change', filterAll);
+
+        // Apply filter on Enter key
+        globalSearchInput.addEventListener('keypress', function (e) {
+            if (e.key === 'Enter') filterAll();
+        });
+
+        // ============ COLUMN SORTING FUNCTIONALITY ============
+        var sortableHeaders = document.querySelectorAll('th.sortable');
+        var currentSortColumn = null;
+        var currentSortDirection = 'none';
+
+        sortableHeaders.forEach(function (header) {
+            header.style.cursor = 'pointer';
+            header.addEventListener('click', function () {
+                var columnIndex = parseInt(this.getAttribute('data-column'));
+                var icon = this.querySelector('i');
+
+                // Reset other headers
+                sortableHeaders.forEach(function (h) {
+                    if (h !== header) {
+                        var i = h.querySelector('i');
+                        if (i) i.className = 'fas fa-sort';
+                    }
+                });
+
+                // Toggle sort direction
+                if (currentSortColumn === columnIndex) {
+                    if (currentSortDirection === 'asc') {
+                        currentSortDirection = 'desc';
+                        icon.className = 'fas fa-sort-down';
+                    } else if (currentSortDirection === 'desc') {
+                        currentSortDirection = 'none';
+                        icon.className = 'fas fa-sort';
+                        currentSortColumn = null;
+                    } else {
+                        currentSortDirection = 'asc';
+                        icon.className = 'fas fa-sort-up';
+                    }
+                } else {
+                    currentSortColumn = columnIndex;
+                    currentSortDirection = 'asc';
+                    icon.className = 'fas fa-sort-up';
+                }
+
+                // Sort the rows
+                if (currentSortDirection !== 'none') {
+                    filteredRows.sort(function (a, b) {
+                        var aCell = a.querySelectorAll('td')[columnIndex];
+                        var bCell = b.querySelectorAll('td')[columnIndex];
+                        var aVal = aCell ? aCell.textContent.trim() : '';
+                        var bVal = bCell ? bCell.textContent.trim() : '';
+
+                        // Try numeric comparison
+                        var aNum = parseFloat(aVal.replace(/[^0-9.-]/g, ''));
+                        var bNum = parseFloat(bVal.replace(/[^0-9.-]/g, ''));
+
+                        if (!isNaN(aNum) && !isNaN(bNum)) {
+                            return currentSortDirection === 'asc' ? aNum - bNum : bNum - aNum;
+                        }
+
+                        // String comparison
+                        if (currentSortDirection === 'asc') {
+                            return aVal.localeCompare(bVal);
+                        } else {
+                            return bVal.localeCompare(aVal);
+                        }
+                    });
+                } else {
+                    // Reset to original order
+                    filteredRows = allRows.filter(function (row) {
+                        return filteredRows.includes(row);
+                    });
+                }
+
+                currentPage = 1;
+                showPage(currentPage);
+            });
+        });
+
+        // ============ COLUMN FILTER (2ND ROW) FUNCTIONALITY ============
+        // Now uses the unified filterAll() function
+        var columnFilters = document.querySelectorAll('.column-filter');
+        var updatedBySelect = document.querySelector('.filter-row select');
+
+        // Column-level Type dropdown (custom dropdown in filter row)
+        document.querySelectorAll('#typeOptions .dropdown-item').forEach(function(item) {
+            item.addEventListener('click', function(e) {
+                e.preventDefault();
+                columnTypeFilter = this.getAttribute('data-value');
+                document.getElementById('selectedType').textContent = this.textContent.trim();
+                // Update active class
+                document.querySelectorAll('#typeOptions .dropdown-item').forEach(function(el) {
+                    el.classList.remove('active');
+                });
+                this.classList.add('active');
+                filterAll();
+            });
+        });
+
+        // Add event listeners to all column filter inputs
+        columnFilters.forEach(function (input) {
+            input.addEventListener('input', filterAll);
+            input.addEventListener('change', filterAll);
+        });
+
+        // Add event listener to the Updated By select
+        if (updatedBySelect) {
+            updatedBySelect.addEventListener('change', filterAll);
+        }
+
+        // ============ PAGINATION FUNCTIONALITY ============
+        function showPage(page) {
+            // Hide all rows first
+            allRows.forEach(function (row) {
+                row.style.display = 'none';
+            });
+
+            var totalFiltered = filteredRows.length;
+            var totalPages = Math.ceil(totalFiltered / rowsPerPage);
+
+            if (page < 1) page = 1;
+            if (page > totalPages && totalPages > 0) page = totalPages;
+            currentPage = page;
+
+            var start = (page - 1) * rowsPerPage;
+            var end = Math.min(start + rowsPerPage, totalFiltered);
+
+            // Show filtered rows for current page
+            for (var i = start; i < end; i++) {
+                filteredRows[i].style.display = '';
+            }
+
+            // Update row numbers
+            filteredRows.forEach(function (row, index) {
+                var numCell = row.querySelector('td:nth-child(2)');
+                if (numCell) numCell.textContent = index + 1;
+            });
+
+            // Update pagination display
+            var displayStart = totalFiltered > 0 ? start + 1 : 0;
+            var displayEnd = end;
+            document.querySelector('.inventory-card-header .text-muted').innerHTML =
+                'Showing <strong>' + displayStart + '-' + displayEnd + '</strong> of <strong>' + totalFiltered + '</strong> items';
+
+            // Update pagination buttons
+            updatePaginationButtons(totalPages);
+        }
+
+        function updatePaginationButtons(totalPages) {
+            var container = document.getElementById('paginationContainer');
+            container.innerHTML = '';
+
+            // Previous button
+            var prevLi = document.createElement('li');
+            prevLi.className = 'page-item' + (currentPage === 1 ? ' disabled' : '');
+            prevLi.innerHTML = '<a class="page-link" href="#">&laquo;</a>';
+            prevLi.addEventListener('click', function (e) {
+                e.preventDefault();
+                if (currentPage > 1) showPage(currentPage - 1);
+            });
+            container.appendChild(prevLi);
+
+            // Page numbers
+            var maxVisible = 5;
+            var startPage = Math.max(1, currentPage - 2);
+            var endPage = Math.min(totalPages, startPage + maxVisible - 1);
+
+            for (var i = startPage; i <= endPage; i++) {
+                var li = document.createElement('li');
+                li.className = 'page-item' + (i === currentPage ? ' active' : '');
+                li.innerHTML = '<a class="page-link" href="#">' + i + '</a>';
+                (function (pageNum) {
+                    li.addEventListener('click', function (e) {
+                        e.preventDefault();
+                        showPage(pageNum);
+                    });
+                })(i);
+                container.appendChild(li);
+            }
+
+            // Next button
+            var nextLi = document.createElement('li');
+            nextLi.className = 'page-item' + (currentPage === totalPages || totalPages === 0 ? ' disabled' : '');
+            nextLi.innerHTML = '<a class="page-link" href="#">&raquo;</a>';
+            nextLi.addEventListener('click', function (e) {
+                e.preventDefault();
+                if (currentPage < totalPages) showPage(currentPage + 1);
+            });
+            container.appendChild(nextLi);
+        }
+
+        // Initialize
+        showPage(1);
+
+        // ============ IMAGE PREVIEW FUNCTIONALITY ============
+        var imageInput = document.getElementById('imageInput');
+        var imagePreview = document.getElementById('imagePreview');
+
+        if (imageInput) {
+            imageInput.addEventListener('change', function (e) {
+                var file = e.target.files[0];
+                if (file) {
+                    var reader = new FileReader();
+                    reader.onload = function (e) {
+                        imagePreview.innerHTML = '<img src="' + e.target.result + '" class="img-fluid rounded" style="max-height: 140px;">';
+                    };
+                    reader.readAsDataURL(file);
+                } else {
+                    imagePreview.innerHTML = '<i class="fas fa-image fa-3x text-muted mb-2"></i><p class="text-muted mb-0 small">Image preview will appear here</p>';
+                }
+            });
+        }
+
+        // Reset form when modal closes
+        var newItemModal = document.getElementById('newItemModal');
+        if (newItemModal) {
+            newItemModal.addEventListener('hidden.bs.modal', function () {
+                document.getElementById('newItemForm').reset();
+                imagePreview.innerHTML = '<i class="fas fa-image fa-3x text-muted mb-2"></i><p class="text-muted mb-0 small">Image preview will appear here</p>';
+            });
+        }
+
+        // ============ ARCHIVE FUNCTIONALITY ============
+        var archiveBtn = document.getElementById('archiveBtn');
+        var archiveModal = document.getElementById('archiveModal');
+        var archiveItemCountSpan = document.getElementById('archiveItemCount');
+        var confirmArchiveBtn = document.getElementById('confirmArchiveBtn');
+        var archiveModalInstance = null;
+
+        archiveBtn.addEventListener('click', function () {
+            var selectedCheckboxes = document.querySelectorAll('.row-checkbox:checked');
+            var count = selectedCheckboxes.length;
+
+            if (count === 0) {
+                showToast('Please select at least one item to archive.', 'warning');
+                return;
+            }
+
+            archiveItemCountSpan.textContent = count;
+            archiveModalInstance = new bootstrap.Modal(archiveModal);
+            archiveModalInstance.show();
+        });
+
+        confirmArchiveBtn.addEventListener('click', function () {
+            var selectedCheckboxes = document.querySelectorAll('.row-checkbox:checked');
+            var selectedIds = Array.from(selectedCheckboxes).map(function (cb) {
+                return cb.value;
+            });
+
+            // Get CSRF token
+            function getCsrfToken() {
+                var token = '';
+                var cookies = document.cookie.split(';');
+                cookies.forEach(function(c) {
+                    var parts = c.trim().split('=');
+                    if (parts[0] === 'csrftoken') token = decodeURIComponent(parts[1]);
+                });
+                // Fallback: read from DOM
+                if (!token) {
+                    var el = document.querySelector('[name=csrfmiddlewaretoken]');
+                    if (el) token = el.value;
+                }
+                return token;
+            }
+
+            fetch('/inventory/bulk-archive/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'X-CSRFToken': getCsrfToken()
+                },
+                body: JSON.stringify({ item_ids: selectedIds })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    archiveModalInstance.hide();
+                    window.location.reload();
+                } else {
+                    showToast('Error: ' + (data.message || 'Failed to archive items'), 'error');
+                }
+            })
+            .catch(function (error) {
+                console.error('Error archiving items:', error);
+                showToast('An error occurred while archiving items.', 'error');
+            });
+        });
+
+    // ============ NEW ITEM FORM SUBMISSION ============
+    var newItemForm = document.getElementById('newItemForm');
+    if (newItemForm) {
+        newItemForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            var formData = new FormData(this);
+            
+            fetch('/all-inventory-items/', {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    var modal = bootstrap.Modal.getInstance(document.getElementById('newItemModal'));
+                    if (modal) modal.hide();
+                    window.location.reload();
+                } else {
+                    showToast('Error: ' + (data.message || 'Failed to create item'), 'error');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showToast('An error occurred while creating the item', 'error');
+            });
+        });
+    }
+
+    // ============ AUTO-MODAL TRIGGER ============
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('add') === 'true') {
+        const modalEl = document.getElementById('newItemModal');
+        if (modalEl) {
+            const modal = new bootstrap.Modal(modalEl);
+            modal.show();
+        }
+    }
+    });
+
+    // Export functionality
+    window.exportData = function(format) {
+        var table = document.getElementById('allInventoryTable');
+
+        // If checkboxes are selected, export only those rows.
+        // Otherwise, export all currently visible (filtered) rows.
+        var checkedBoxes = Array.from(table.querySelectorAll('.row-checkbox:checked'));
+        var rows;
+        if (checkedBoxes.length > 0) {
+            rows = checkedBoxes.map(function(cb) { return cb.closest('tr'); });
+        } else {
+            rows = Array.from(table.querySelectorAll('tbody tr')).filter(row => row.style.display !== 'none');
+        }
+
+        // Columns to skip for text data: Checkbox (0), Actions (last col 19)
+        // Column 4 is the Image column — we handle it separately
+        const skipCols = [0, 19];
+        const imageColIndex = 4;
+
+        // Get headers (include Image header)
+        var headers = [];
+        table.querySelectorAll('thead tr:first-child th').forEach(function (th, i) {
+            if (!skipCols.includes(i)) {
+                headers.push(th.textContent.replace(/\s+/g, ' ').trim() || 'Image');
+            }
+        });
+
+        // Get text data and image src separately
+        var data = [];
+        var imageSrcs = []; // parallel array of base64 srcs per row
+
+        rows.forEach(function (row) {
+            var rowData = [];
+            var imgSrc = '';
+            row.querySelectorAll('td').forEach(function (td, i) {
+                if (skipCols.includes(i)) return;
+                if (i === imageColIndex) {
+                    var img = td.querySelector('img');
+                    imgSrc = img ? img.getAttribute('src') : '';
+                    rowData.push(''); // placeholder for image cell text
+                } else {
+                    rowData.push(td.textContent.replace(/\s+/g, ' ').trim());
+                }
+            });
+            data.push(rowData);
+            imageSrcs.push(imgSrc);
+        });
+
+        // Find index of image column in the headers array
+        var imageHeaderIndex = -1;
+        headers.forEach(function(h, i) { if (h === 'Image') imageHeaderIndex = i; });
+
+        var filename = 'all_items_export_' + new Date().toISOString().slice(0, 10);
+
+        if (format === 'csv') {
+            let content = headers.join(',') + '\n';
+            data.forEach(function (row, ri) {
+                content += row.map(function (cell, ci) {
+                    if (ci === imageHeaderIndex) return '"[image]"';
+                    return '"' + cell.replace(/"/g, '""') + '"';
+                }).join(',') + '\n';
+            });
+            downloadFile(content, filename + '.csv', 'text/csv');
+
+        } else if (format === 'json') {
+            var jsonData = data.map(function (row, ri) {
+                var obj = {};
+                headers.forEach(function (header, i) {
+                    if (i === imageHeaderIndex) {
+                        obj[header] = imageSrcs[ri] || '';
+                    } else {
+                        obj[header] = row[i] || '';
+                    }
+                });
+                return obj;
+            });
+            downloadFile(JSON.stringify(jsonData, null, 2), filename + '.json', 'application/json');
+
+        } else if (format === 'excel') {
+            if (typeof XLSX === 'undefined') {
+                showToast('Excel library not loaded. Please refresh the page.', 'warning');
+                return;
+            }
+            // For Excel: replace image column with a note (images can't be embedded with SheetJS free)
+            var excelData = data.map(function(row, ri) {
+                return row.map(function(cell, ci) {
+                    return ci === imageHeaderIndex ? (imageSrcs[ri] ? '[has image]' : '[no image]') : cell;
+                });
+            });
+            const wb = XLSX.utils.book_new();
+            const wsData = [headers, ...excelData];
+            const ws = XLSX.utils.aoa_to_sheet(wsData);
+            XLSX.utils.book_append_sheet(wb, ws, "Inventory Items");
+            XLSX.writeFile(wb, `${filename}.xlsx`);
+
+        } else if (format === 'pdf') {
+            if (typeof window.jspdf === 'undefined') {
+                showToast('PDF library not loaded. Please refresh the page.', 'warning');
+                return;
+            }
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF('l', 'mm', 'a4');
+
+            doc.setFontSize(18);
+            doc.text("All Inventory Items", 14, 20);
+            doc.setFontSize(11);
+            doc.text(`Generated on: ${new Date().toLocaleString()}`, 14, 28);
+
+            const IMG_SIZE = 18; // mm — image cell height
+            const imgColIndex = imageHeaderIndex;
+
+            doc.autoTable({
+                head: [headers],
+                body: data,
+                startY: 35,
+                theme: 'grid',
+                styles: { fontSize: 6.5, cellPadding: 2, minCellHeight: IMG_SIZE + 2 },
+                headStyles: { fillColor: [79, 70, 229] },
+                columnStyles: {
+                    [imgColIndex]: { cellWidth: IMG_SIZE + 4, halign: 'center' }
+                },
+                didDrawCell: function(hookData) {
+                    // Only draw images in the image column body cells
+                    if (hookData.section === 'body' && hookData.column.index === imgColIndex) {
+                        var rowIdx = hookData.row.index;
+                        var src = imageSrcs[rowIdx];
+                        if (src && src.startsWith('data:image')) {
+                            var x = hookData.cell.x + 1;
+                            var y = hookData.cell.y + 1;
+                            var w = IMG_SIZE;
+                            var h = IMG_SIZE;
+                            try {
+                                doc.addImage(src, 'JPEG', x, y, w, h);
+                            } catch(e) {
+                                // If image format is unknown, try PNG
+                                try { doc.addImage(src, 'PNG', x, y, w, h); } catch(e2) {}
+                            }
+                        }
+                    }
+                }
+            });
+            doc.save(`${filename}.pdf`);
+        }
+    };
+
+    function downloadFile(content, filename, mimeType) {
+        var blob = new Blob([content], { type: mimeType + ';charset=utf-8' });
+        var link = document.createElement('a');
+        link.href = URL.createObjectURL(blob);
+        link.download = filename;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(link.href);
+    }
+</script>
+{% endblock %}

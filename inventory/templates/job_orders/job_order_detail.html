@@ -1,0 +1,1212 @@
+{% extends 'core/base.html' %}
+{% load static humanize %}
+{% load inventory_extras %}
+{% load tz %}
+
+{% block title %}JO-{{ jo.id }} Details - The Potter's House{% endblock %}
+
+{% block content %}
+<div class="row align-items-center mb-4">
+    <div class="col">
+        <div class="d-flex justify-content-between align-items-center">
+            <div>
+                <h4 class="mb-0 fw-bold text-dark">{{ jo.wip }} {{ jo.client.full_name }}, {{ jo.transaction_date|date:"M d Y" }}</h4>
+                <nav aria-label="breadcrumb">
+                    <ol class="breadcrumb mb-0" style="font-size: 0.85rem;">
+                        <li class="breadcrumb-item"><a href="{% url 'dashboard' %}" class="text-decoration-none text-muted">Home</a></li>
+                        <li class="breadcrumb-item"><a href="{% url 'job_orders' %}" class="text-decoration-none text-muted">Job Orders</a></li>
+                        <li class="breadcrumb-item active text-dark" aria-current="page">{{ jo.wip }} {{ jo.client.full_name }}, {{ jo.transaction_date|date:"M d Y" }}</li>
+                    </ol>
+                </nav>
+            </div>
+            <div class="ms-3">
+                {% with status=jo.status|upper %}
+                    {% if status == 'COMPLETED' or status == 'DONE' %}
+                        <span class="badge bg-success px-3 py-2 shadow-sm" style="font-size: 0.85rem; border-radius: 4px;">DONE</span>
+                    {% elif status == 'PENDING' or status == 'ACTIVE' %}
+                        <span class="badge bg-warning px-3 py-2 shadow-sm" style="font-size: 0.85rem; border-radius: 4px;">ACTIVE</span>
+                    {% elif status == 'VOID' or status == 'VOIDED' %}
+                        <span class="badge bg-danger px-3 py-2 shadow-sm" style="font-size: 0.85rem; border-radius: 4px;">VOIDED</span>
+                    {% else %}
+                        <span class="badge bg-secondary px-3 py-2 shadow-sm" style="font-size: 0.85rem; border-radius: 4px;">{{ status }}</span>
+                    {% endif %}
+                {% endwith %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-4">
+    <!-- Main Info Grid -->
+    <div class="col-lg-9">
+        <div class="row g-3 mb-4">
+            <!-- Client Info Cards -->
+            <div class="col-md-4">
+                <div class="inventory-card h-100 border-0 shadow-sm" style="border-radius: 8px; overflow: hidden;">
+                    <div class="inventory-card-header border-0 py-2 px-3 d-flex justify-content-between align-items-center" style="background-color: #fdf2f8;">
+                        <span class="fw-bold x-small" style="color: var(--primary-color);">Business Name</span>
+                        {% if jo.status != 'Void' %}
+                        <a href="#" class="btn btn-sm btn-primary p-0 d-flex align-items-center justify-content-center edit-client-btn" 
+                           style="width: 18px; height: 18px; font-size: 10px; border-radius: 2px;"
+                           data-id="{{ jo.client.id }}"
+                           data-firstname="{{ jo.client.first_name }}"
+                           data-lastname="{{ jo.client.last_name }}"
+                           data-middlename="{{ jo.client.middle_name }}"
+                           data-businessname="{{ jo.client.business_name }}"
+                           data-mobile="{{ jo.client.mobile_number }}"
+                           data-email="{{ jo.client.email_address }}"
+                           data-facebook="{{ jo.client.facebook }}">
+                           <i class="fas fa-edit"></i>
+                        </a>
+                        {% endif %}
+                    </div>
+                    <div class="p-3">
+                        <div class="mb-2 pb-2 border-bottom">
+                            <label class="x-small fw-bold text-dark d-block">Mobile Number</label>
+                            <div class="text-muted" style="font-size: 0.8rem;">{{ jo.client.mobile_number|default:"//" }}</div>
+                        </div>
+                        <div class="mb-2 pb-2 border-bottom">
+                            <label class="x-small fw-bold text-dark d-block">Email Address</label>
+                            <div class="text-muted" style="font-size: 0.8rem;">{{ jo.client.email_address|default:"//" }}</div>
+                        </div>
+                        <div class="mb-0">
+                            <label class="x-small fw-bold text-dark d-block">Facebook</label>
+                            <div class="text-muted" style="font-size: 0.8rem;">{{ jo.client.facebook|default:"//" }}</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-md-4">
+                <div class="inventory-card h-100 border-0 shadow-sm" style="border-radius: 8px; overflow: hidden;">
+                    <div class="inventory-card-header border-0 py-2 px-3 d-flex justify-content-between align-items-center" style="background-color: #fdf2f8;">
+                        <span class="fw-bold x-small" style="color: var(--primary-color);">Type</span>
+                        {% if jo.status != 'Void' %}
+                        <a href="#" class="btn btn-sm btn-primary p-0 d-flex align-items-center justify-content-center edit-jo-btn" 
+                           style="width: 18px; height: 18px; font-size: 10px; border-radius: 2px;"
+                           data-id="{{ jo.id }}"
+                           data-client-id="{{ jo.client.id }}"
+                           data-order-type="{{ jo.order_type }}"
+                           data-is-fully-paid="{{ jo.is_fully_paid|yesno:'true,false' }}"
+                           data-status="{{ jo.status }}"
+                           data-delivery-mode="{{ jo.delivery_mode }}"
+                           data-transaction-date="{{ jo.transaction_date|date:'Y-m-d\TH:i:s' }}"
+                           data-transaction-mode="{{ jo.transaction_mode }}"
+                           data-due-date="{{ jo.due_date|date:'Y-m-d' }}"
+                           data-remarks="{{ jo.remarks }}">
+                           <i class="fas fa-edit"></i>
+                        </a>
+                        {% endif %}
+                    </div>
+                    <div class="p-3">
+                        <div class="mb-2 pb-2 border-bottom">
+                            <label class="x-small fw-bold text-dark d-block">Due Date</label>
+                            <div class="text-muted" style="font-size: 0.8rem;">{{ jo.due_date|date:"Y-m-d"|default:"" }}</div>
+                        </div>
+                        <div class="mb-2 pb-2 border-bottom">
+                            <label class="x-small fw-bold text-dark d-block">Facilitated By</label>
+                            <div class="text-muted" style="font-size: 0.8rem;">{{ jo.created_by|default:"Stephen" }}</div>
+                        </div>
+                        <div class="mb-0">
+                            <label class="x-small fw-bold text-dark d-block">Payment Status</label>
+                            <div class="text-muted" style="font-size: 0.8rem;">{% if jo.is_fully_paid %}Fully Paid{% else %}Not Yet Fully Paid{% endif %}</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-4">
+                <div class="inventory-card h-100 border-0 shadow-sm" style="border-radius: 8px; overflow: hidden;">
+                    <div class="inventory-card-header border-0 py-2 px-3" style="background-color: #fdf2f8;">
+                        <span class="fw-bold x-small" style="color: var(--primary-color);">Mode</span>
+                    </div>
+                    <div class="p-3">
+                        <div class="mb-2 pb-2 border-bottom">
+                            <label class="x-small fw-bold text-dark d-block">Delivery</label>
+                            <div class="text-muted" style="font-size: 0.8rem;">{{ jo.delivery_mode|default:"//" }}</div>
+                        </div>
+                        <div class="mb-0">
+                            <label class="x-small fw-bold text-dark d-block">Datetime Updated</label>
+                            <div class="text-muted" style="font-size: 0.8rem;">{{ jo.datetime_updated|date:"Y-m-d H:i:s" }}</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row g-3 mb-4">
+            <div class="col-md-6">
+                <div class="inventory-card h-100 border-0 shadow-sm" style="border-radius: 8px; overflow: hidden;">
+                    <div class="inventory-card-header border-0 py-2 px-3 d-flex justify-content-between align-items-center" style="background-color: #fdf2f8;">
+                        <span class="fw-bold x-small" style="color: var(--primary-color);">Specifications</span>
+                        {% if jo.status != 'Void' %}
+                        <a href="#" class="btn btn-sm btn-primary p-0 d-flex align-items-center justify-content-center edit-specs-btn" 
+                           style="width: 18px; height: 18px; font-size: 10px; border-radius: 2px;"
+                           data-id="{{ jo.id }}"
+                           data-remarks="{% if jo.remarks %}{{ jo.remarks }}{% else %}Date of Event:
+Motiff:
+Box Color:
+Ribbon Color:
+Filler Color:
+Tag Design:
+PO Number:
+Others:{% endif %}">
+                           <i class="fas fa-edit"></i>
+                        </a>
+                        {% endif %}
+                    </div>
+                    <div class="p-3">
+                        <div class="text-muted" style="font-size: 0.8rem; min-height: 100px;">
+                            {{ jo.remarks|linebreaksbr|default:"Date of Event:<br>Motiff:<br>Box Color:<br>Ribbon Color:<br>Filler Color:<br>Tag Design:<br>PO Number:<br>Others:" }}
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="inventory-card h-100 border-0 shadow-sm" style="border-radius: 8px; overflow: hidden;">
+                    <div class="inventory-card-header border-0 py-2 px-3 d-flex justify-content-between align-items-center" style="background-color: #fdf2f8;">
+                        <span class="fw-bold x-small" style="color: var(--primary-color);">Withdrawal Slips</span>
+                        {% if needs_slip and jo.status != 'Void' %}
+                        <button id="generateSlipBtn" class="btn btn-sm btn-warning text-white fw-bold d-flex align-items-center py-1" 
+                                style="font-size: 0.7rem; background: #f39c12; border: none; border-radius: 4px;">
+                            <i class="fas fa-sync-alt me-1"></i> Generate
+                        </button>
+                        {% endif %}
+                    </div>
+                    <div class="p-3">
+                        <div id="withdrawalSlipsList" style="font-size: 0.85rem; max-height: 155px; overflow-y: auto; padding-right: 5px;">
+                            {% for p in products %}
+                            <div class="d-flex justify-content-between align-items-center py-2 border-bottom">
+                                <a href="#" class="view-ws-details-btn text-blue text-decoration-none fw-bold" data-id="{{ p.id }}">{{ p|get_tws_format }}</a>
+                                {% if p.withdrawal_slip %}
+                                <a href="{% url 'print_withdrawal_slip' p.withdrawal_slip.id %}" target="_blank" class="text-blue text-decoration-none fw-bold">WS-{{ p.withdrawal_slip.id|stringformat:"05d" }}</a>
+                                {% else %}
+                                <span class="text-muted fst-italic" style="font-size: 0.75rem;">NOT YET GENERATED</span>
+                                {% endif %}
+                            </div>
+                            {% empty %}
+                            <div class="text-muted small py-4 text-center">No records found.</div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Right Sidebar Stat Cards -->
+    <div class="col-lg-3">
+        <!-- Totals Card -->
+        <div class="inventory-card mb-4 border-0 shadow-sm" style="border-radius: 8px; overflow: hidden;">
+            <div class="p-3">
+                <div class="d-flex justify-content-between align-items-center mb-2 pb-2 border-bottom">
+                    <span class="fw-bold x-small text-dark">TOTAL</span>
+                    <span class="fw-bold fs-5">₱{{ jo.amount_due|floatformat:2|intcomma }}</span>
+                </div>
+                <div class="d-flex justify-content-between align-items-center mb-2 pb-2 border-bottom">
+                    <a href="#" class="x-small text-blue text-decoration-none {% if jo.status == 'Void' %}pe-none text-muted{% endif %}" {% if jo.status != 'Void' %}data-bs-toggle="modal" data-bs-target="#updateDiscountModal"{% endif %}>Discount</a>
+                    <span class="x-small">₱{{ jo.discount|floatformat:2|intcomma }}</span>
+                </div>
+                <div class="d-flex justify-content-between align-items-center mb-2 pb-2 border-bottom">
+                    <span class="fw-bold x-small text-dark">TOTAL AMOUNT PAID</span>
+                    <span class="fw-bold fs-5">₱{{ jo.amount_paid|floatformat:2|intcomma }}</span>
+                </div>
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <span class="fw-bold x-small text-dark">EWT</span>
+                    <span class="fw-bold fs-5">₱0.00</span>
+                </div>
+                <div class="d-flex justify-content-between align-items-center mt-4 pt-3 border-top">
+                    <span class="fw-bold x-small text-dark">BALANCE</span>
+                    <span class="fw-bold fs-5 {% if jo.balance > 0 %}text-danger{% else %}text-success{% endif %}">₱{{ jo.balance|floatformat:2|intcomma }}</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="d-grid gap-2">
+            <button class="btn btn-success text-dark border-0 py-2 text-start px-3 shadow-sm d-flex align-items-center" style="background: #badbcc; font-size: 0.8rem; font-weight: 500;" {% if jo.status == 'Void' %}disabled{% else %}data-bs-toggle="modal" data-bs-target="#addPaymentModal"{% endif %}>
+                <i class="fas fa-plus me-2"></i> Add Payment
+            </button>
+            <a href="{% url 'print_job_order' jo.id %}" target="_blank" class="btn btn-info text-dark border-0 py-2 text-start px-3 shadow-sm d-flex align-items-center" style="background: #d1d9e6; font-size: 0.8rem; font-weight: 500;">
+                <i class="fas fa-print me-2"></i> Print Job Order
+            </a>
+            <a href="{% url 'jo_products' %}?wip={{ jo.wip }}" class="btn btn-primary text-white border-0 py-2 text-start px-3 shadow-sm d-flex align-items-center" style="background: #ff85a1; font-size: 0.8rem; font-weight: 500;">
+                <i class="fas fa-boxes me-2"></i> View in Product Orders
+            </a>
+            <button class="btn btn-warning text-dark border-0 py-2 text-start px-3 shadow-sm d-flex align-items-center" style="background: #ffecb5; font-size: 0.8rem; font-weight: 500;" {% if jo.status == 'Void' %}disabled{% else %}data-bs-toggle="modal" data-bs-target="#insertProductModal"{% endif %}>
+                <i class="fas fa-plus me-2"></i> Insert Product
+            </button>
+            <button class="btn btn-danger text-dark border-0 py-2 text-start px-3 shadow-sm d-flex align-items-center" style="background: #f8d7da; font-size: 0.8rem; font-weight: 500;" {% if jo.status == 'Void' %}disabled{% else %}data-bs-toggle="modal" data-bs-target="#voidTransactionModal"{% endif %}>
+                <i class="fas fa-times me-2"></i> Void Transaction
+            </button>
+        </div>
+    </div>
+</div>
+    <!-- Full Width Tables Row -->
+    <div class="row mb-4">
+        <div class="col-12">
+        <!-- Products Availed -->
+        <div class="inventory-card mb-4 border-0 shadow-sm" style="border-radius: 8px; overflow: hidden;">
+            <div class="inventory-card-header border-0 py-2 px-3 text-center" style="background-color: #fdf2f8;">
+                <span class="fw-bold x-small text-uppercase" style="color: var(--primary-color); letter-spacing: 1px;">PRODUCTS AVAILED</span>
+            </div>
+            <div class="table-responsive" style="max-height: 250px; overflow-y: auto;">
+                <table class="table table-sm table-hover align-middle mb-0" style="font-size: 0.75rem;">
+                    <thead style="background: #fff0f3;">
+                        <tr style="border-bottom: 2px solid #ff85a1;">
+                            <th class="px-3 py-2 text-dark fw-bold">No.</th>
+                            <th class="py-2 text-dark fw-bold">Particular</th>
+                            <th class="py-2 text-dark fw-bold">Quantity</th>
+                            <th class="py-2 text-dark fw-bold">Unit Price</th>
+                            <th class="py-2 text-dark fw-bold">Total</th>
+                            <th class="py-2 text-dark fw-bold">Materials Status</th>
+                            <th class="py-3 py-2 text-dark fw-bold">Last Update</th>
+                            <th class="py-2 text-dark fw-bold text-center">Qty Released</th>
+                        </tr>
+                    </thead>
+                    <tbody class="border-top-0">
+                        {% for product in products %}
+                        <tr>
+                            <td class="px-3 fw-bold">{{ forloop.counter }}</td>
+                            <td>
+                                <div class="d-flex align-items-center">
+                                    <div class="me-2 text-truncate" style="max-width: 250px;">
+                                        <a href="{% url 'product_detail' product.product.id %}" class="text-blue text-decoration-none fw-bold" style="font-size: 0.85rem;">{{ product.product_name }} ({{ product.pid }})</a>
+                                        <div class="materials-list mt-1">
+                                            {% for material in product.jop_materials.all %}
+                                            <div class="d-flex align-items-center text-muted x-small mb-1">
+                                                <span class="me-1">{{ material.item_name }}</span>
+                                                {% if material.quantity_released > 0 %}
+                                                <span class="badge bg-success py-0 px-1 mx-1" style="font-size: 0.6rem;">Released: {{ material.quantity_released }}</span>
+                                                {% endif %}
+                                                {% if jo.status != 'Void' %}
+                                                <a href="#" class="text-blue ms-auto edit-material-btn" data-id="{{ material.id }}" data-name="{{ material.item_name }}" data-inventory-id="{{ material.inventory_item.id }}" data-quantity="{{ material.quantity }}">
+                                                    <i class="fas fa-pencil-alt" style="font-size: 0.65rem;"></i>
+                                                </a>
+                                                {% endif %}
+                                            </div>
+                                            {% endfor %}
+                                        </div>
+                                    </div>
+                                    <button class="btn btn-sm btn-light border py-0 px-2 d-flex align-items-center view-gallery-btn" 
+                                            data-image="{{ product.product.image|default:'' }}"
+                                            style="font-size: 0.7rem; height: 1.5rem; background: #f8f9fa;">
+                                        <i class="far fa-image me-1"></i>
+                                    </button>
+                                </div>
+                            </td>
+                            <td>{{ product.quantity|floatformat:2|intcomma }}</td>
+                            <td>₱{{ product.unit_price|floatformat:2|intcomma }}</td>
+                            <td class="fw-bold">₱{{ product.quantity|multiply:product.unit_price|floatformat:2|intcomma }}</td>
+                            <td>
+                                <span class="text-primary fw-bold" style="font-size: 0.75rem;">{{ product|get_tws_format }}</span>
+                            </td>
+                            <td>
+                                <div id="productionStatusContainer-{{ product.id }}">
+                                    {% if product.current_area %}
+                                        <span class="badge bg-light text-muted border px-2 py-1">
+                                            <i class="fas fa-check-circle text-success me-1"></i> {{ product.current_area.name }}
+                                        </span>
+                                    {% else %}
+                                        {% if jo.status != 'Void' %}
+                                        <button class="btn btn-sm btn-outline-success fw-bold d-flex align-items-center py-1 px-2 send-to-production-btn" 
+                                                data-product-id="{{ product.id }}"
+                                                style="font-size: 0.7rem; color: #155724; background: #d4edda; border-color: #c3e6cb;">
+                                            <i class="fas fa-paper-plane me-1" style="transform: rotate(-10deg);"></i> Send to Production
+                                        </button>
+                                        {% endif %}
+                                    {% endif %}
+                                </div>
+                            </td>
+                            <td class="text-center">{{ product.qty_released|default:"0" }}</td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="8" class="text-center py-5 text-muted">No products added yet.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Payment History -->
+        <div class="inventory-card mb-4 border-0 shadow-sm" style="border-radius: 8px; overflow: hidden;">
+            <div class="inventory-card-header border-0 py-2 px-3" style="background-color: #fdf2f8;">
+                <span class="fw-bold x-small text-uppercase" style="color: var(--primary-color); letter-spacing: 1px;">PAYMENT HISTORY</span>
+            </div>
+            <div class="table-responsive" style="max-height: 200px; overflow-y: auto;">
+                <table class="table table-sm table-hover align-middle mb-0" style="font-size: 0.75rem;">
+                    <thead style="background: #fff0f3;">
+                        <tr>
+                            <th class="fw-bold">#</th>
+                            <th class="px-3 py-2 text-dark fw-bold">DATE & TIME</th>
+                            <th class="py-2 text-dark fw-bold">MODE</th>
+                            <th class="py-2 text-dark fw-bold">AMOUNT</th>
+                            <th class="py-2 text-dark fw-bold">OR NUMBER</th>
+                            <th class="py-2 text-dark fw-bold">RECEIVED BY</th>
+                        </tr>
+                    </thead>
+                    <tbody class="border-top-0">
+                        {% for payment in payments %}
+                        <tr>
+                            <td>{{ forloop.counter }}</td>
+                            <td class="px-3">{{ payment.date_recorded|localtime|date:"Y-m-d h:i A" }}</td>
+                            <td>{{ payment.payment_type }}</td>
+                            <td class="fw-bold">₱{{ payment.amount|floatformat:2|intcomma }}</td>
+                            <td>{{ payment.or_number }}</td>
+                            <td>{{ payment.received_by }}</td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="5" class="text-center py-4 text-muted">No payment records found.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        </div>
+    </div>
+
+
+<!-- Insert Product Modal -->
+<div class="modal fade" id="insertProductModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable modal-dialog-centered">
+        <form id="insertProductForm" class="modal-content border-0 shadow">
+            {% csrf_token %}
+            <div class="modal-header bg-white border-bottom py-3 px-4">
+                <h6 class="modal-title fw-bold text-dark mb-0" style="font-size: 1rem;">Add New Product</h6>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body py-4">
+                <div class="mb-3">
+                    <label class="form-label fw-bold x-small text-dark text-uppercase mb-1" style="letter-spacing: 0.5px;">Product ID</label>
+                    <select class="form-select select2-products" name="product_id" required>
+                        <option value="">Select a product ...</option>
+                        {% for p in all_products %}
+                        <option value="{{ p.id }}">{{ p.name }} (₱{{ p.srp|floatformat:2|intcomma }}/pc)</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label fw-bold x-small text-dark text-uppercase mb-1" style="letter-spacing: 0.5px;">Quantity</label>
+                    <input type="number" name="quantity" class="form-control rounded-1" value="1" min="1" required style="font-size: 0.85rem; padding: 0.6rem;">
+                </div>
+                <!-- Product Details Dynamic Container -->
+                <div id="productDetailsContainer" class="mt-4 border-top pt-3" style="display: none;">
+                    <div class="text-center py-4">
+                        <i class="fas fa-spinner fa-spin text-muted me-2"></i>
+                        <span class="text-muted small">Loading details...</span>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer border-0 px-4 pb-4 pt-1 gap-2">
+                <button type="button" class="btn btn-light px-3 fw-bold border shadow-sm py-1.5 small" data-bs-dismiss="modal" style="font-size: 0.85rem;">Cancel</button>
+                <button type="submit" class="btn btn-success fw-bold px-3 py-1.5 small" style="background: #c3e6cb; color: #155724; border: 1px solid #7eb09b; border-radius: 4px; font-size: 0.85rem;">Insert Product</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Update Client Modal -->
+<div class="modal fade" id="updateClientModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow" style="border-radius: 8px;">
+            <div class="modal-header bg-white border-bottom py-3 px-4">
+                <h6 class="modal-title fw-bold text-dark mb-0" style="font-size: 1rem;">Update</h6>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form id="updateClientForm">
+                <input type="hidden" name="client_id" id="edit_client_id">
+                <div class="modal-body py-4 px-4" style="max-height: 70vh; overflow-y: auto;">
+                    <div class="mb-4">
+                        <label class="form-label fw-bold x-small text-dark text-uppercase mb-1" style="letter-spacing: 0.5px;">Lastname</label>
+                        <input type="text" name="lastname" id="edit_lastname" class="form-control rounded-1" style="font-size: 0.85rem; padding: 0.6rem;">
+                    </div>
+                    <div class="mb-4">
+                        <label class="form-label fw-bold x-small text-dark text-uppercase mb-1" style="letter-spacing: 0.5px;">Firstname</label>
+                        <input type="text" name="firstname" id="edit_firstname" class="form-control rounded-1" style="font-size: 0.85rem; padding: 0.6rem;">
+                    </div>
+                    <div class="mb-4">
+                        <label class="form-label fw-bold x-small text-dark text-uppercase mb-1" style="letter-spacing: 0.5px;">Middlename</label>
+                        <input type="text" name="middlename" id="edit_middlename" class="form-control rounded-1" style="font-size: 0.85rem; padding: 0.6rem;">
+                    </div>
+                    <div class="mb-4">
+                        <label class="form-label fw-bold x-small text-dark text-uppercase mb-1" style="letter-spacing: 0.5px;">Businessname</label>
+                        <input type="text" name="businessname" id="edit_businessname" class="form-control rounded-1" style="font-size: 0.85rem; padding: 0.6rem;">
+                    </div>
+                    <div class="mb-4">
+                        <label class="form-label fw-bold x-small text-dark text-uppercase mb-1" style="letter-spacing: 0.5px;">Mobile Number</label>
+                        <input type="text" name="mobile_number" id="edit_mobile_number" class="form-control rounded-1" style="font-size: 0.85rem; padding: 0.6rem;">
+                    </div>
+                    <div class="mb-4">
+                        <label class="form-label fw-bold x-small text-dark text-uppercase mb-1" style="letter-spacing: 0.5px;">Email Address</label>
+                        <input type="email" name="email_address" id="edit_email_address" class="form-control rounded-1" style="font-size: 0.85rem; padding: 0.6rem;">
+                    </div>
+                    <div class="mb-0">
+                        <label class="form-label fw-bold x-small text-dark text-uppercase mb-1" style="letter-spacing: 0.5px;">Facebook</label>
+                        <input type="text" name="facebook" id="edit_facebook" class="form-control rounded-1" style="font-size: 0.85rem; padding: 0.6rem;">
+                    </div>
+                </div>
+                <div class="modal-footer border-0 px-4 pb-4 pt-1 gap-2">
+                    <button type="button" class="btn btn-light px-3 fw-bold border shadow-sm py-1.5 small" data-bs-dismiss="modal" style="font-size: 0.85rem;">Cancel</button>
+                    <button type="submit" class="btn btn-success fw-bold px-3 py-1.5 small" style="background: #badbcc; color: #2d4638; border: 1px solid #7eb09b; border-radius: 4px; font-size: 0.85rem;">Save Changes</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Update Job Order Modal (Type) -->
+<div class="modal fade" id="updateJobOrderModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow" style="border-radius: 8px;">
+            <div class="modal-header bg-white border-bottom py-3 px-4">
+                <h6 class="modal-title fw-bold text-dark mb-0" style="font-size: 1rem;">Update Job Order</h6>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form id="updateJobOrderForm">
+                <input type="hidden" name="jo_id" id="edit_jo_id">
+                <div class="modal-body py-4 px-4" style="max-height: 70vh; overflow-y: auto;">
+                    <div class="mb-4">
+                        <label class="form-label fw-bold x-small text-success text-uppercase mb-1" style="letter-spacing: 0.5px;">Transaction Date</label>
+                        <input type="datetime-local" name="transaction_date" id="edit_jo_transaction_date" class="form-control rounded-1" style="font-size: 0.85rem; padding: 0.6rem;">
+                    </div>
+                    <div class="mb-4">
+                        <label class="form-label fw-bold x-small text-dark text-uppercase mb-1" style="letter-spacing: 0.5px;">Client ID</label>
+                        <select name="client_id" id="edit_jo_client_id" class="form-select rounded-1" style="font-size: 0.85rem; padding: 0.6rem;">
+                            <option value="">Select client...</option>
+                            {% for client in all_clients %}
+                                <option value="{{ client.id }}">{{ client.last_name }}, {{ client.first_name }}{% if client.business_name %} ({{ client.business_name }}){% endif %}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-4">
+                        <label class="form-label fw-bold x-small text-dark text-uppercase mb-1" style="letter-spacing: 0.5px;">Transaction Type</label>
+                        <select name="order_type" id="edit_jo_order_type" class="form-select rounded-1" style="font-size: 0.85rem; padding: 0.6rem;">
+                            <option value="Events">Events</option>
+                            <option value="Garments Events">Garments Events</option>
+                            <option value="Garments Gov">Garments Gov</option>
+                            <option value="Government">Government</option>
+                        </select>
+                    </div>
+                    <div class="mb-4">
+                        <label class="form-label fw-bold x-small text-dark text-uppercase mb-1" style="letter-spacing: 0.5px;">Transaction Mode</label>
+                        <select name="transaction_mode" id="edit_jo_transaction_mode" class="form-select rounded-1" style="font-size: 0.85rem; padding: 0.6rem;">
+                            <option value="Call">Call</option>
+                            <option value="Email">Email</option>
+                            <option value="Facebook">Facebook</option>
+                            <option value="Page">Page</option>
+                            <option value="Text">Text</option>
+                            <option value="Walk-in">Walk-in</option>
+                        </select>
+                    </div>
+                    <div class="mb-4">
+                        <label class="form-label fw-bold x-small text-dark text-uppercase mb-1" style="letter-spacing: 0.5px;">Delivery Mode</label>
+                        <select name="delivery_mode" id="edit_jo_delivery_mode" class="form-select rounded-1" style="font-size: 0.85rem; padding: 0.6rem;">
+                            <option value="PICK-UP">PICK-UP</option>
+                            <option value="DELIVERY">DELIVERY</option>
+                        </select>
+                    </div>
+                    <div class="mb-4">
+                        <label class="form-label fw-bold x-small text-dark text-uppercase mb-1" style="letter-spacing: 0.5px;">Target Date Of Completion</label>
+                        <input type="date" name="due_date" id="edit_jo_due_date" class="form-control rounded-1" style="font-size: 0.85rem; padding: 0.6rem;">
+                    </div>
+
+                    <div class="mb-4">
+                        <label class="form-label fw-bold x-small text-dark text-uppercase mb-1" style="letter-spacing: 0.5px;">Remarks</label>
+                        <textarea name="remarks" id="edit_jo_remarks" class="form-control rounded-1" rows="2" style="font-size: 0.85rem; padding: 0.6rem;"></textarea>
+                    </div>
+                    <div class="mb-4">
+                        <label class="form-label fw-bold x-small text-dark text-uppercase mb-1" style="letter-spacing: 0.5px;">Is Fully Paid</label>
+                        <select name="is_fully_paid" id="edit_jo_is_fully_paid" class="form-select rounded-1" style="font-size: 0.85rem; padding: 0.6rem;">
+                            <option value="false">No</option>
+                            <option value="true">Yes</option>
+                        </select>
+                    </div>
+                    <div class="mb-0">
+                        <label class="form-label fw-bold x-small text-dark text-uppercase mb-1" style="letter-spacing: 0.5px;">Status</label>
+                        <select name="status" id="edit_jo_status" class="form-select rounded-1" style="font-size: 0.85rem; padding: 0.6rem;">
+                            <option value="ACTIVE">ACTIVE</option>
+                            <option value="DONE">DONE</option>
+                            <option value="VOID">VOID</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer border-0 px-4 pb-4 pt-1 gap-2">
+                    <button type="button" class="btn btn-light px-3 fw-bold border shadow-sm py-1.5 small" data-bs-dismiss="modal" style="font-size: 0.85rem;">Cancel</button>
+                    <button type="submit" class="btn btn-success fw-bold px-3 py-1.5 small" style="background: #c3e6cb; color: #155724; border: 1px solid #7eb09b; border-radius: 4px; font-size: 0.85rem;">Save Changes</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Update Specifications Modal -->
+<div class="modal fade" id="updateSpecificationsModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow" style="border-radius: 8px;">
+            <div class="modal-header bg-white border-bottom py-3 px-4">
+                <h6 class="modal-title fw-bold text-dark mb-0" style="font-size: 1rem;">Specifications</h6>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form id="updateSpecificationsForm">
+                <input type="hidden" name="jo_id" id="edit_specs_jo_id">
+                <div class="modal-body py-4 px-4">
+                    <div class="mb-0">
+                        <label class="form-label fw-bold x-small text-dark text-uppercase mb-1" style="letter-spacing: 0.5px;">Specifications</label>
+                        <textarea name="remarks" id="edit_specs_remarks" class="form-control rounded-1" rows="10" style="font-size: 0.85rem; padding: 0.6rem;"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer border-0 px-4 pb-4 pt-1 gap-2">
+                    <button type="button" class="btn btn-light px-3 fw-bold border shadow-sm py-1.5 small" data-bs-dismiss="modal" style="font-size: 0.85rem;">Cancel</button>
+                    <button type="submit" class="btn btn-success fw-bold px-3 py-1.5 small" style="background: #c3e6cb; color: #155724; border: 1px solid #7eb09b; border-radius: 4px; font-size: 0.85rem;">Save Specifications</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Withdrawal Details Modal -->
+<div class="modal fade" id="withdrawalDetailsModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content text-dark" style="border-radius: 8px; border: none; box-shadow: 0 10px 30px rgba(0,0,0,0.1);">
+            <div class="modal-header border-0 pb-0 pt-4 px-4">
+                <h5 class="modal-title fw-normal" style="font-size: 1.1rem; color: #333;">View</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-4">
+                <div class="table-responsive rounded-2 border">
+                    <table class="table table-sm align-middle mb-0" style="font-size: 0.85rem;">
+                        <thead style="background: #fdfdfd;">
+                            <tr style="border-bottom: 1px solid #eee;">
+                                <th class="px-3 py-3 fw-bold text-dark" style="width: 30%;">Item Name</th>
+                                <th class="py-3 fw-bold text-dark text-center" style="width: 15%;">Requested</th>
+                                <th class="py-3 fw-bold text-dark text-center" style="width: 15%;">Released</th>
+                                <th class="py-3 fw-bold text-dark" style="width: 25%;">Ref Number</th>
+                                <th class="py-3 fw-bold text-dark text-center" style="width: 15%;">Status</th>
+                            </tr>
+                        </thead>
+                        <tbody id="withdrawalDetailsBody">
+                            <!-- Populated via AJAX -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Product Gallery Modal -->
+<div class="modal fade" id="productGalleryModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header border-bottom-0 pb-0">
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body text-center p-4">
+                <img id="galleryImage" src="" alt="Product Image" class="img-fluid rounded" style="max-height: 70vh; object-fit: contain;">
+                <div id="noImageMessage" class="text-muted" style="display: none;">
+                    <i class="far fa-image fa-3x mb-3"></i>
+                    <p>No image available for this product.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Void Transaction Confirmation Modal -->
+<div class="modal fade" id="voidTransactionModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow" style="border-radius: 8px;">
+            <div class="modal-header bg-white border-bottom py-3 px-4">
+                <h6 class="modal-title fw-bold text-dark mb-0" style="font-size: 1rem;">Void Transaction</h6>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body py-4 px-4 text-center">
+                <div class="mb-3">
+                    <i class="fas fa-exclamation-triangle text-danger fa-3x"></i>
+                </div>
+                <h6 class="fw-bold mb-2">Are you sure?</h6>
+                <p class="text-muted mb-0" style="font-size: 0.85rem;">This will cancel the Job Order and all associated products. This action cannot be undone.</p>
+            </div>
+            <div class="modal-footer border-0 px-4 pb-4 pt-0 d-flex justify-content-center gap-2">
+                <button type="button" class="btn btn-light px-3 py-1.5 border shadow-sm small" data-bs-dismiss="modal" style="font-size: 0.85rem;">Cancel</button>
+                <button type="button" id="confirmVoidBtn" class="btn btn-danger px-3 py-1.5 shadow-sm small" style="font-size: 0.85rem;">Yes, Void Transaction</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Add Payment Modal -->
+<div class="modal fade" id="addPaymentModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow" style="border-radius: 8px;">
+            <div class="modal-header bg-white border-bottom py-3 px-4">
+                <h6 class="modal-title fw-bold text-dark mb-0" style="font-size: 1rem;">Add Payment</h6>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form id="addPaymentForm">
+                {% csrf_token %}
+                <div class="modal-body py-4 px-4">
+                    <div class="mb-4">
+                        <label class="form-label fw-bold x-small text-dark text-uppercase mb-1" style="letter-spacing: 0.5px;">Date</label>
+                        <input type="datetime-local" name="payment_date" class="form-control rounded-1" required style="font-size: 0.85rem; padding: 0.6rem;" value="{% now 'Y-m-d\TH:i' %}">
+                    </div>
+                    <div class="mb-4">
+                        <label class="form-label fw-bold x-small text-dark text-uppercase mb-1" style="letter-spacing: 0.5px;">Payment Type</label>
+                        <select name="payment_type" class="form-select select2-payment-type" required>
+                            <option value="">Select type ...</option>
+                            <option value="CASH">CASH</option>
+                            <option value="ADA Landbank">ADA Landbank</option>
+                            <option value="Cheque">Cheque</option>
+                            <option value="Gcash">Gcash</option>
+                            <option value="BPI">BPI</option>
+                            <option value="Others">Others</option>
+                        </select>
+                    </div>
+                    <div class="mb-4">
+                        <label class="form-label fw-bold x-small text-dark text-uppercase mb-1" style="letter-spacing: 0.5px;">Amount</label>
+                        <input type="number" step="0.01" name="amount" class="form-control rounded-1" required style="font-size: 0.85rem; padding: 0.6rem;">
+                    </div>
+                    <div class="mb-4">
+                        <label class="form-label fw-bold x-small text-dark text-uppercase mb-1" style="letter-spacing: 0.5px;">EWT</label>
+                        <input type="number" step="0.01" name="ewt" class="form-control rounded-1" style="font-size: 0.85rem; padding: 0.6rem;" value="0">
+                    </div>
+                    <div class="mb-0">
+                        <label class="form-label fw-bold x-small text-dark text-uppercase mb-1" style="letter-spacing: 0.5px;">OR Number</label>
+                        <input type="text" name="or_number" class="form-control rounded-1" style="font-size: 0.85rem; padding: 0.6rem;">
+                    </div>
+                </div>
+                <div class="modal-footer border-0 px-4 pb-4 pt-1 gap-2">
+                    <button type="button" class="btn btn-light px-3 fw-bold border shadow-sm py-1.5 small" data-bs-dismiss="modal" style="font-size: 0.85rem;">Cancel</button>
+                    <button type="submit" class="btn btn-success fw-bold px-3 py-1.5 small" style="background: #c3e6cb; color: #155724; border: 1px solid #7eb09b; border-radius: 4px; font-size: 0.85rem;">Save Payment</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Update Discount Modal -->
+<div class="modal fade" id="updateDiscountModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow" style="border-radius: 8px;">
+            <div class="modal-header bg-white border-bottom py-3 px-4">
+                <h6 class="modal-title fw-bold text-dark mb-0" style="font-size: 1rem;">Update Discount</h6>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form id="updateDiscountForm">
+                {% csrf_token %}
+                <div class="modal-body py-4 px-4">
+                    <div class="mb-0">
+                        <label class="form-label fw-bold x-small text-dark text-uppercase mb-1" style="letter-spacing: 0.5px;">Discount</label>
+                        <input type="number" step="0.01" min="0" name="discount" class="form-control rounded-1" required style="font-size: 0.85rem; padding: 0.6rem;" value="{{ jo.discount|floatformat:2 }}">
+                    </div>
+                </div>
+                <div class="modal-footer border-0 px-4 pb-4 pt-1 gap-2">
+                    <button type="button" class="btn btn-light px-3 fw-bold border shadow-sm py-1.5 small" data-bs-dismiss="modal" style="font-size: 0.85rem;">Cancel</button>
+                    <button type="submit" class="btn btn-success fw-bold px-3 py-1.5 small" style="background: #c3e6cb; color: #155724; border: 1px solid #7eb09b; border-radius: 4px; font-size: 0.85rem;">Apply Discount</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Update Product Material Modal -->
+<div class="modal fade" id="updateProductMaterialModal" tabindex="-1" aria-hidden="true" style="z-index: 1060;">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow" style="border-radius: 8px;">
+            <div class="modal-header bg-white border-bottom py-3 px-4">
+                <h6 class="modal-title fw-bold text-dark mb-0" style="font-size: 1rem;">Update Material Item</h6>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form id="updateProductMaterialForm">
+                {% csrf_token %}
+                <input type="hidden" name="jopm_id" id="edit_jopm_id">
+                <div class="modal-body py-4 px-4">
+                    <div class="mb-0">
+                        <label class="form-label fw-bold x-small text-dark text-uppercase mb-1" style="letter-spacing: 0.5px;">Inventory Item</label>
+                        <select name="inventory_item_id" id="edit_jopm_inventory_item_id" class="form-select select2-material-items" required>
+                            <option value="">Select inventory item...</option>
+                            {% for item in all_inventory %}
+                                <option value="{{ item.id }}">{{ item.name }} (₱{{ item.cost|floatformat:2|intcomma }}/{{ item.unit|default:"pc" }}){% if item.description %} - {{ item.description }}{% endif %}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-0">
+                        <label class="form-label fw-bold x-small text-dark text-uppercase mb-1" style="letter-spacing: 0.5px;">Quantity per Product</label>
+                        <input type="number" step="0.0001" min="0" name="quantity" id="edit_jopm_quantity" class="form-control rounded-1" required style="font-size: 0.85rem; padding: 0.6rem;">
+                    </div>
+                </div>
+                <div class="modal-footer border-0 px-4 pb-4 pt-1 gap-2">
+                    <button type="button" class="btn btn-light px-3 fw-bold border shadow-sm py-1.5 small" data-bs-dismiss="modal" style="font-size: 0.85rem;">Cancel</button>
+                    <button type="submit" class="btn btn-success fw-bold px-3 py-1.5 small" style="background: #c3e6cb; color: #155724; border: 1px solid #7eb09b; border-radius: 4px; font-size: 0.85rem;">Update Material</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<style>
+    .select2-container--bootstrap-5 .select2-selection {
+        border: 1px solid #dee2e6;
+        border-radius: 4px;
+        min-height: 40px;
+        padding-top: 4px;
+    }
+    .select2-container--bootstrap-5 .select2-selection--single .select2-selection__rendered {
+        font-size: 0.85rem;
+        color: #212529;
+        line-height: 24px;
+    }
+    .select2-container--bootstrap-5 .select2-selection {
+        min-height: 38px;
+        padding: 5px;
+    }
+</style>
+<script>
+$(document).ready(function() {
+    $('.select2-products').select2({
+        theme: 'bootstrap-5',
+        width: '100%',
+        placeholder: 'Select a product ...',
+        allowClear: true,
+        dropdownParent: $('#insertProductModal')
+    });
+
+    $('.select2-payment-type').select2({
+        theme: 'bootstrap-5',
+        width: '100%',
+        placeholder: 'Select type ...',
+        dropdownParent: $('#addPaymentModal')
+    });
+
+    // Fetch product details on change or select
+    $('.select2-products').on('change select2:select', function(e) {
+        const productId = $(this).val();
+        console.log('Product selected:', productId);
+        const container = $('#productDetailsContainer');
+        
+        if (!productId) {
+            container.hide().html('');
+            return;
+        }
+        
+        container.show().html('<div class="text-center py-4"><i class="fas fa-spinner fa-spin text-muted me-2"></i><span class="text-muted small">Loading details...</span></div>');
+        
+        fetch(`/api/product-details/${productId}/`)
+            .then(response => {
+                console.log('Fetch response status:', response.status);
+                if (!response.ok) throw new Error('Network response was not ok');
+                return response.text();
+            })
+            .then(html => {
+                console.log('Received HTML length:', html.length);
+                container.html(html);
+            })
+            .catch(err => {
+                container.html('<div class="alert alert-danger mx-3 my-2 py-2 small">Error loading details.</div>');
+                console.error('Error fetching product details:', err);
+            });
+    });
+
+    $('#insertProductForm').submit(function(e) {
+        e.preventDefault();
+        const btn = $(this).find('button[type="submit"]');
+        btn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin me-2"></i>Inserting...');
+        
+        $.ajax({
+            url: "{% url 'add_jo_product' jo.id %}",
+            type: "POST",
+            data: $(this).serialize(),
+            success: function(data) {
+                if (data.success) {
+                    location.reload();
+                } else {
+                    alert('Error: ' + data.message);
+                    btn.prop('disabled', false).html('Insert');
+                }
+            },
+            error: function() {
+                alert('An unexpected error occurred.');
+                btn.prop('disabled', false).html('Insert');
+            }
+        });
+    });
+
+    $('.edit-client-btn').click(function(e) {
+        e.preventDefault();
+        const btn = $(this);
+        $('#edit_client_id').val(btn.data('id'));
+        $('#edit_firstname').val(btn.data('firstname'));
+        $('#edit_lastname').val(btn.data('lastname'));
+        $('#edit_middlename').val(btn.data('middlename'));
+        $('#edit_businessname').val(btn.data('businessname'));
+        $('#edit_mobile_number').val(btn.data('mobile'));
+        $('#edit_email_address').val(btn.data('email'));
+        $('#edit_facebook').val(btn.data('facebook'));
+        $('#updateClientModal').modal('show');
+    });
+
+    $('#updateClientForm').submit(function(e) {
+        e.preventDefault();
+        const clientId = $('#edit_client_id').val();
+        const submitBtn = $(this).find('button[type="submit"]');
+        submitBtn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin me-2"></i>Saving...');
+
+        $.ajax({
+            url: `/api/client/update/${clientId}/`,
+            type: "POST",
+            data: $(this).serialize(),
+            success: function(data) {
+                if (data.success) {
+                    location.reload();
+                } else {
+                    alert('Error: ' + data.message);
+                    submitBtn.prop('disabled', false).text('Save');
+                }
+            },
+            error: function() {
+                alert('An unexpected error occurred.');
+                submitBtn.prop('disabled', false).text('Save');
+            }
+        });
+    });
+
+    $('.edit-jo-btn').click(function(e) {
+        e.preventDefault();
+        const btn = $(this);
+        $('#edit_jo_id').val(btn.data('id'));
+        $('#edit_jo_client_id').val(btn.data('client-id'));
+        $('#edit_jo_order_type').val(btn.data('order-type'));
+        $('#edit_jo_is_fully_paid').val(btn.data('is-fully-paid').toString());
+        $('#edit_jo_status').val(btn.data('status'));
+        $('#edit_jo_delivery_mode').val(btn.data('delivery-mode'));
+        $('#edit_jo_transaction_date').val(btn.data('transaction-date'));
+        $('#edit_jo_transaction_mode').val(btn.data('transaction-mode'));
+        $('#edit_jo_due_date').val(btn.data('due-date'));
+        $('#edit_jo_remarks').val(btn.data('remarks'));
+        $('#updateJobOrderModal').modal('show');
+    });
+
+    $('#updateJobOrderForm').submit(function(e) {
+        e.preventDefault();
+        const joId = $('#edit_jo_id').val();
+        const submitBtn = $(this).find('button[type="submit"]');
+        submitBtn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin me-2"></i>Saving...');
+
+        $.ajax({
+            url: `/api/job-order/update/${joId}/`,
+            type: "POST",
+            data: $(this).serialize(),
+            success: function(data) {
+                if (data.success) {
+                    location.reload();
+                } else {
+                    alert('Error: ' + data.message);
+                    submitBtn.prop('disabled', false).text('Save');
+                }
+            },
+            error: function() {
+                alert('An unexpected error occurred.');
+                submitBtn.prop('disabled', false).text('Save');
+            }
+        });
+    });
+
+    $('.edit-specs-btn').click(function(e) {
+        e.preventDefault();
+        const btn = $(this);
+        $('#edit_specs_jo_id').val(btn.data('id'));
+        $('#edit_specs_remarks').val(btn.data('remarks'));
+        $('#updateSpecificationsModal').modal('show');
+    });
+
+    $('#updateSpecificationsForm').submit(function(e) {
+        e.preventDefault();
+        const joId = $('#edit_specs_jo_id').val();
+        const submitBtn = $(this).find('button[type="submit"]');
+        submitBtn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin me-2"></i>Saving...');
+
+        $.ajax({
+            url: `/api/job-order/update/${joId}/`,
+            type: "POST",
+            data: $(this).serialize(),
+            success: function(data) {
+                if (data.success) {
+                    location.reload();
+                } else {
+                    alert('Error: ' + data.message);
+                    submitBtn.prop('disabled', false).text('Save');
+                }
+            },
+            error: function() {
+                alert('An unexpected error occurred.');
+                submitBtn.prop('disabled', false).text('Save');
+            }
+        });
+    });
+
+    $('.send-to-production-btn').click(function(e) {
+        e.preventDefault();
+        const btn = $(this);
+        const productId = btn.data('product-id');
+        const container = $(`#productionStatusContainer-${productId}`);
+        const statusColumn = btn.closest('tr').find('.text-primary.fw-bold');
+
+        btn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin me-1"></i> Sending...');
+
+        $.ajax({
+            url: `/production/send-to-production/${productId}/`,
+            type: "POST",
+            data: {
+                'csrfmiddlewaretoken': '{{ csrf_token }}'
+            },
+            success: function(data) {
+                if (data.status === 'success') {
+                    // Update status column
+                    if (statusColumn.length) {
+                        statusColumn.text(data.new_status);
+                    }
+                    // Update button area to show badge
+                    container.html(`
+                        <span class="badge bg-light text-muted border px-2 py-1">
+                            <i class="fas fa-check-circle text-success me-1"></i> Production Head
+                        </span>
+                    `);
+                } else {
+                    alert('Error: ' + data.message);
+                    btn.prop('disabled', false).html('<i class="fas fa-paper-plane me-1"></i> Send to Production');
+                }
+            },
+            error: function() {
+                alert('An unexpected error occurred.');
+                btn.prop('disabled', false).html('<i class="fas fa-paper-plane me-1"></i> Send to Production');
+            }
+        });
+    });
+
+    // Withdrawal Slip Generation
+    $('#generateSlipBtn').click(function() {
+        const btn = $(this);
+        const originalHtml = btn.html();
+        btn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin me-1"></i> Generating...');
+
+        $.ajax({
+            url: "{% url 'generate_withdrawal_slip' jo.id %}",
+            type: "POST",
+            data: {
+                'csrfmiddlewaretoken': '{{ csrf_token }}'
+            },
+            success: function(data) {
+                if (data.success) {
+                    location.reload();
+                } else {
+                    alert('Error: ' + data.message);
+                    btn.prop('disabled', false).html(originalHtml);
+                }
+            },
+            error: function() {
+                alert('An unexpected error occurred.');
+                btn.prop('disabled', false).html(originalHtml);
+            }
+        });
+    });
+
+    // View Withdrawal Slip Details
+    $('.view-ws-details-btn').click(function(e) {
+        e.preventDefault();
+        const productId = $(this).data('id');
+        const body = $('#withdrawalDetailsBody');
+        
+        body.html('<tr><td colspan="3" class="text-center p-3"><i class="fas fa-spinner fa-spin me-2"></i>Loading details...</td></tr>');
+        $('#withdrawalDetailsModal').modal('show');
+
+        $.ajax({
+            url: `/api/withdrawal-slip-details/${productId}/`,
+            type: "GET",
+            success: function(data) {
+                if (data.success) {
+                    let html = '';
+                    if (data.items.length > 0) {
+                        data.items.forEach(item => {
+                            let statusBadge = '';
+                            if (item.status === 'Completed') {
+                                statusBadge = '<span class="badge bg-success" style="font-size: 0.65rem;">Completed</span>';
+                            } else if (item.status === 'Pending') {
+                                statusBadge = '<span class="badge bg-warning text-dark" style="font-size: 0.65rem;">Pending</span>';
+                            } else {
+                                statusBadge = `<span class="badge bg-secondary" style="font-size: 0.65rem;">${item.status}</span>`;
+                            }
+
+                            html += `
+                                <tr style="border-bottom: 1px solid #eee;">
+                                    <td class="px-3 py-2">${item.item_name}</td>
+                                    <td class="py-2 text-center">${item.quantity}</td>
+                                    <td class="py-2 text-center fw-bold text-success">${item.quantity_approved}</td>
+                                    <td class="py-2">${item.ws_number || '-'}</td>
+                                    <td class="py-2 text-center">${statusBadge}</td>
+                                </tr>
+                            `;
+                        });
+                    } else {
+                        html = '<tr><td colspan="5" class="text-center p-3 text-muted">No materials found for this product.</td></tr>';
+                    }
+                    body.html(html);
+                } else {
+                    body.html('<tr><td colspan="3" class="text-center p-3 text-danger">Error loading details.</td></tr>');
+                }
+            },
+            error: function() {
+                body.html('<tr><td colspan="3" class="text-center p-3 text-danger">An unexpected error occurred.</td></tr>');
+            }
+        });
+    });
+    // View Product Gallery
+    $('.view-gallery-btn').click(function(e) {
+        e.preventDefault();
+        const base64Image = $(this).data('image');
+        const imgElement = $('#galleryImage');
+        const noImageMsg = $('#noImageMessage');
+
+        if (base64Image && base64Image.trim() !== '') {
+            imgElement.attr('src', base64Image).show();
+            noImageMsg.hide();
+        } else {
+            imgElement.hide();
+            noImageMsg.show();
+        }
+
+        $('#productGalleryModal').modal('show');
+    });
+
+    // Add Payment Form Submission
+    $('#addPaymentForm').submit(function(e) {
+        e.preventDefault();
+        const btn = $(this).find('button[type="submit"]');
+        btn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin me-2"></i>Saving...');
+        
+        $.ajax({
+            url: "{% url 'add_payment' jo.id %}", // Assuming this URL exists, if not we need to create it
+            type: "POST",
+            data: $(this).serialize(),
+            success: function(data) {
+                if (data.success) {
+                    location.reload();
+                } else {
+                    alert('Error: ' + data.message);
+                    btn.prop('disabled', false).text('Save');
+                }
+            },
+            error: function() {
+                alert('An unexpected error occurred.');
+                btn.prop('disabled', false).text('Save');
+            }
+        });
+    });
+
+    // Update Discount Form Submission
+    $('#updateDiscountForm').submit(function(e) {
+        e.preventDefault();
+        const btn = $(this).find('button[type="submit"]');
+        btn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin me-2"></i>Saving...');
+        
+        $.ajax({
+            url: "{% url 'update_discount' jo.id %}",
+            type: "POST",
+            data: $(this).serialize(),
+            success: function(data) {
+                if (data.success) {
+                    location.reload();
+                } else {
+                    alert('Error: ' + data.message);
+                    btn.prop('disabled', false).text('Save');
+                }
+            },
+            error: function() {
+                alert('An unexpected error occurred.');
+                btn.prop('disabled', false).text('Save');
+            }
+        });
+    });
+
+    // Material Update Logic (Event Delegation)
+    $(document).on('click', '.edit-material-btn', function(e) {
+        e.preventDefault();
+        const btn = $(this);
+        const jopmId = btn.data('id');
+        const inventoryId = btn.data('inventory-id');
+        const quantity = btn.data('quantity');
+        
+        $('#edit_jopm_id').val(jopmId);
+        $('#edit_jopm_inventory_item_id').val(inventoryId).trigger('change');
+        $('#edit_jopm_quantity').val(quantity);
+        $('#updateProductMaterialModal').modal('show');
+    });
+
+    $('#updateProductMaterialForm').submit(function(e) {
+        e.preventDefault();
+        const jopmId = $('#edit_jopm_id').val();
+        const btn = $(this).find('button[type="submit"]');
+        
+        btn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin me-2"></i>Saving...');
+        
+        $.ajax({
+            url: `/api/job-order/update-material/${jopmId}/`,
+            type: "POST",
+            data: $(this).serialize(),
+            success: function(data) {
+                if (data.success) {
+                    location.reload();
+                } else {
+                    alert('Error: ' + data.message);
+                    btn.prop('disabled', false).text('Save');
+                }
+            },
+            error: function() {
+                alert('An unexpected error occurred.');
+                btn.prop('disabled', false).text('Save');
+            }
+        });
+    });
+
+    // Void Transaction Logic
+    $('#confirmVoidBtn').click(function() {
+        const btn = $(this);
+        btn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin me-2"></i>Voiding...');
+        
+        $.ajax({
+            url: "{% url 'void_job_order' jo.id %}",
+            type: "POST",
+            data: {
+                'csrfmiddlewaretoken': '{{ csrf_token }}'
+            },
+            success: function(data) {
+                if (data.success) {
+                    location.reload();
+                } else {
+                    alert('Error: ' + data.message);
+                    btn.prop('disabled', false).text('Yes, Void Transaction');
+                }
+            },
+            error: function() {
+                alert('An unexpected error occurred.');
+                btn.prop('disabled', false).text('Yes, Void Transaction');
+            }
+        });
+    });
+
+    // Initialize Select2 for material items
+    $('.select2-material-items').select2({
+        theme: 'bootstrap-5',
+        width: '100%',
+        dropdownParent: $('#updateProductMaterialModal')
+    });
+});
+</script>
+{% endblock %}

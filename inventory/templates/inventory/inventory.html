@@ -1,0 +1,1570 @@
+{% extends 'core/base.html' %}
+{% block title %}Inventory{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb breadcrumb-custom mb-0">
+            <li class="breadcrumb-item"><a href="#">Home</a></li>
+            <li class="breadcrumb-item active" aria-current="page">Inventory</li>
+        </ol>
+    </nav>
+</div>
+
+
+<!-- Statistics Cards -->
+<div class="row g-3 mb-4">
+    <div class="col-xl col-md-6">
+        <a href="{% url 'inventory' %}?filter=all" class="text-decoration-none">
+            <div
+                class="card stat-card border-0 shadow-sm {% if stats.current_filter == 'all' %}stat-card-active{% endif %}">
+                <div class="card-body d-flex align-items-center">
+                    <div class="stat-icon bg-primary text-white rounded-circle me-3">
+                        <i class="fas fa-boxes"></i>
+                    </div>
+                    <div class="stat-details">
+                        <div class="stat-label text-muted small">Total Items</div>
+                        <div class="stat-value fw-bold">{{ stats.total_items }}</div>
+                    </div>
+                </div>
+            </div>
+        </a>
+    </div>
+    <div class="col-xl col-md-6">
+        <a href="{% url 'inventory' %}?filter=in_stock" class="text-decoration-none">
+            <div
+                class="card stat-card border-0 shadow-sm {% if stats.current_filter == 'in_stock' %}stat-card-active{% endif %}">
+                <div class="card-body d-flex align-items-center">
+                    <div class="stat-icon bg-success text-white rounded-circle me-3">
+                        <i class="fas fa-check-circle"></i>
+                    </div>
+                    <div class="stat-details">
+                        <div class="stat-label text-muted small">In Stock</div>
+                        <div class="stat-value fw-bold text-success">{{ stats.in_stock }}</div>
+                    </div>
+                </div>
+            </div>
+        </a>
+    </div>
+    <div class="col-xl col-md-6">
+        <a href="{% url 'inventory' %}?filter=out_of_stock" class="text-decoration-none">
+            <div
+                class="card stat-card border-0 shadow-sm {% if stats.current_filter == 'out_of_stock' %}stat-card-active{% endif %}">
+                <div class="card-body d-flex align-items-center">
+                    <div class="stat-icon bg-danger text-white rounded-circle me-3">
+                        <i class="fas fa-exclamation-triangle"></i>
+                    </div>
+                    <div class="stat-details">
+                        <div class="stat-label text-muted small">Out of Stock</div>
+                        <div class="stat-value fw-bold text-danger">{{ stats.out_of_stock }}</div>
+                    </div>
+                </div>
+            </div>
+        </a>
+    </div>
+    <div class="col-xl col-md-6">
+        <a href="{% url 'inventory' %}?filter=low_stock" class="text-decoration-none">
+            <div
+                class="card stat-card border-0 shadow-sm {% if stats.current_filter == 'low_stock' %}stat-card-active{% endif %}">
+                <div class="card-body d-flex align-items-center">
+                    <div class="stat-icon bg-warning text-white rounded-circle me-3">
+                        <i class="fas fa-arrow-down"></i>
+                    </div>
+                    <div class="stat-details">
+                        <div class="stat-label text-muted small">Low Stock</div>
+                        <div class="stat-value fw-bold text-warning">{{ stats.low_stock }}</div>
+                    </div>
+                </div>
+            </div>
+        </a>
+    </div>
+    <div class="col-xl col-md-6">
+        <a href="{% url 'inventory' %}?filter=archived" class="text-decoration-none">
+            <div
+                class="card stat-card border-0 shadow-sm {% if stats.current_filter == 'archived' %}stat-card-active{% endif %}">
+                <div class="card-body d-flex align-items-center">
+                    <div class="stat-icon bg-secondary text-white rounded-circle me-3">
+                        <i class="fas fa-archive"></i>
+                    </div>
+                    <div class="stat-details">
+                        <div class="stat-label text-muted small">Archived</div>
+                        <div class="stat-value fw-bold text-secondary">{{ stats.archived }}</div>
+                    </div>
+                </div>
+            </div>
+        </a>
+    </div>
+</div>
+
+<!-- Search & Filter Card -->
+<div class="filter-card mb-4">
+    <div class="filter-card-header d-flex align-items-center text-pink">
+        <div class="icon-box">
+            <i class="fas fa-filter"></i>
+        </div>
+        Search & Filter
+    </div>
+    <div class="filter-card-body">
+        <div class="row g-3">
+            <div class="col-md-4">
+                <label class="filter-label">Search</label>
+                <input type="text" class="form-control filter-input" id="globalSearch"
+                    placeholder="Search by Name, SKU, Color...">
+            </div>
+            <div class="col-md-2">
+                <label class="filter-label">Item Type</label>
+                <select class="form-select filter-input" id="filterItemType">
+                    <option value="">All Types</option>
+                    <option value="RAW Materials">RAW Materials</option>
+                    <option value="Indirect Materials">Indirect Materials</option>
+                    <option value="Print Materials">Print Materials</option>
+                    <option value="Special Boards/Papers">Special Boards/Papers</option>
+                    <option value="Printing Process">Printing Process</option>
+                    <option value="Garments">Garments</option>
+                    <option value="Office Supplies">Office Supplies</option>
+                    <option value="Assets">Assets</option>
+                    <option value="Obsolete">Obsolete</option>
+                </select>
+            </div>
+
+            <div class="col-md-2">
+                <label class="filter-label">From Date</label>
+                <input type="date" class="form-control filter-input" id="filterFromDate">
+            </div>
+            <div class="col-md-2">
+                <label class="filter-label">To Date</label>
+                <input type="date" class="form-control filter-input" id="filterToDate">
+            </div>
+        </div>
+        <div class="filter-actions mt-3">
+            <button type="button" class="btn btn-outline-secondary btn-sm" id="clearFiltersBtn">
+                <span class="icon-box" style="width: 20px; height: 20px; margin-right: 4px; border-radius: 4px;">
+                    <i class="fas fa-times-circle" style="font-size: 0.7rem;"></i>
+                </span>
+                Clear Filters
+            </button>
+
+            <!-- Export Dropdown -->
+            <div class="dropdown d-inline-block">
+                <button class="btn btn-outline-secondary btn-sm dropdown-toggle" type="button" id="exportDropdown"
+                    data-bs-toggle="dropdown" aria-expanded="false">
+                    <i class="fas fa-file-export"></i> Export
+                </button>
+                <ul class="dropdown-menu shadow" aria-labelledby="exportDropdown">
+                    <li class="dropdown-header text-muted small">Export Page Data</li>
+                    <li><a class="dropdown-item" href="#" onclick="exportData('html')">
+                            <i class="fas fa-file-code text-secondary me-2"></i> HTML
+                        </a></li>
+                    <li><a class="dropdown-item" href="#" onclick="exportData('csv')">
+                            <i class="fas fa-file-csv text-success me-2"></i> CSV
+                        </a></li>
+                    <li><a class="dropdown-item" href="#" onclick="exportData('txt')">
+                            <i class="fas fa-file-alt text-secondary me-2"></i> Text
+                        </a></li>
+                    <li><a class="dropdown-item" href="#" onclick="exportData('excel')">
+                            <i class="fas fa-file-excel text-success me-2"></i> Excel
+                        </a></li>
+                    <li><a class="dropdown-item" href="#" onclick="exportData('pdf')">
+                            <i class="fas fa-file-pdf text-danger me-2"></i> PDF
+                        </a></li>
+                    <li><a class="dropdown-item" href="#" onclick="exportData('json')">
+                            <i class="fas fa-file-code text-warning me-2"></i> JSON
+                        </a></li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="inventory-card">
+
+
+    <div class="inventory-card-header">
+        <div>
+            <i class="fas fa-briefcase me-2"></i> Inventory
+        </div>
+        <div class="text-muted small">
+            Showing <strong>1-20</strong> of <strong>1,503</strong> items.
+        </div>
+    </div>
+
+    <div class="p-3 bg-white border-bottom tool-bar">
+        <div class="d-flex justify-content-between align-items-center">
+            <div class="text-muted small" id="selectionInfo">
+                <span id="selectedCount">0</span> item(s) selected
+            </div>
+            <div>
+                <button type="button" class="btn btn-light border btn-sm"><i class="fas fa-expand-alt"></i> All</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Table -->
+    <div class="table-responsive">
+        <table id="inventoryTable" class="table table-bordered table-hover">
+            <thead>
+                <tr>
+                    <th scope="col" style="width: 40px;">
+                        <input type="checkbox" id="selectAll" class="form-check-input" title="Select All">
+                    </th>
+                    <th scope="col" style="width: 50px;" class="sortable" data-column="1"># <i class="fas fa-sort"></i>
+                    </th>
+                    <th scope="col" class="col-header-text sortable" data-column="2">Inventory Item Type <i
+                            class="fas fa-sort"></i></th>
+                    <th scope="col" class="col-header-text sortable" data-column="3">SKU Code <i
+                            class="fas fa-sort"></i></th>
+                    <th scope="col">Image</th>
+                    <th scope="col" class="col-header-text sortable" data-column="5">Name <i class="fas fa-sort"></i>
+                    </th>
+                    <th scope="col" class="col-header-text sortable" data-column="6">Sub Unit <i
+                            class="fas fa-sort"></i></th>
+                    <th scope="col" class="col-header-text sortable" data-column="7">Color <i class="fas fa-sort"></i>
+                    </th>
+                    <th scope="col" class="col-header-text sortable" data-column="8">Model / Type <i
+                            class="fas fa-sort"></i></th>
+                    <th scope="col" class="col-header-text sortable" data-column="9">Shape <i class="fas fa-sort"></i>
+                    </th>
+                    <th scope="col" class="col-header-text sortable" data-column="10">Size <i class="fas fa-sort"></i>
+                    </th>
+                    <th scope="col" class="col-header-text sortable" data-column="11">Dimensions <i
+                            class="fas fa-sort"></i></th>
+                    <th scope="col" class="col-header-text sortable" data-column="12">Volume <i class="fas fa-sort"></i>
+                    </th>
+                    <th scope="col" class="col-header-text sortable" data-column="13">Material <i
+                            class="fas fa-sort"></i></th>
+                    <th scope="col" class="col-header-text sortable" data-column="14">Add-on / Feature <i
+                            class="fas fa-sort"></i></th>
+                    <th scope="col" class="col-header-text sortable" data-column="15">Other <i class="fas fa-sort"></i>
+                    </th>
+                    <th scope="col" class="col-header-text sortable" data-column="16">Occasion/Use <i
+                            class="fas fa-sort"></i></th>
+                    <th scope="col" class="col-header-text sortable" data-column="17">Datetime Updated <i
+                            class="fas fa-sort"></i></th>
+                    <th scope="col" class="sortable" data-column="18">Last Inventory <i class="fas fa-sort"></i></th>
+                    <th scope="col" class="sortable" data-column="19">Total Purchases <i class="fas fa-sort"></i></th>
+                    <th scope="col" class="sortable" data-column="20">Total Withdrawal <i class="fas fa-sort"></i></th>
+                    <th scope="col" class="sortable" data-column="21">Total Balance <i class="fas fa-sort"></i></th>
+                    <th scope="col" class="col-header-text sortable" data-column="22">Inventory Value <i
+                            class="fas fa-sort"></i></th>
+                    <th scope="col" class="col-header-text sortable" data-column="23">Stock Status <i
+                            class="fas fa-sort"></i></th>
+                    <th scope="col" class="col-header-text sortable" data-column="24">Status <i class="fas fa-sort"></i>
+                    </th>
+                    <th scope="col" class="col-header-text">Actions</th>
+                </tr>
+                <!-- Filter Row -->
+                <tr class="bg-light filter-row">
+                    <td></td>
+                    <td></td>
+                    <td>
+                        <div class="dropdown" id="typeDropdownContainer">
+                            <button
+                                class="btn btn-outline-secondary btn-sm dropdown-toggle w-100 text-start d-flex justify-content-between align-items-center bg-white border-0"
+                                type="button" id="dropdownMenuButton1" data-bs-toggle="dropdown" aria-expanded="false"
+                                style="font-size: 0.8rem;">
+                                <span id="selectedType">All</span>
+                            </button>
+                            <ul class="dropdown-menu p-2 shadow" aria-labelledby="dropdownMenuButton1"
+                                style="min-width: 200px;">
+                                <li><input type="text" class="form-control form-control-sm mb-2" id="typeSearchInput"
+                                        placeholder="Search..."></li>
+                                <div id="typeOptions" style="max-height: 200px; overflow-y: auto;">
+                                    <li><a class="dropdown-item active" href="#" data-value="">All</a></li>
+                                    <li><a class="dropdown-item" href="#" data-value="RAW Materials">RAW Materials</a>
+                                    </li>
+                                    <li><a class="dropdown-item" href="#" data-value="Indirect Materials">Indirect
+                                            Materials</a></li>
+                                    <li><a class="dropdown-item" href="#" data-value="Print Materials">Print
+                                            Materials</a></li>
+                                    <li><a class="dropdown-item" href="#" data-value="Special Boards/Papers">Special
+                                            Boards/Papers</a></li>
+                                    <li><a class="dropdown-item" href="#" data-value="Printing Process">Printing
+                                            Process</a></li>
+                                    <li><a class="dropdown-item" href="#" data-value="Garments">Garments</a></li>
+                                    <li><a class="dropdown-item" href="#" data-value="Office Supplies">Office
+                                            Supplies</a></li>
+                                    <li><a class="dropdown-item" href="#" data-value="Assets">Assets</a></li>
+                                    <li><a class="dropdown-item" href="#" data-value="Obsolete">Obsolete</a></li>
+                                </div>
+                            </ul>
+                        </div>
+                    </td>
+                    <td><input type="text" class="form-control form-control-sm" placeholder="SKU"></td>
+                    <td></td>
+                    <td><input type="text" class="form-control form-control-sm" placeholder="Name"></td>
+                    <td><input type="text" class="form-control form-control-sm" placeholder="Sub Unit"></td>
+                    <td><input type="text" class="form-control form-control-sm" placeholder="Color"></td>
+                    <td><input type="text" class="form-control form-control-sm" placeholder="Model"></td>
+                    <td><input type="text" class="form-control form-control-sm" placeholder="Shape"></td>
+                    <td><input type="text" class="form-control form-control-sm" placeholder="Size"></td>
+                    <td><input type="text" class="form-control form-control-sm" placeholder="Dimensions"></td>
+                    <td><input type="text" class="form-control form-control-sm" placeholder="Volume"></td>
+                    <td><input type="text" class="form-control form-control-sm" placeholder="Material"></td>
+                    <td><input type="text" class="form-control form-control-sm" placeholder="Add-on"></td>
+                    <td><input type="text" class="form-control form-control-sm" placeholder="Other"></td>
+                    <td><input type="text" class="form-control form-control-sm" placeholder="Occasion"></td>
+                    <td><input type="text" class="form-control form-control-sm" placeholder="Date"></td>
+                    <td><input type="text" class="form-control form-control-sm" placeholder="Last Inv"></td>
+                    <td><input type="text" class="form-control form-control-sm" placeholder="Purchases"></td>
+                    <td><input type="text" class="form-control form-control-sm" placeholder="Withdrawal"></td>
+                    <td><input type="text" class="form-control form-control-sm" placeholder="Balance"></td>
+                    <td><input type="text" class="form-control form-control-sm" placeholder="Value"></td>
+                    <td></td>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in inventory %}
+                <tr class="{% if item.stock_status == 'Out of Stock' %}row-out-of-stock{% endif %}">
+                    <td>
+                        <input type="checkbox" class="form-check-input row-checkbox" value="{{ item.id }}">
+                    </td>
+                    <td>{{ forloop.counter }}</td>
+                    <td>{{ item.item_type }}</td>
+                    <td>{{ item.sku }}</td>
+                    <td>
+                        {% if item.image %}
+                        <img src="{{ item.image }}" alt="img" class="table-img">
+                        {% endif %}
+                    </td>
+                    <td>
+                        <a href="#" class="text-decoration-none item-name-link" data-item-id="{{ item.id }}"
+                            data-item-name="{{ item.name }}" data-item-sku="{{ item.sku }}"
+                            data-current-balance="{{ item.total_balance }}" data-sub-unit="{{ item.sub_unit }}">
+                            {{ item.name }}
+                        </a>
+                    </td>
+                    <td>{{ item.sub_unit }}</td>
+                    <td>{{ item.color }}</td>
+                    <td>{{ item.model }}</td>
+                    <td>{{ item.shape }}</td>
+                    <td>{{ item.size }}</td>
+                    <td>{{ item.dimensions }}</td>
+                    <td>{{ item.volume }}</td>
+                    <td>{{ item.material }}</td>
+                    <td>{{ item.addon }}</td>
+                    <td>{{ item.other }}</td>
+                    <td>{{ item.occasion }}</td>
+                    <td>{{ item.datetime_updated }}</td>
+                    <td>{{ item.last_inventory }}</td>
+                    <td>{{ item.total_purchases }}</td>
+                    <td>{{ item.total_withdrawal }}</td>
+                    <td>{{ item.total_balance }}</td>
+                    <td>{{ item.inventory_value }}</td>
+                    <td>
+                        {% if item.stock_status == 'In Stock' %}
+                        <span class="badge bg-success">In Stock</span>
+                        {% elif item.stock_status == 'Low Stock' %}
+                        <span class="badge bg-warning text-dark">Low Stock</span>
+                        {% else %}
+                        <span class="badge bg-danger">Out of Stock</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if item.is_archived %}
+                        <span class="badge bg-secondary">Archived</span>
+                        {% else %}
+                        <span class="badge bg-info text-dark">In Use</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <form action="/inventory/archive/{{ item.id }}/" method="POST" style="display:inline;" class="archive-form">
+                            {% csrf_token %}
+                            {% if item.is_archived %}
+                            <button type="button" class="btn btn-sm btn-outline-success archive-btn" title="Unarchive"
+                                data-item-name="{{ item.name }}" data-action="unarchive">
+                                <i class="fas fa-box-open"></i>
+                            </button>
+                            {% else %}
+                            <button type="button" class="btn btn-sm btn-outline-secondary archive-btn" title="Archive"
+                                data-item-name="{{ item.name }}" data-action="archive">
+                                <i class="fas fa-archive"></i>
+                            </button>
+                            {% endif %}
+                        </form>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    <!-- Pagination -->
+    <div class="card-footer bg-light border-top">
+        <nav aria-label="Inventory pagination">
+            <ul class="pagination pagination-sm mb-0" id="paginationContainer">
+                <li class="page-item" id="prevPage">
+                    <a class="page-link" href="#" aria-label="Previous">&laquo;</a>
+                </li>
+                <!-- Page numbers will be generated by JS -->
+                <li class="page-item" id="nextPage">
+                    <a class="page-link" href="#" aria-label="Next">&raquo;</a>
+                </li>
+            </ul>
+        </nav>
+    </div>
+</div>
+
+<!-- Single-Item Archive Confirmation Modal -->
+<div class="modal fade" id="singleArchiveModal" tabindex="-1" aria-labelledby="singleArchiveModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header border-0">
+                <h5 class="modal-title" id="singleArchiveModalLabel">
+                    <i class="fas fa-archive me-2 text-secondary"></i>
+                    <span id="singleArchiveAction">Archive</span> Item
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>Are you sure you want to <strong><span id="singleArchiveActionText">archive</span></strong> the item: <strong id="singleArchiveItemName"></strong>?</p>
+            </div>
+            <div class="modal-footer border-0">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="confirmSingleArchiveBtn">Confirm</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Recent Logs Section -->
+<div class="inventory-card mt-4">
+    <div class="inventory-card-header">
+        <div>
+            <i class="fas fa-history"></i> Recent Inventory Logs
+        </div>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-striped table-hover mb-0 align-middle">
+                <thead class="bg-light">
+                    <tr>
+                        <th class="ps-3">Date & Time</th>
+                        <th>Item</th>
+                        <th>SKU</th>
+                        <th>User</th>
+                        <th>Action</th>
+                        <th>Quantity</th>
+                        <th>Notes</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% if recent_logs %}
+                    {% for log in recent_logs %}
+                    <tr>
+                        <td class="ps-3 text-muted small">{{ log.timestamp|date:'Y-m-d H:i:s' }}</td>
+                        <td class="fw-bold text-dark">{{ log.item.name }}</td>
+                        <td class="text-muted small">{{ log.item.sku }}</td>
+                        <td>
+                            <div class="d-flex align-items-center">
+                                <div class="avatar-sm bg-light rounded-circle text-center me-2"
+                                    style="width: 24px; height: 24px; line-height: 24px;">
+                                    <i class="fas fa-user-circle text-secondary"></i>
+                                </div>
+                                <span class="small">{{ log.user }}</span>
+                            </div>
+                        </td>
+                        <td>
+                            {% if log.transaction_type == 'purchase' %}
+                            <span class="badge bg-success">Purchase</span>
+                            {% elif log.transaction_type == 'withdrawal' %}
+                            <span class="badge bg-warning text-dark">Withdrawal</span>
+                            {% elif log.transaction_type == 'damage' %}
+                            <span class="badge bg-danger">Damage</span>
+                            {% elif log.transaction_type == 'returned' %}
+                            <span class="badge bg-info">Returned</span>
+                            {% else %}
+                            <span class="badge bg-secondary">{{ log.transaction_type|capfirst }}</span>
+                            {% endif %}
+                        </td>
+                        <td class="fw-bold font-monospace">{{ log.quantity }}</td>
+                        <td class="text-muted small text-truncate" style="max-width: 200px;">{{ log.notes }}</td>
+                    </tr>
+                    {% endfor %}
+                    {% else %}
+                    <tr>
+                        <td colspan="7" class="text-center py-4 text-muted">
+                            <i class="fas fa-clipboard-list fa-2x mb-2 text-secondary"></i>
+                            <p class="mb-0">No recent activity found.</p>
+                        </td>
+                    </tr>
+                    {% endif %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Stock Update Modal -->
+<div class="modal fade" id="stockModal" tabindex="-1" aria-labelledby="stockModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="stockModalLabel">Update Quantity</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form id="stockUpdateForm">
+                <div class="modal-body">
+                    <input type="hidden" id="updateItemId" name="item_id">
+
+                    <div class="mb-3">
+                        <label class="form-label fw-bold text-primary">Item Details</label>
+                        <div class="bg-light p-3 rounded">
+                            <div class="d-flex justify-content-between mb-2">
+                                <span class="text-muted">Item Name:</span>
+                                <span class="fw-bold" id="modalItemName"></span>
+                            </div>
+                            <div class="d-flex justify-content-between mb-2">
+                                <span class="text-muted">SKU:</span>
+                                <span id="modalItemSku"></span>
+                            </div>
+                            <div class="d-flex justify-content-between">
+                                <span class="text-muted">Current Balance:</span>
+                                <span class="fw-bold text-success" id="modalCurrentBalance"></span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="transactionType" class="form-label">Transaction Type</label>
+                        <select class="form-select" id="transactionType" disabled>
+                            <option value="purchase" selected>Add Stock</option>
+
+                        </select>
+                        <input type="hidden" name="transaction_type" value="purchase">
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="quantity" class="form-label">Quantity</label>
+                        <input type="number" class="form-control" id="quantity" name="quantity" min="0" step="0.01"
+                            required placeholder="Enter quantity">
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="notes" class="form-label">Notes (Optional)</label>
+                        <textarea class="form-control" id="notes" name="notes" rows="3"
+                            placeholder="Add any notes about this transaction..."></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-info text-white" id="viewLogsBtn">
+                        <i class="fas fa-history"></i> View Logs
+                    </button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-save"></i> Update Stock
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Image Modal -->
+<div class="modal fade" id="imageModal" tabindex="-1" aria-labelledby="imageModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content">
+            <div class="modal-header py-2"
+                style="background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-dark) 100%); color: white;">
+                <h6 class="modal-title text-white" id="imageModalLabel"><i class="fas fa-image me-2"></i>Image Preview
+                </h6>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"
+                    aria-label="Close"></button>
+            </div>
+            <div class="modal-body text-center p-0 my-3">
+                <img src="" id="modalImage" class="img-fluid" alt="Preview" style="max-height: 70vh;">
+            </div>
+            <div class="modal-footer py-1" style="background: #f8f9fa;">
+                <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Logs Modal -->
+<div class="modal fade" id="logsModal" tabindex="-1" aria-labelledby="logsModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="logsModalLabel">Inventory Logs</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <!-- Analytics Section -->
+                <!-- Analytics Section -->
+                <div class="analytics-container mb-3">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <h6 class="fw-bold m-0"><i class="fas fa-chart-bar me-2"></i>Analytics</h6>
+                        <div class="btn-group btn-group-sm" role="group">
+                            <input type="radio" class="btn-check" name="chartFilter" id="filterWeek" autocomplete="off"
+                                checked>
+                            <label class="btn btn-outline-primary" for="filterWeek">Week</label>
+
+                            <input type="radio" class="btn-check" name="chartFilter" id="filterMonth"
+                                autocomplete="off">
+                            <label class="btn btn-outline-primary" for="filterMonth">Month</label>
+
+                            <input type="radio" class="btn-check" name="chartFilter" id="filterYear" autocomplete="off">
+                            <label class="btn btn-outline-primary" for="filterYear">Year</label>
+                        </div>
+                    </div>
+
+                    <div class="row g-3 justify-content-center">
+                        <div class="col-md-8">
+                            <div class="card border-0 shadow-sm bg-light">
+                                <div class="card-body d-flex flex-column align-items-center p-2">
+                                    <div style="position: relative; height: 250px; width: 100%;">
+                                        <canvas id="logsPieChart"></canvas>
+                                    </div>
+                                    <div class="mt-1 small text-muted text-center" style="font-size: 0.8rem;">
+                                        Transaction Distribution</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <h6 class="fw-bold mb-2"><i class="fas fa-list me-2"></i>History</h6>
+                <div class="table-responsive">
+                    <table class="table table-striped table-hover">
+                        <thead>
+                            <tr>
+                                <th>Date & Time</th>
+                                <th>User</th>
+                                <th>Action</th>
+                                <th>Quantity</th>
+                                <th>Notes</th>
+                            </tr>
+                        </thead>
+                        <tbody id="logsTableBody">
+                            <!-- Logs will be inserted here -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        var imageModal = document.getElementById('imageModal');
+        var modalImage = document.getElementById('modalImage');
+
+        imageModal.addEventListener('show.bs.modal', function (event) {
+            var button = event.relatedTarget; // Button that triggered the modal
+            // In our case, we trigger via JS, but if we used data-bs-toggle it would be here.
+        });
+
+        // Attach click event to all table images
+        var tableImages = document.querySelectorAll('.table-img');
+        tableImages.forEach(function (img) {
+            img.style.cursor = 'pointer';
+            img.addEventListener('click', function () {
+                var src = this.getAttribute('src');
+                modalImage.setAttribute('src', src);
+
+                var myModal = new bootstrap.Modal(imageModal);
+                myModal.show();
+            });
+        });
+
+        // ============ SINGLE-ITEM ARCHIVE CONFIRMATION ============
+        var pendingArchiveForm = null;
+        var singleArchiveModal = new bootstrap.Modal(document.getElementById('singleArchiveModal'));
+
+        document.addEventListener('click', function (e) {
+            var btn = e.target.closest('.archive-btn');
+            if (!btn) return;
+
+            e.preventDefault();
+            pendingArchiveForm = btn.closest('.archive-form');
+            var action = btn.getAttribute('data-action');
+            var itemName = btn.getAttribute('data-item-name');
+
+            document.getElementById('singleArchiveAction').textContent = action === 'archive' ? 'Archive' : 'Unarchive';
+            document.getElementById('singleArchiveActionText').textContent = action === 'archive' ? 'archive' : 'unarchive';
+            document.getElementById('singleArchiveItemName').textContent = itemName;
+
+            singleArchiveModal.show();
+        });
+
+        document.getElementById('confirmSingleArchiveBtn').addEventListener('click', function () {
+            singleArchiveModal.hide();
+            if (pendingArchiveForm) {
+                pendingArchiveForm.submit();
+                pendingArchiveForm = null;
+            }
+        });
+
+
+        // ============ STOCK UPDATE MODAL LOGIC ============
+        var stockModal = document.getElementById('stockModal');
+        var stockUpdateForm = document.getElementById('stockUpdateForm');
+
+        // Open stock modal when clicking item name
+        document.addEventListener('click', function (e) {
+            if (e.target.classList.contains('item-name-link') || e.target.closest('.item-name-link')) {
+                e.preventDefault();
+                var link = e.target.classList.contains('item-name-link') ? e.target : e.target.closest('.item-name-link');
+
+                // Get item data from data attributes
+                var itemId = link.getAttribute('data-item-id');
+                var itemName = link.getAttribute('data-item-name');
+                var itemSku = link.getAttribute('data-item-sku');
+                var currentBalance = link.getAttribute('data-current-balance');
+                var subUnit = link.getAttribute('data-sub-unit');
+
+                // Populate modal
+                document.getElementById('updateItemId').value = itemId;
+                document.getElementById('modalItemName').textContent = itemName;
+                document.getElementById('modalItemSku').textContent = itemSku;
+                document.getElementById('modalCurrentBalance').textContent = parseFloat(currentBalance) + ' ' + (subUnit || '');
+
+                // Reset form
+                stockUpdateForm.reset();
+                document.getElementById('updateItemId').value = itemId; // Restore after reset
+
+                // Show modal
+                var myModal = new bootstrap.Modal(stockModal);
+                myModal.show();
+            }
+        });
+
+        // View Logs Button Logic
+        var viewLogsBtn = document.getElementById('viewLogsBtn');
+        var logsModal = document.getElementById('logsModal');
+        var logsTableBody = document.getElementById('logsTableBody');
+        var pieChart = null;
+        var currentLogsData = [];
+
+        // Chart Initialization
+        function initCharts() {
+            var ctxPie = document.getElementById('logsPieChart').getContext('2d');
+
+            if (pieChart) pieChart.destroy();
+
+            pieChart = new Chart(ctxPie, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Added (Purchase)', 'Removed (Withdrawal)', 'Damage', 'Returned'],
+                    datasets: [{
+                        data: [0, 0, 0, 0],
+                        backgroundColor: ['#198754', '#fd7e14', '#dc3545', '#0dcaf0'],
+                        hoverOffset: 4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { position: 'bottom' }
+                    }
+                }
+            });
+        }
+
+        // Process Data for Charts
+        function updateCharts(filterType) {
+            if (!currentLogsData || currentLogsData.length === 0) {
+                if (pieChart) {
+                    pieChart.data.datasets[0].data = [0, 0, 0, 0];
+                    pieChart.update();
+                }
+                return;
+            }
+
+            var now = new Date();
+            var totalAdded = 0;
+            var totalRemoved = 0;
+            var totalDamage = 0;
+            var totalReturned = 0;
+
+            currentLogsData.forEach(log => {
+                var logDate = new Date(log.timestamp);
+                var qty = parseFloat(log.quantity);
+                var type = log.transaction_type;
+                var diffTime = Math.abs(now - logDate);
+                var diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                var match = false;
+
+                if (filterType === 'filterWeek') {
+                    if (diffDays <= 7) match = true;
+                } else if (filterType === 'filterMonth') {
+                    if (diffDays <= 30) match = true;
+                } else if (filterType === 'filterYear') {
+                    if (logDate.getFullYear() === now.getFullYear()) match = true;
+                }
+
+                if (match) {
+                    if (type === 'purchase') totalAdded += qty;
+                    else if (type === 'withdrawal') totalRemoved += qty;
+                    else if (type === 'damage') totalDamage += qty;
+                    else if (type === 'returned') totalReturned += qty;
+                }
+            });
+
+            // Update Pie Chart
+            pieChart.data.datasets[0].data = [totalAdded, totalRemoved, totalDamage, totalReturned];
+            pieChart.update();
+        }
+
+        // Filter Listeners
+        document.querySelectorAll('input[name="chartFilter"]').forEach(radio => {
+            radio.addEventListener('change', function () {
+                updateCharts(this.id);
+            });
+        });
+
+        viewLogsBtn.addEventListener('click', function () {
+            var itemId = document.getElementById('updateItemId').value;
+            if (!itemId) return;
+
+            // Close stock modal first (or keep it open? usually better to stack or switch)
+            // Let's stack them or just show the logs modal
+            var currentStockModal = bootstrap.Modal.getInstance(stockModal);
+            currentStockModal.hide();
+
+            // Fetch logs
+            fetch('/inventory/logs/' + itemId)
+                .then(response => response.json())
+                .then(data => {
+                    logsTableBody.innerHTML = '';
+                    currentLogsData = [];
+
+                    if (data.success && data.logs.length > 0) {
+                        currentLogsData = data.logs;
+
+                        data.logs.forEach(log => {
+                            var action = log.transaction_type.charAt(0).toUpperCase() + log.transaction_type.slice(1);
+                            var badgeClass = 'bg-secondary';
+
+                            if (log.transaction_type === 'purchase') {
+                                badgeClass = 'bg-success';
+                            } else if (log.transaction_type === 'withdrawal') {
+                                badgeClass = 'bg-warning text-dark';
+                            } else if (log.transaction_type === 'damage') {
+                                badgeClass = 'bg-danger';
+                            } else if (log.transaction_type === 'returned') {
+                                badgeClass = 'bg-info';
+                            }
+
+                            var row = `
+                                <tr>
+                                    <td>${log.timestamp}</td>
+                                    <td>${log.user}</td>
+                                    <td><span class="badge ${badgeClass}">${action}</span></td>
+                                    <td>${log.quantity}</td>
+                                    <td>${log.notes}</td>
+                                </tr>
+                            `;
+                            logsTableBody.innerHTML += row;
+                        });
+
+                        // Initialize and Update Charts
+                        setTimeout(() => {
+                            if (!pieChart) initCharts();
+                            document.getElementById('filterWeek').checked = true;
+                            updateCharts('filterWeek');
+                        }, 200);
+
+                    } else {
+                        logsTableBody.innerHTML = '<tr><td colspan="5" class="text-center">No logs found</td></tr>';
+                        setTimeout(() => {
+                            if (!pieChart) initCharts();
+                            updateCharts('filterWeek');
+                        }, 200);
+                    }
+
+                    var myLogsModal = new bootstrap.Modal(logsModal);
+                    myLogsModal.show();
+
+                    // Re-open stock modal when logs modal is closed? Maybe not necessary for now.
+                    // But we can add a listener if needed.
+                })
+                .catch(error => {
+                    console.error('Error fetching logs:', error);
+                    showToast('Failed to load logs', 'error');
+                });
+        });
+
+        // Handle stock update form submission
+        stockUpdateForm.addEventListener('submit', function (e) {
+            e.preventDefault();
+
+            var formData = new FormData(stockUpdateForm);
+            var data = {
+                item_id: formData.get('item_id'),
+                transaction_type: formData.get('transaction_type'),
+                quantity: formData.get('quantity'),
+                notes: formData.get('notes')
+            };
+
+            // Send to backend
+            fetch('/inventory/update-stock/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(data)
+            })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        // Close modal
+                        bootstrap.Modal.getInstance(stockModal).hide();
+
+                        // Reload page to show updated data
+                        window.location.reload();
+                    } else {
+                        showToast('Error: ' + (data.message || 'Failed to update stock'), 'error');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    showToast('An error occurred while updating stock', 'error');
+                });
+        });
+
+        // ============ CHECKBOX SELECTION LOGIC ============
+        var selectAllCheckbox = document.getElementById('selectAll');
+        var selectedCountSpan = document.getElementById('selectedCount');
+
+        function updateSelectedCount() {
+            var checkedBoxes = document.querySelectorAll('.row-checkbox:checked');
+            selectedCountSpan.textContent = checkedBoxes.length;
+        }
+
+        // Select all checkbox functionality
+        if (selectAllCheckbox) {
+            selectAllCheckbox.addEventListener('change', function () {
+                var visibleCheckboxes = Array.from(document.querySelectorAll('.row-checkbox')).filter(function (checkbox) {
+                    return checkbox.closest('tr').style.display !== 'none';
+                });
+                visibleCheckboxes.forEach(function (checkbox) {
+                    checkbox.checked = selectAllCheckbox.checked;
+                });
+                // Reset indeterminate
+                selectAllCheckbox.indeterminate = false;
+                updateSelectedCount();
+            });
+        }
+
+        // Individual checkbox functionality
+        document.addEventListener('change', function (e) {
+            if (e.target.classList.contains('row-checkbox')) {
+                updateSelectedCount();
+
+                // Sync the select-all checkbox state
+                var visibleCheckboxes = Array.from(document.querySelectorAll('.row-checkbox')).filter(function (cb) {
+                    return cb.closest('tr').style.display !== 'none';
+                });
+
+                var checkedCount = visibleCheckboxes.filter(function (cb) { return cb.checked; }).length;
+                if (selectAllCheckbox) {
+                    selectAllCheckbox.checked = checkedCount === visibleCheckboxes.length && visibleCheckboxes.length > 0;
+                    selectAllCheckbox.indeterminate = checkedCount > 0 && checkedCount < visibleCheckboxes.length;
+                }
+            }
+        });
+
+        // Inventory Type Dropdown Logic
+        var typeSearchInput = document.getElementById('typeSearchInput');
+        var typeOptions = document.getElementById('typeOptions');
+        var typeLinks = typeOptions.querySelectorAll('.dropdown-item');
+        var selectedTypeSpan = document.getElementById('selectedType');
+        var tableRows = document.querySelectorAll('#inventoryTable tbody tr');
+
+        // Filter Dropdown Options
+        typeSearchInput.addEventListener('keyup', function () {
+            var filter = this.value.toLowerCase();
+            typeLinks.forEach(function (link) {
+                // Skip the input itself if it were in the list, but we logic is specific to links
+                if (link.textContent.toLowerCase().indexOf(filter) > -1) {
+                    link.parentElement.style.display = "";
+                } else {
+                    link.parentElement.style.display = "none";
+                }
+            });
+        });
+
+        // Handle Selection and Table Filtering
+        typeLinks.forEach(function (link) {
+            link.addEventListener('click', function (e) {
+                e.preventDefault();
+                var value = this.getAttribute('data-value');
+                var text = this.textContent;
+
+                // Update UI
+                selectedTypeSpan.textContent = text;
+                typeLinks.forEach(l => l.classList.remove('active'));
+                this.classList.add('active');
+
+                // Filter Table
+                tableRows.forEach(function (row) {
+                    var typeCell = row.cells[2].textContent.trim(); // Index 2 is Inventory Item Type
+                    if (value === "" || value === "All" || typeCell === value) {
+                        row.style.display = "";
+                    } else {
+                        row.style.display = "none";
+                    }
+                });
+                // Re-apply other filters after type selection
+                applyAllFilters();
+            });
+        });
+
+        // Column filter inputs (index corresponds to table column)
+        // Exclude the typeSearchInput inside the dropdown by using :not selector
+        var filterInputs = document.querySelectorAll('.filter-row > td > input[type="text"]');
+
+        // ============ PAGINATION LOGIC ============
+        var rowsPerPage = 10;
+        var currentPage = 1;
+        var paginationContainer = document.getElementById('paginationContainer');
+        var prevPageBtn = document.getElementById('prevPage');
+        var nextPageBtn = document.getElementById('nextPage');
+
+        // Track which rows pass the filter (separate from display state)
+        function getFilteredRows() {
+            return Array.from(tableRows).filter(function (row) {
+                return !row.hasAttribute('data-filtered-out');
+            });
+        }
+
+        function getAllRows() {
+            return Array.from(tableRows);
+        }
+
+        // Filter function that checks all columns
+        function applyAllFilters() {
+            var filters = {};
+
+            // Collect filter values (mapping input index to column index)
+            // Column indices: 0=Check, 1=#, 2=Type, 3=SKU, 4=Image, 5=Name, ...
+            var columnMapping = [3, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24]; // Input index to column index
+
+            filterInputs.forEach(function (input, idx) {
+                var colIndex = columnMapping[idx];
+                if (colIndex !== undefined) {
+                    filters[colIndex] = input.value.toLowerCase().trim();
+                }
+            });
+
+            // Get dropdown type filter value
+            var selectedType = selectedTypeSpan.textContent.trim();
+            if (selectedType !== "All" && selectedType !== "") {
+                filters[2] = selectedType;
+            }
+
+
+            // Mark rows as filtered or not (using data attribute)
+            tableRows.forEach(function (row) {
+                var visible = true;
+
+                // Check type filter (column 2)
+                if (filters[2]) {
+                    var typeCell = row.cells[2].textContent.trim();
+                    if (typeCell !== filters[2]) {
+                        visible = false;
+                    }
+                }
+
+                // Check text input filters
+                for (var colIndex in filters) {
+                    if (colIndex == 2) continue; // Skip type (handled separately)
+                    var filterValue = filters[colIndex];
+                    if (filterValue && filterValue !== "") {
+                        var cellText = row.cells[colIndex] ? row.cells[colIndex].textContent.toLowerCase().trim() : "";
+                        if (cellText.indexOf(filterValue) === -1) {
+                            visible = false;
+                            break;
+                        }
+                    }
+                }
+
+                // Mark row as filtered out or not
+                if (visible) {
+                    row.removeAttribute('data-filtered-out');
+                } else {
+                    row.setAttribute('data-filtered-out', 'true');
+                }
+            });
+
+            // Reset to page 1 and show filtered results
+            currentPage = 1;
+            showPage(1);
+        }
+
+        // Attach keyup event to all filter inputs
+        filterInputs.forEach(function (input) {
+            input.addEventListener('keyup', function () {
+                applyAllFilters();
+            });
+        });
+
+
+
+        function showPage(page) {
+            var filteredRows = getFilteredRows();
+            var totalPages = Math.ceil(filteredRows.length / rowsPerPage);
+            if (totalPages < 1) totalPages = 1;
+
+            if (page < 1) page = 1;
+            if (page > totalPages) page = totalPages;
+            currentPage = page;
+
+            var start = (page - 1) * rowsPerPage;
+            var end = start + rowsPerPage;
+
+            // First hide all rows
+            tableRows.forEach(function (row) {
+                row.style.display = 'none';
+            });
+
+            // Then show only filtered rows within current page range
+            filteredRows.forEach(function (row, index) {
+                if (index >= start && index < end) {
+                    row.style.display = '';
+                }
+            });
+
+            renderPagination(totalPages);
+
+            // Update select all checkbox state based on current page
+            updateSelectAllState();
+        }
+
+        function updateSelectAllState() {
+            if (!selectAllCheckbox) return;
+
+            var visibleCheckboxes = Array.from(document.querySelectorAll('.row-checkbox')).filter(function (checkbox) {
+                var row = checkbox.closest('tr');
+                return row.style.display !== 'none';
+            });
+
+            var allChecked = visibleCheckboxes.length > 0 && visibleCheckboxes.every(function (cb) {
+                return cb.checked;
+            });
+
+            selectAllCheckbox.checked = allChecked;
+            selectAllCheckbox.indeterminate = !allChecked && visibleCheckboxes.some(function (cb) {
+                return cb.checked;
+            });
+        }
+
+        function renderPagination(totalPages) {
+            // Remove existing page numbers (keep prev/next)
+            var pageItems = paginationContainer.querySelectorAll('.page-number');
+            pageItems.forEach(function (item) {
+                item.remove();
+            });
+
+            // Insert page numbers before nextPage
+            for (var i = 1; i <= totalPages; i++) {
+                var li = document.createElement('li');
+                li.className = 'page-item page-number' + (i === currentPage ? ' active' : '');
+                var a = document.createElement('a');
+                a.className = 'page-link';
+                a.href = '#';
+                a.textContent = i;
+                a.setAttribute('data-page', i);
+                li.appendChild(a);
+                paginationContainer.insertBefore(li, nextPageBtn);
+            }
+
+            // Update prev/next disabled state
+            prevPageBtn.classList.toggle('disabled', currentPage === 1);
+            nextPageBtn.classList.toggle('disabled', currentPage === totalPages || totalPages === 0);
+        }
+
+        // Event delegation for pagination clicks
+        paginationContainer.addEventListener('click', function (e) {
+            e.preventDefault();
+            var target = e.target.closest('.page-link');
+            if (!target) return;
+
+            var parent = target.parentElement;
+            var filteredRows = getFilteredRows();
+            var totalPages = Math.ceil(filteredRows.length / rowsPerPage);
+
+            if (parent.id === 'prevPage' && currentPage > 1) {
+                showPage(currentPage - 1);
+            } else if (parent.id === 'nextPage') {
+                if (currentPage < totalPages) {
+                    showPage(currentPage + 1);
+                }
+            } else if (target.hasAttribute('data-page')) {
+                showPage(parseInt(target.getAttribute('data-page')));
+            }
+        });
+
+        // Initialize pagination
+        showPage(1);
+
+        // ============ COLUMN SORTING LOGIC ============
+        var sortableHeaders = document.querySelectorAll('th.sortable');
+        var currentSortColumn = null;
+        var currentSortDirection = 'asc';
+        var tbody = document.querySelector('#inventoryTable tbody');
+
+        sortableHeaders.forEach(function (header) {
+            header.style.cursor = 'pointer';
+            header.addEventListener('click', function () {
+                var columnIndex = parseInt(this.getAttribute('data-column'));
+
+                // Determine sort direction
+                if (currentSortColumn === columnIndex) {
+                    currentSortDirection = currentSortDirection === 'asc' ? 'desc' : 'asc';
+                } else {
+                    currentSortColumn = columnIndex;
+                    currentSortDirection = 'asc';
+                }
+
+                // Update sort icons
+                sortableHeaders.forEach(function (h) {
+                    var icon = h.querySelector('i');
+                    if (icon) {
+                        icon.className = 'fas fa-sort';
+                    }
+                });
+
+                var currentIcon = this.querySelector('i');
+                if (currentIcon) {
+                    currentIcon.className = currentSortDirection === 'asc' ? 'fas fa-sort-up' : 'fas fa-sort-down';
+                }
+
+                // Get all rows and sort them
+                var rows = Array.from(tbody.querySelectorAll('tr'));
+
+                rows.sort(function (a, b) {
+                    var aValue = a.cells[columnIndex] ? a.cells[columnIndex].textContent.trim() : '';
+                    var bValue = b.cells[columnIndex] ? b.cells[columnIndex].textContent.trim() : '';
+
+                    // Try to parse as numbers for numeric columns
+                    var aNum = parseFloat(aValue.replace(/[^0-9.-]/g, ''));
+                    var bNum = parseFloat(bValue.replace(/[^0-9.-]/g, ''));
+
+                    var comparison = 0;
+                    if (!isNaN(aNum) && !isNaN(bNum)) {
+                        // Numeric comparison
+                        comparison = aNum - bNum;
+                    } else {
+                        // String comparison
+                        comparison = aValue.localeCompare(bValue);
+                    }
+
+                    return currentSortDirection === 'asc' ? comparison : -comparison;
+                });
+
+                // Re-append sorted rows
+                rows.forEach(function (row) {
+                    tbody.appendChild(row);
+                });
+
+                // Reset filter state and re-apply filters
+                tableRows = document.querySelectorAll('#inventoryTable tbody tr');
+                applyAllFilters();
+            });
+        });
+
+        // ============ FILTER CARD LOGIC ============
+        var globalSearchInput = document.getElementById('globalSearch');
+        var filterItemTypeSelect = document.getElementById('filterItemType');
+        var filterFromDate = document.getElementById('filterFromDate');
+        var filterToDate = document.getElementById('filterToDate');
+        var clearFiltersBtn = document.getElementById('clearFiltersBtn');
+
+        function applyFilterCard() {
+            var searchTerm = globalSearchInput.value.toLowerCase().trim();
+            var itemType = filterItemTypeSelect.value;
+            var fromDate = filterFromDate.value;
+            var toDate = filterToDate.value;
+
+            tableRows.forEach(function (row) {
+                var visible = true;
+                var cells = row.cells;
+
+                // Global search (checks multiple columns: name, sku, color, etc.)
+                if (searchTerm) {
+                    var rowText = row.textContent.toLowerCase();
+                    if (rowText.indexOf(searchTerm) === -1) {
+                        visible = false;
+                    }
+                }
+
+                // Item Type filter (column 2)
+                if (visible && itemType) {
+                    var typeCell = cells[2] ? cells[2].textContent.trim() : '';
+                    if (typeCell !== itemType) {
+                        visible = false;
+                    }
+                }
+
+                // Date range filter (Datetime Updated - column 17)
+                if (visible && (fromDate || toDate)) {
+                    var dateCell = cells[17] ? cells[17].textContent.trim() : '';
+                    if (dateCell) {
+                        var rowDate = new Date(dateCell.split(' ')[0]);
+                        if (fromDate && rowDate < new Date(fromDate)) {
+                            visible = false;
+                        }
+                        if (toDate && rowDate > new Date(toDate)) {
+                            visible = false;
+                        }
+                    }
+                }
+
+                // Mark row as filtered or not
+                if (visible) {
+                    row.removeAttribute('data-filtered-out');
+                } else {
+                    row.setAttribute('data-filtered-out', 'true');
+                }
+            });
+
+            // Reset to page 1 and show results
+            currentPage = 1;
+            showPage(1);
+        }
+
+
+        // Clear filters button
+        clearFiltersBtn.addEventListener('click', function () {
+            globalSearchInput.value = '';
+            filterItemTypeSelect.value = '';
+            filterFromDate.value = '';
+            filterToDate.value = '';
+
+            // Reset all filter row inputs too
+            filterInputs.forEach(function (input) {
+                input.value = '';
+            });
+
+            // Reset type dropdown
+            selectedTypeSpan.textContent = 'All';
+            typeLinks.forEach(function (link) {
+                link.classList.remove('active');
+                if (link.getAttribute('data-value') === '') {
+                    link.classList.add('active');
+                }
+            });
+
+            // Clear all filters and show all rows
+            tableRows.forEach(function (row) {
+                row.removeAttribute('data-filtered-out');
+            });
+
+            currentPage = 1;
+            showPage(1);
+        });
+
+
+        // Real-time filtering as user types
+        globalSearchInput.addEventListener('input', function () {
+            applyFilterCard();
+        });
+        filterItemTypeSelect.addEventListener('change', function () {
+            applyFilterCard();
+        });
+        filterFromDate.addEventListener('change', function () {
+            applyFilterCard();
+        });
+        filterToDate.addEventListener('change', function () {
+            applyFilterCard();
+        });
+
+        // Allow Enter key to trigger search
+        globalSearchInput.addEventListener('keyup', function (e) {
+            if (e.key === 'Enter') {
+                applyFilterCard();
+            }
+        });
+    });
+
+    // Export functionality
+    function exportData(format) {
+        var table = document.getElementById('inventoryTable');
+
+        // Check for checked boxes first
+        var checkedBoxes = Array.from(table.querySelectorAll('.row-checkbox:checked'));
+        var rows;
+        if (checkedBoxes.length > 0) {
+            // Use only checked rows
+            rows = checkedBoxes.map(function(cb) { return cb.closest('tr'); });
+        } else {
+            // Fall back to all currently visible (filtered) rows
+            rows = Array.from(table.querySelectorAll('tbody tr')).filter(row => row.style.display !== 'none');
+        }
+
+        // Columns to skip for text: Checkbox (0), Actions (last col 24)
+        // Column 4 is the Image column — handled separately
+        const skipCols = [0, 24];
+        const imageColIndex = 4;
+
+        // Get headers (include Image)
+        var headers = [];
+        table.querySelectorAll('thead tr:first-child th').forEach(function (th, i) {
+            if (!skipCols.includes(i)) {
+                headers.push(th.textContent.replace(/\s+/g, ' ').trim() || 'Image');
+            }
+        });
+
+        // Get text data and image src separately
+        var data = [];
+        var imageSrcs = [];
+
+        rows.forEach(function (row) {
+            var rowData = [];
+            var imgSrc = '';
+            row.querySelectorAll('td').forEach(function (td, i) {
+                if (skipCols.includes(i)) return;
+                if (i === imageColIndex) {
+                    var img = td.querySelector('img');
+                    imgSrc = img ? img.getAttribute('src') : '';
+                    rowData.push('');
+                } else {
+                    rowData.push(td.textContent.replace(/\s+/g, ' ').trim());
+                }
+            });
+            data.push(rowData);
+            imageSrcs.push(imgSrc);
+        });
+
+        // Find index of image column in headers array
+        var imageHeaderIndex = -1;
+        headers.forEach(function(h, i) { if (h === 'Image') imageHeaderIndex = i; });
+
+        var filename = 'inventory_export_' + new Date().toISOString().slice(0, 10);
+
+        if (format === 'csv') {
+            let content = headers.join(',') + '\n';
+            data.forEach(function (row, ri) {
+                content += row.map(function (cell, ci) {
+                    if (ci === imageHeaderIndex) return '"[image]"';
+                    return '"' + cell.replace(/"/g, '""') + '"';
+                }).join(',') + '\n';
+            });
+            downloadFile(content, filename + '.csv', 'text/csv');
+
+        } else if (format === 'json') {
+            var jsonData = data.map(function (row, ri) {
+                var obj = {};
+                headers.forEach(function (header, i) {
+                    if (i === imageHeaderIndex) {
+                        obj[header] = imageSrcs[ri] || '';
+                    } else {
+                        obj[header] = row[i] || '';
+                    }
+                });
+                return obj;
+            });
+            downloadFile(JSON.stringify(jsonData, null, 2), filename + '.json', 'application/json');
+
+        } else if (format === 'txt') {
+            let content = headers.join('\t') + '\n';
+            data.forEach(function (row, ri) {
+                content += row.map(function(cell, ci) {
+                    return ci === imageHeaderIndex ? '[image]' : cell;
+                }).join('\t') + '\n';
+            });
+            downloadFile(content, filename + '.txt', 'text/plain');
+
+        } else if (format === 'excel') {
+            if (typeof XLSX === 'undefined') {
+                showToast('Excel library not loaded. Please refresh the page.', 'warning');
+                return;
+            }
+            var excelData = data.map(function(row, ri) {
+                return row.map(function(cell, ci) {
+                    return ci === imageHeaderIndex ? (imageSrcs[ri] ? '[has image]' : '[no image]') : cell;
+                });
+            });
+            const wb = XLSX.utils.book_new();
+            const wsData = [headers, ...excelData];
+            const ws = XLSX.utils.aoa_to_sheet(wsData);
+            XLSX.utils.book_append_sheet(wb, ws, "Inventory");
+            XLSX.writeFile(wb, `${filename}.xlsx`);
+
+        } else if (format === 'pdf') {
+            if (typeof window.jspdf === 'undefined') {
+                showToast('PDF library not loaded. Please refresh the page.', 'warning');
+                return;
+            }
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF('l', 'mm', 'a4');
+
+            doc.setFontSize(18);
+            doc.text("Inventory Export", 14, 20);
+            doc.setFontSize(11);
+            doc.text(`Generated on: ${new Date().toLocaleString()}`, 14, 28);
+
+            const IMG_SIZE = 18;
+            const imgColIndex = imageHeaderIndex;
+
+            doc.autoTable({
+                head: [headers],
+                body: data,
+                startY: 35,
+                theme: 'grid',
+                styles: { fontSize: 6.5, cellPadding: 2, minCellHeight: IMG_SIZE + 2 },
+                headStyles: { fillColor: [236, 72, 153] },
+                columnStyles: {
+                    [imgColIndex]: { cellWidth: IMG_SIZE + 4, halign: 'center' }
+                },
+                didDrawCell: function(hookData) {
+                    if (hookData.section === 'body' && hookData.column.index === imgColIndex) {
+                        var rowIdx = hookData.row.index;
+                        var src = imageSrcs[rowIdx];
+                        if (src && src.startsWith('data:image')) {
+                            var x = hookData.cell.x + 1;
+                            var y = hookData.cell.y + 1;
+                            var w = IMG_SIZE;
+                            var h = IMG_SIZE;
+                            try {
+                                doc.addImage(src, 'JPEG', x, y, w, h);
+                            } catch(e) {
+                                try { doc.addImage(src, 'PNG', x, y, w, h); } catch(e2) {}
+                            }
+                        }
+                    }
+                }
+            });
+            doc.save(`${filename}.pdf`);
+
+        } else if (format === 'html') {
+            let content = '<html><head><style>table{border-collapse:collapse;width:100%}th,td{border:1px solid #ddd;padding:8px;text-align:left}th{background:#fdf2f8;color:#ec4899}img{width:40px;height:40px;object-fit:cover;border-radius:4px}</style></head><body>';
+            content += '<h1>Inventory Export</h1>';
+            content += '<table><thead><tr>';
+            headers.forEach(function (h) { content += '<th>' + h + '</th>'; });
+            content += '</tr></thead><tbody>';
+            data.forEach(function (row, ri) {
+                content += '<tr>';
+                row.forEach(function (cell, ci) {
+                    if (ci === imageHeaderIndex) {
+                        content += '<td>' + (imageSrcs[ri] ? '<img src="' + imageSrcs[ri] + '">' : '') + '</td>';
+                    } else {
+                        content += '<td>' + cell + '</td>';
+                    }
+                });
+                content += '</tr>';
+            });
+            content += '</tbody></table></body></html>';
+            downloadFile(content, filename + '.html', 'text/html');
+        }
+    }
+
+    function downloadFile(content, filename, mimeType) {
+        var blob = new Blob([content], { type: mimeType + ';charset=utf-8' });
+        var link = document.createElement('a');
+        link.href = URL.createObjectURL(blob);
+        link.download = filename;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(link.href);
+    }
+</script>
+{% endblock %}

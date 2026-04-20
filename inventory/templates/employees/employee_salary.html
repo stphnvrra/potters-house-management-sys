@@ -1,0 +1,645 @@
+{% extends 'core/base.html' %}
+{% load static humanize %}
+
+{% block title %}Employee Salary - The Potter's House{% endblock %}
+
+{% block content %}
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb breadcrumb-custom mb-0">
+                <li class="breadcrumb-item"><a href="/">Home</a></li>
+                <li class="breadcrumb-item"><a href="{% url 'employee_list' %}">Employees</a></li>
+                <li class="breadcrumb-item active" aria-current="page">Salary Management</li>
+            </ol>
+        </nav>
+    </div>
+
+    <div class="row g-4">
+        <!-- Main Content (Full Width) -->
+        <div class="col-md-12">
+            <div class="inventory-card shadow-sm border-0">
+                <div class="inventory-card-header d-flex justify-content-between align-items-center">
+                    <div>
+                        <i class="fas fa-money-bill-wave me-2"></i> Employee Salaries
+                    </div>
+                    <div class="d-flex gap-2">
+                        <button type="button" class="btn btn-primary btn-sm shadow-sm" style="background-color: #D63384; border-color: #D63384;" onclick="openAddModal()">
+                            <i class="fas fa-plus-circle me-1"></i> New Salary
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="p-3 bg-white border-bottom tool-bar">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div class="d-flex align-items-center">
+                            <div class="text-muted small me-3" id="selectionInfo">
+                                <span id="selectedCount" class="fw-bold">0</span> item(s) selected
+                            </div>
+                            <div class="text-muted small">
+                                Showing <strong>{{ items|length }}</strong> recorded salaries
+                            </div>
+                        </div>
+                        <div class="btn-group">
+                            <button type="button" class="btn btn-outline-secondary btn-sm dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
+                                <i class="fas fa-download me-1"></i> Export Data
+                            </button>
+                            <ul class="dropdown-menu dropdown-menu-end shadow-sm border-0">
+                                <li><a class="dropdown-item py-2" href="#" onclick="exportData('csv')"><i class="fas fa-file-csv me-2 text-success"></i> Export CSV</a></li>
+                                <li><a class="dropdown-item py-2" href="#" onclick="exportData('excel')"><i class="fas fa-file-excel me-2 text-primary"></i> Export Excel</a></li>
+                                <li><a class="dropdown-item py-2" href="#" onclick="exportData('pdf')"><i class="fas fa-file-pdf me-2 text-danger"></i> Export PDF</a></li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="table-responsive">
+                    <table class="table table-bordered table-hover mb-0" id="salaryTable" style="font-size: 0.85rem;">
+                        <thead class="bg-light sticky-top">
+                            <tr>
+                                <th style="width: 40px;">
+                                    <input type="checkbox" id="selectAll" class="form-check-input">
+                                </th>
+                                <th style="width: 50px;" class="sortable text-center"># <i class="fas fa-sort"></i></th>
+                                <th class="sortable">Employee <i class="fas fa-sort"></i></th>
+                                <th class="text-end sortable">Amount <i class="fas fa-sort"></i></th>
+                                <th class="sortable">Datetime Updated <i class="fas fa-sort"></i></th>
+                                <th class="sortable">Updated By <i class="fas fa-sort"></i></th>
+                                <th class="text-center" style="width: 100px;">Actions</th>
+                            </tr>
+                            <tr class="bg-light filter-row border-top">
+                                <td></td>
+                                <td></td>
+                                <td><input type="text" class="form-control filter-input" placeholder="Employee..."></td>
+                                <td><input type="text" class="form-control filter-input text-end" placeholder="Amount..."></td>
+                                <td><input type="text" class="form-control filter-input" placeholder="Date..."></td>
+                                <td><input type="text" class="form-control filter-input" placeholder="By..."></td>
+                                <td></td>
+                            </tr>
+                        </thead>
+                        <tbody id="salaryTableBody">
+                            {% for item in items %}
+                            <tr class="report-row shadow-hover">
+                                <td>
+                                    <input type="checkbox" class="form-check-input row-checkbox">
+                                </td>
+                                <td class="text-center text-muted small">{{ forloop.counter }}</td>
+                                <td>
+                                    <div class="d-flex align-items-center">
+                                        <div class="avatar-circle me-2 bg-pink opacity-75 cursor-pointer profile-trigger" 
+                                             style="width: 28px; height: 28px; font-size: 0.7rem; overflow: hidden;"
+                                             onclick="viewProfilePic('{{ item.employee.avatar|default:'' }}', '{{ item.employee.full_name|escapejs }}')">
+                                            {% if item.employee.avatar %}
+                                                <img src="{{ item.employee.avatar }}" alt="{{ item.employee.full_name }}" style="width: 100%; height: 100%; object-fit: cover;">
+                                            {% else %}
+                                                {{ item.employee.first_name|first|upper }}{{ item.employee.last_name|first|upper }}
+                                            {% endif %}
+                                        </div>
+                                        <span class="text-pink fw-bold">{{ item.employee.full_name }}</span>
+                                    </div>
+                                </td>
+                                <td class="text-end fw-bold">₱{{ item.amount|floatformat:2|intcomma }}</td>
+                                <td class="small">{{ item.datetime_updated|date:"Y-m-d H:i:s" }}</td>
+                                <td class="small">{{ item.updated_by }}</td>
+                                <td class="text-center">
+                                    <div class="btn-group btn-group-xs">
+                                        <button type="button" class="btn btn-outline btn-xs" 
+                                                onclick="openEditModal('{{ item.employee.id }}', '{{ item.employee.full_name|escapejs }}', '{{ item.amount }}')"
+                                                title="Edit">
+                                            <i class="fas fa-pencil-alt" style="color: #D63384;"></i>
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="7" class="text-center py-5 text-muted">
+                                    <i class="fas fa-hand-holding-usd fa-3x mb-3 opacity-25 text-pink"></i>
+                                    <p>No salary records found.</p>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Activity Logs Section -->
+    <div class="inventory-card shadow-sm border-0 mt-4">
+        <div class="inventory-card-header bg-light py-2 px-3 border-bottom d-flex justify-content-between align-items-center">
+            <div class="d-flex align-items-center">
+                <div class="avatar-circle me-2 bg-secondary opacity-75" style="width: 24px; height: 24px; font-size: 0.65rem;">
+                    <i class="fas fa-history"></i>
+                </div>
+                <h6 class="mb-0 fw-bold text-pink" style="font-size: 0.85rem;">Employee Salary Activity Logs</h6>
+            </div>
+            <div class="d-flex align-items-center gap-2">
+                <div class="d-flex align-items-center">
+                    <label class="extra-small text-muted me-1 mb-0">From:</label>
+                    <input type="date" id="logDateStart" class="form-control form-control-sm" style="width: 120px; font-size: 0.7rem; height: 26px;" value="{{ log_date_start }}">
+                </div>
+                <div class="d-flex align-items-center">
+                    <label class="extra-small text-muted me-1 mb-0">To:</label>
+                    <input type="date" id="logDateEnd" class="form-control form-control-sm" style="width: 120px; font-size: 0.7rem; height: 26px;" value="{{ log_date_end }}">
+                </div>
+                <div class="btn-group">
+                    <button type="button" class="btn btn-sm btn-outline-secondary" style="font-size: 0.7rem;" onclick="applyLogDateFilter()">
+                        <i class="fas fa-filter me-1"></i> Filter
+                    </button>
+                    <button type="button" class="btn btn-sm btn-outline-secondary" style="font-size: 0.7rem;" onclick="clearLogDateFilter()">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-hover mb-0" id="salaryLogsTable" style="font-size: 0.8rem;">
+                <thead class="bg-light">
+                    <tr>
+                        <th style="width: 40px;">#</th>
+                        <th style="width: 180px;">Timestamp</th>
+                        <th style="width: 100px;">Action</th>
+                        <th style="width: 120px;">User</th>
+                        <th>Description</th>
+                    </tr>
+                    <tr class="bg-light filter-row border-top">
+                        <td></td>
+                        <td><input type="text" class="form-control filter-input column-filter-log" data-column="1" placeholder="Timestamp..."></td>
+                        <td><input type="text" class="form-control filter-input column-filter-log" data-column="2" placeholder="Action..."></td>
+                        <td><input type="text" class="form-control filter-input column-filter-log" data-column="3" placeholder="User..."></td>
+                        <td><input type="text" class="form-control filter-input column-filter-log" data-column="4" placeholder="Description..."></td>
+                    </tr>
+                </thead>
+                <tbody id="salaryLogsBody">
+                    {% for log in salary_logs %}
+                    <tr class="log-row">
+                        <td class="text-center text-muted small">{{ forloop.counter }}</td>
+                        <td class="text-muted small">{{ log.timestamp|date:"Y-m-d H:i:s" }}</td>
+                        <td>
+                            {% if log.action == 'created' %}
+                            <span class="badge bg-success-subtle text-success extra-small border border-success-subtle">CREATED</span>
+                            {% elif log.action == 'updated' %}
+                            <span class="badge bg-primary-subtle text-primary extra-small border border-primary-subtle">UPDATED</span>
+                            {% elif log.action == 'deleted' %}
+                            <span class="badge bg-danger-subtle text-danger extra-small border border-danger-subtle">DELETED</span>
+                            {% else %}
+                            <span class="badge bg-secondary-subtle text-secondary extra-small border border-secondary-subtle">{{ log.action|upper }}</span>
+                            {% endif %}
+                        </td>
+                        <td class="fw-bold">{{ log.user }}</td>
+                        <td class="small">{{ log.description|linebreaksbr }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr class="no-results-log">
+                        <td colspan="5" class="text-center py-4 text-muted small">
+                            No activity logs found.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        <!-- Log Pagination -->
+        <div class="p-3 bg-white border-top d-flex justify-content-between align-items-center">
+            <div class="small text-muted">
+                Showing <span id="logPaginationInfo" class="fw-bold">0</span> of <span id="logPaginationTotal" class="fw-bold">{{ salary_logs|length }}</span> items
+            </div>
+            <ul class="pagination pagination-sm mb-0" id="logPaginationContainer"></ul>
+        </div>
+    </div>
+    <!-- Salary Modal (Add/Edit) -->
+    <div class="modal fade" id="salaryModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content border-0 shadow">
+                <div class="modal-header bg-pink text-white border-0 py-3">
+                    <h5 class="modal-title text-white fw-bold" id="salaryModalTitle">
+                        <i class="fas fa-money-bill-wave me-2"></i>New Employee Salary
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <form method="POST" id="modalSalaryForm">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="save">
+                    <div class="modal-body p-4">
+                        <div class="mb-3">
+                            <label class="filter-label mb-2">Select Employee</label>
+                            <select name="employee_id" id="modalEmployeeSelect" class="form-select" required>
+                                <option value="">Select employee...</option>
+                                {% for emp in employees %}
+                                <option value="{{ emp.id }}">{{ emp.full_name }} ({{ emp.employee_id }})</option>
+                                {% endfor %}
+                            </select>
+                            <input type="text" id="modalEmployeeNameDisplay" class="form-control filter-input bg-light d-none" readonly>
+                        </div>
+                        <div class="mb-0">
+                            <label class="filter-label mb-2">Monthly Salary (Amount)</label>
+                            <div class="input-group">
+                                <span class="input-group-text bg-light border-end-0">₱</span>
+                                <input type="number" step="0.01" name="amount" id="modalAmount" class="form-control filter-input border-start-0" placeholder="0.00" required>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-footer border-0 p-4 pt-0">
+                        <button type="button" class="btn btn-light px-4" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn btn-primary px-4 shadow-sm" style="background-color: #D63384; border-color: #D63384;">
+                            <i class="fas fa-save me-1"></i> Save Salary
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Profile Pic View Modal -->
+    <div class="modal fade" id="profilePicModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content border-0 shadow-lg" style="border-radius: 20px; width: fit-content; margin: auto;">
+                <div class="modal-header border-0 pb-0 justify-content-end">
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body text-center p-4">
+                    <div id="profilePicContainer" class="rounded-circle mx-auto mb-3 shadow-sm" style="width: 280px; height: 280px; overflow: hidden; border: 6px solid #f8f9fa;">
+                        <img id="viewProfilePicImg" src="" alt="Profile Picture" style="width: 100%; height: 100%; object-fit: cover;">
+                        <div id="viewProfileInitials" class="w-100 h-100 d-flex align-items-center justify-content-center bg-pink text-white fw-bold" style="font-size: 6rem; display: none;"></div>
+                    </div>
+                    <h5 class="fw-bold text-pink mb-1" id="profilePicModalTitle"></h5>
+                    <p class="text-muted small mb-0">Employee Profile</p>
+                </div>
+            </div>
+        </div>
+    </div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    .avatar-circle {
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-weight: bold;
+        flex-shrink: 0;
+        cursor: pointer;
+        transition: transform 0.2s ease;
+    }
+    .avatar-circle:hover {
+        transform: scale(1.1);
+    }
+    .profile-trigger {
+        border: 2px solid #fff;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    .text-pink { color: #D63384 !important; }
+    .bg-pink { background-color: #D63384 !important; }
+    .btn-xs { padding: 0.25rem 0.5rem; font-size: 0.75rem; }
+    .sortable { cursor: pointer; }
+    .sortable:hover { background-color: rgba(214, 51, 132, 0.05); }
+    .filter-row td { padding: 5px !important; }
+    .filter-input { height: 38px; font-size: 0.85rem; border-radius: 6px; border: 1px solid #dee2e6; }
+    thead .filter-input { height: 28px; font-size: 0.75rem; border-radius: 4px; }
+    .select2-container--bootstrap-5 .select2-selection {
+        min-height: 38px;
+        border: 1px solid #dee2e6;
+    }
+</style>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    const salaryModal = new bootstrap.Modal(document.getElementById('salaryModal'));
+    const modalTitle = document.getElementById('salaryModalTitle');
+    const modalSelect = document.getElementById('modalEmployeeSelect');
+    const modalNameDisplay = document.getElementById('modalEmployeeNameDisplay');
+    const modalAmount = document.getElementById('modalAmount');
+
+    function openAddModal() {
+        modalTitle.innerHTML = '<i class="fas fa-plus-circle me-2"></i>New Employee Salary';
+        modalSelect.classList.remove('d-none');
+        modalNameDisplay.classList.add('d-none');
+        modalSelect.value = '';
+        $(modalSelect).val('').trigger('change');
+        modalAmount.value = '';
+        salaryModal.show();
+    }
+
+    window.viewProfilePic = function(avatar, name) {
+        const modalEl = document.getElementById('profilePicModal');
+        const modal = new bootstrap.Modal(modalEl);
+        const img = document.getElementById('viewProfilePicImg');
+        const initials = document.getElementById('viewProfileInitials');
+        const title = document.getElementById('profilePicModalTitle');
+        
+        title.textContent = name;
+        
+        if (avatar && avatar.length > 10) { // check if it's a real base64 string
+            img.src = avatar;
+            img.style.display = 'block';
+            initials.style.display = 'none';
+        } else {
+            img.style.display = 'none';
+            initials.style.display = 'flex';
+            const names = name.split(' ');
+            const initialsText = (names[0][0] || '') + (names[names.length-1][0] || '');
+            initials.textContent = initialsText.toUpperCase();
+        }
+        modal.show();
+    };
+
+    function openEditModal(empId, empName, amount) {
+        modalTitle.innerHTML = '<i class="fas fa-edit me-2"></i>Edit Employee Salary';
+        modalSelect.classList.add('d-none');
+        modalNameDisplay.classList.remove('d-none');
+        modalNameDisplay.value = empName;
+        modalSelect.value = empId;
+        $(modalSelect).val(empId).trigger('change');
+        modalAmount.value = amount;
+        salaryModal.show();
+    }
+
+    // Activity Log Filter Globals
+    window.applyLogDateFilter = function() {
+        const start = document.getElementById('logDateStart').value;
+        const end = document.getElementById('logDateEnd').value;
+        let url = new URL(window.location.href);
+        if (start) url.searchParams.set('log_date_start', start);
+        else url.searchParams.delete('log_date_start');
+        if (end) url.searchParams.set('log_date_end', end);
+        else url.searchParams.delete('log_date_end');
+        window.location.href = url.toString();
+    };
+
+    window.clearLogDateFilter = function() {
+        let url = new URL(window.location.href);
+        url.searchParams.delete('log_date_start');
+        url.searchParams.delete('log_date_end');
+        window.location.href = url.toString();
+    };
+
+    document.addEventListener('DOMContentLoaded', function() {
+        // Initialize Select2
+        if ($(modalSelect).length) {
+            $(modalSelect).select2({
+                theme: 'bootstrap-5',
+                placeholder: 'Select employee...',
+                width: '100%',
+                dropdownParent: $('#salaryModal')
+            });
+        }
+
+        // Log Pagination Variables
+        let currentLogPage = 1;
+        const logsPerPage = 10;
+        const logTbody = document.getElementById('salaryLogsBody');
+        const logPaginationContainer = document.getElementById('logPaginationContainer');
+        const logPaginationInfo = document.getElementById('logPaginationInfo');
+        const logPaginationTotal = document.getElementById('logPaginationTotal');
+        let allLogRows = Array.from(logTbody.querySelectorAll('tr.log-row'));
+        let filteredLogRows = [...allLogRows];
+
+        const table = document.getElementById('salaryTable');
+        const tbody = document.getElementById('salaryTableBody');
+        const allOriginalRows = Array.from(tbody.querySelectorAll('tr.report-row'));
+        const inputs = table.querySelectorAll('.filter-input');
+
+        // Selection Handling
+        const selectAll = document.getElementById('selectAll');
+        const selectedCountSpan = document.getElementById('selectedCount');
+
+        function updateSelectedCount() {
+            if (!selectedCountSpan) return;
+            const checkedCount = tbody.querySelectorAll('.row-checkbox:checked').length;
+            selectedCountSpan.textContent = checkedCount;
+        }
+
+        if (selectAll) {
+            selectAll.addEventListener('change', function() {
+                const isChecked = this.checked;
+                const visibleRows = allOriginalRows.filter(row => row.style.display !== 'none');
+                visibleRows.forEach(row => {
+                    const cb = row.querySelector('.row-checkbox');
+                    if (cb) cb.checked = isChecked;
+                });
+                updateSelectedCount();
+            });
+        }
+
+        tbody.addEventListener('change', function(e) {
+            if (e.target.classList.contains('row-checkbox')) {
+                updateSelectedCount();
+                const visibleRows = allOriginalRows.filter(row => row.style.display !== 'none');
+                const checkedVisible = visibleRows.filter(row => row.querySelector('.row-checkbox').checked);
+                if (selectAll) {
+                    selectAll.checked = visibleRows.length > 0 && checkedVisible.length === visibleRows.length;
+                    selectAll.indeterminate = checkedVisible.length > 0 && checkedVisible.length < visibleRows.length;
+                }
+            }
+        });
+
+        // Filtering
+        function handleFilter() {
+            const filters = Array.from(inputs).map(input => input.value.toLowerCase().trim());
+            allOriginalRows.forEach(row => {
+                let matches = true;
+                filters.forEach((filter, idx) => {
+                    if (filter) {
+                        const cell = row.cells[idx + 2]; // 0:CB, 1:#, 2:Employee...
+                        if (cell) {
+                            const text = cell.textContent.toLowerCase().trim();
+                            if (!text.includes(filter)) matches = false;
+                        }
+                    }
+                });
+                row.style.display = matches ? '' : 'none';
+            });
+            updateSelectedCount();
+        }
+
+        inputs.forEach(input => input.addEventListener('input', handleFilter));
+
+        // Sorting
+        let currentSortCol = -1;
+        let currentSortDir = 'asc';
+        document.querySelectorAll('.sortable').forEach((th, idx) => {
+            th.addEventListener('click', () => {
+                const column = idx + 1; // Correct index based on the sortable headers
+                currentSortDir = (currentSortCol === column && currentSortDir === 'asc') ? 'desc' : 'asc';
+                currentSortCol = column;
+                
+                document.querySelectorAll('.sortable i').forEach(i => i.className = 'fas fa-sort');
+                th.querySelector('i').className = currentSortDir === 'asc' ? 'fas fa-sort-up' : 'fas fa-sort-down';
+
+                const rows = Array.from(tbody.querySelectorAll('tr.report-row'));
+                rows.sort((a, b) => {
+                    let aVal = a.cells[column]?.textContent.trim() || '';
+                    let bVal = b.cells[column]?.textContent.trim() || '';
+                    
+                    if (column === 3) { // Amount
+                        const aNum = parseFloat(aVal.replace(/[^0-9.-]+/g, "")) || 0;
+                        const bNum = parseFloat(bVal.replace(/[^0-9.-]+/g, "")) || 0;
+                        return currentSortDir === 'asc' ? aNum - bNum : bNum - aNum;
+                    }
+                    return currentSortDir === 'asc' ? aVal.localeCompare(bVal, undefined, {numeric: true}) : bVal.localeCompare(aVal, undefined, {numeric: true});
+                });
+                rows.forEach(row => tbody.appendChild(row));
+            });
+        });
+
+        // Export Function
+        window.exportData = function(format) {
+            const checkedBoxes = Array.from(tbody.querySelectorAll('.row-checkbox:checked'));
+            const visibleRows = allOriginalRows.filter(row => row.style.display !== 'none');
+            let rowsToExport = (checkedBoxes.length > 0 ? checkedBoxes.map(cb => cb.closest('tr')) : visibleRows);
+            
+            if (rowsToExport.length === 0) {
+                alert('No data to export.');
+                return;
+            }
+
+            const headers = ['#', 'Employee', 'Amount', 'Datetime Updated', 'Updated By'];
+            const data = rowsToExport.map((tr, idx) => {
+                const cells = Array.from(tr.cells).slice(0, 6); // 0:CB, 1:#, 2:Emp, 3:Amt, 4:Date, 5:User
+                const rowData = [];
+                
+                // # 
+                rowData.push(cells[1].textContent.trim());
+                
+                // Employee (Extract full name from span)
+                const nameSpan = cells[2].querySelector('span.text-pink.fw-bold');
+                rowData.push(nameSpan ? nameSpan.textContent.trim() : cells[2].textContent.trim());
+                
+                // Amount
+                rowData.push(cells[3].textContent.trim().replace(/₱/g, ''));
+                
+                // Datetime Updated
+                rowData.push(cells[4].textContent.trim());
+                
+                // Updated By
+                rowData.push(cells[5].textContent.trim());
+                
+                return rowData;
+            });
+
+            const filename = `Employee_Salaries_${new Date().toISOString().slice(0, 10)}`;
+
+            if (format === 'csv') {
+                let csv = headers.join(',') + '\n' + data.map(row => row.map(c => `"${c}"`).join(',')).join('\n');
+                downloadFile(csv, filename + '.csv', 'text/csv');
+            } else if (format === 'excel') {
+                const ws = XLSX.utils.aoa_to_sheet([headers, ...data]);
+                const wb = XLSX.utils.book_new();
+                XLSX.utils.book_append_sheet(wb, ws, "Salaries");
+                XLSX.writeFile(wb, `${filename}.xlsx`);
+            } else if (format === 'pdf') {
+                const { jsPDF } = window.jspdf;
+                const doc = new jsPDF('p', 'mm', 'a4');
+                doc.setFontSize(18);
+                doc.text("Employee Salaries Report", 14, 15);
+                doc.autoTable({
+                    head: [headers],
+                    body: data,
+                    startY: 25,
+                    theme: 'grid',
+                    headStyles: { fillColor: [214, 51, 132] }
+                });
+                doc.save(`${filename}.pdf`);
+            }
+        };
+
+        const downloadFile = (content, fileName, contentType) => {
+            const a = document.createElement("a");
+            const file = new Blob([content], { type: contentType });
+            a.href = URL.createObjectURL(file);
+            a.download = fileName;
+            a.click();
+        };
+
+        // --- Log Table Logic ---
+        function filterLogs() {
+            const filterInputs = document.querySelectorAll('.column-filter-log');
+            filteredLogRows = allLogRows.filter(row => {
+                let matches = true;
+                filterInputs.forEach(input => {
+                    const colIdx = parseInt(input.getAttribute('data-column'));
+                    const filterVal = input.value.toLowerCase().trim();
+                    if (filterVal) {
+                        const cellText = row.cells[colIdx] ? row.cells[colIdx].textContent.toLowerCase().trim() : '';
+                        if (cellText.indexOf(filterVal) === -1) matches = false;
+                    }
+                });
+                return matches;
+            });
+            currentLogPage = 1;
+            updateLogsView();
+        }
+
+        function updateLogsView() {
+            const existingNoResults = logTbody.querySelector('.no-results-log');
+            if (existingNoResults) existingNoResults.remove();
+
+            if (filteredLogRows.length === 0) {
+                allLogRows.forEach(row => row.style.display = 'none');
+                const noResults = document.createElement('tr');
+                noResults.className = 'no-results-log';
+                noResults.innerHTML = `<td colspan="5" class="text-center py-4 text-muted small">No matching activity logs found.</td>`;
+                logTbody.appendChild(noResults);
+                logPaginationInfo.textContent = '0';
+                logPaginationTotal.textContent = '0';
+                logPaginationContainer.innerHTML = '';
+                return;
+            }
+
+            allLogRows.forEach(row => row.style.display = 'none');
+            const start = (currentLogPage - 1) * logsPerPage;
+            const end = start + logsPerPage;
+            const pageRows = filteredLogRows.slice(start, end);
+            pageRows.forEach(row => row.style.display = '');
+
+            logPaginationInfo.textContent = `${start + 1}-${Math.min(end, filteredLogRows.length)}`;
+            logPaginationTotal.textContent = filteredLogRows.length;
+            buildLogPagination();
+        }
+
+        function buildLogPagination() {
+            logPaginationContainer.innerHTML = '';
+            const totalPages = Math.ceil(filteredLogRows.length / logsPerPage);
+            if (totalPages <= 1) return;
+
+            const createPageItem = (label, page, active = false, disabled = false) => {
+                const li = document.createElement('li');
+                li.className = `page-item ${active ? 'active' : ''} ${disabled ? 'disabled' : ''}`;
+                li.innerHTML = `<a class="page-link" href="#">${label}</a>`;
+                li.onclick = (e) => {
+                    e.preventDefault();
+                    if (!disabled && currentLogPage !== page) {
+                        currentLogPage = page;
+                        updateLogsView();
+                    }
+                };
+                return li;
+            };
+
+            logPaginationContainer.appendChild(createPageItem('&laquo;', currentLogPage - 1, false, currentLogPage === 1));
+            for (let i = 1; i <= totalPages; i++) {
+                if (i === 1 || i === totalPages || (i >= currentLogPage - 2 && i <= currentLogPage + 2)) {
+                    logPaginationContainer.appendChild(createPageItem(i, i, i === currentLogPage));
+                } else if (i === currentLogPage - 3 || i === currentLogPage + 3) {
+                    const dots = document.createElement('li');
+                    dots.className = 'page-item disabled';
+                    dots.innerHTML = '<span class="page-link">...</span>';
+                    logPaginationContainer.appendChild(dots);
+                }
+            }
+            logPaginationContainer.appendChild(createPageItem('&raquo;', currentLogPage + 1, false, currentLogPage === totalPages));
+        }
+
+        document.querySelectorAll('.column-filter-log').forEach(input => {
+            input.addEventListener('input', filterLogs);
+        });
+
+        // Initial log view
+        updateLogsView();
+    });
+</script>
+{% endblock %}

@@ -1,0 +1,124 @@
+{% extends 'core/base.html' %}
+{% load static humanize %}
+
+{% block title %}Expenses Report - The Potter's House{% endblock %}
+
+{% block content %}
+<div class="row align-items-center mb-4">
+    <div class="col">
+        <h4 class="mb-0">Expenses Report</h4>
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb breadcrumb-custom mb-0">
+                <li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Home</a></li>
+                <li class="breadcrumb-item"><a href="{% url 'reports' %}">Reports</a></li>
+                <li class="breadcrumb-item active" aria-current="page">Expenses</li>
+            </ol>
+        </nav>
+    </div>
+</div>
+
+<!-- Filters -->
+<div class="filter-card mb-4">
+    <div class="filter-card-header">
+        <i class="fas fa-filter"></i> Date Range Filter
+    </div>
+    <div class="filter-card-body">
+        <form method="GET" action="." class="row g-3">
+            <div class="col-md-4">
+                <label class="filter-label">Date From</label>
+                <input type="date" name="date_from" value="{{ date_from }}" class="form-control filter-input">
+            </div>
+            <div class="col-md-4">
+                <label class="filter-label">Date To</label>
+                <input type="date" name="date_to" value="{{ date_to }}" class="form-control filter-input">
+            </div>
+            <div class="col-md-4 d-flex align-items-end">
+                <div class="filter-actions">
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-search me-2"></i>Apply Filter
+                    </button>
+                    <a href="{% url 'report_expenses' %}" class="btn btn-outline-secondary">Reset</a>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="row mb-4">
+    <div class="col-md-12">
+        <div class="inventory-card p-4 text-center bg-danger text-white">
+            <p class="text-uppercase small mb-1 opacity-75">TOTAL EXPENSES</p>
+            <h2 class="fw-bold mb-0">₱{{ total_expenses|floatformat:2|intcomma }}</h2>
+        </div>
+    </div>
+</div>
+
+<div class="row g-4 mb-4">
+    <div class="col-md-4">
+        <div class="inventory-card h-100">
+            <div class="inventory-card-header bg-light">
+                <div class="text-dark fw-bold">Fund Sources</div>
+            </div>
+            <div class="p-3">
+                <ul class="list-group list-group-flush">
+                    {% for source in sources %}
+                    <li class="list-group-item d-flex justify-content-between align-items-center bg-transparent border-0 px-0">
+                        <span>{{ source.fund_source }}</span>
+                        <span class="fw-bold">₱{{ source.total|floatformat:2|intcomma }}</span>
+                    </li>
+                    {% empty %}
+                    <li class="text-muted small text-center py-3">No data available</li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-8">
+        <div class="inventory-card">
+            <div class="inventory-card-header">
+                <div><i class="fas fa-list"></i> Expense Details</div>
+                <div class="tool-bar">
+                    <button class="btn btn-sm btn-outline-success" onclick="exportTableToExcel('expensesTable', 'Expenses_Report')">
+                        <i class="fas fa-file-excel me-1"></i> Excel
+                    </button>
+                </div>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-hover" id="expensesTable">
+                    <thead>
+                        <tr>
+                            <th>DV #</th>
+                            <th>DATE</th>
+                            <th>PARTICULAR</th>
+                            <th>TYPE</th>
+                            <th>FUND SOURCE</th>
+                            <th class="text-end">AMOUNT</th>
+                            <th>RECEIPT #</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for log in expenses %}
+                        <tr>
+                            <td>{{ log.dv_number }}</td>
+                            <td>{{ log.date|date:"Y-m-d" }}</td>
+                            <td class="text-wrap" style="max-width: 250px;">{{ log.particular }}</td>
+                            <td>{{ log.expense_type }}</td>
+                            <td>{{ log.fund_source }}</td>
+                             <td class="text-end fw-bold">₱{{ log.amount|floatformat:2|intcomma }}</td>
+                            <td>{{ log.receipt_number }}</td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="7" class="text-center p-5 text-muted">
+                                No expenses found for the selected period.
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

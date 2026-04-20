@@ -1,0 +1,72 @@
+{% extends 'core/base.html' %}
+{% load static %}
+
+{% block title %}Monthly Report - The Potter's House{% endblock %}
+
+{% block content %}
+<div class="row align-items-center mb-4">
+    <div class="col">
+        <h4 class="mb-0">Monthly Report</h4>
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb breadcrumb-custom mb-0">
+                <li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Home</a></li>
+                <li class="breadcrumb-item"><a href="{% url 'reports' %}">Reports</a></li>
+                <li class="breadcrumb-item active" aria-current="page">Monthly</li>
+            </ol>
+        </nav>
+    </div>
+</div>
+
+<!-- Filters -->
+<div class="filter-card mb-4">
+    <div class="filter-card-header">
+        <i class="fas fa-calendar"></i> Month/Year Selection
+    </div>
+    <div class="filter-card-body">
+        <form method="GET" action="." class="row g-3">
+            <div class="col-md-4">
+                <label class="filter-label">Month</label>
+                <select name="month" class="form-select filter-input">
+                    {% for m in months %}
+                    <option value="{{ m }}" {% if m == selected_month %}selected{% endif %}>
+                        {{ m|date:"F" }} <!-- This might need a custom template tag in real Django, but simplified here -->
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-4">
+                <label class="filter-label">Year</label>
+                <select name="year" class="form-select filter-input">
+                    {% for y in years %}
+                    <option value="{{ y }}" {% if y == selected_year %}selected{% endif %}>{{ y }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-4 d-flex align-items-end">
+                <div class="filter-actions">
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-sync me-2"></i>Generate Report
+                    </button>
+                    <a href="{% url 'report_monthly' %}" class="btn btn-outline-secondary">Current Month</a>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="inventory-card">
+    <div class="inventory-card-header">
+        <div><i class="fas fa-chart-line"></i> Monthly Product Statistics (Placeholder)</div>
+        <div class="tool-bar">
+            <button class="btn btn-sm btn-outline-success">
+                <i class="fas fa-file-excel me-1"></i> Excel
+            </button>
+        </div>
+    </div>
+    <div class="p-5 text-center text-muted">
+        <i class="fas fa-tools fa-3x mb-3"></i>
+        <h5>Extended Statistics in Development</h5>
+        <p class="mb-0">This section will visualize product performance and transaction trends for the selected month.</p>
+    </div>
+</div>
+{% endblock %}

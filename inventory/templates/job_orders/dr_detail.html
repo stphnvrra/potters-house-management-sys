@@ -1,0 +1,274 @@
+{% extends 'core/base.html' %}
+{% load static %}
+
+{% block title %}DR-{{ dr.id }} Details - The Potter's House{% endblock %}
+
+{% block content %}
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb breadcrumb-custom mb-0">
+                <li class="breadcrumb-item"><a href="/">Home</a></li>
+                <li class="breadcrumb-item"><a href="{% url 'dr' %}">Delivery Receipts</a></li>
+                <li class="breadcrumb-item active" aria-current="page">DR-{{ dr.id }} Details</li>
+            </ol>
+        </nav>
+        <div class="d-flex gap-2">
+            {% if dr.status == 'Open' %}
+            <button class="btn btn-danger btn-sm" onclick="lockDR()">
+                <i class="fas fa-lock me-1"></i> Lock Receipt
+            </button>
+            {% else %}
+            <span class="badge bg-secondary border border-secondary px-3 py-2">
+                <i class="fas fa-lock me-1"></i> LOCKED
+            </span>
+            {% endif %}
+            <a href="{% url 'dr' %}" class="btn btn-outline-secondary btn-sm">
+                <i class="fas fa-arrow-left me-1"></i> Back to List
+            </a>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Header Info -->
+        <div class="col-md-4">
+            <div class="inventory-card mb-4">
+                <div class="inventory-card-header">
+                    <i class="fas fa-info-circle me-2"></i> Receipt Information
+                </div>
+                <div class="p-3">
+                    <div class="mb-3">
+                        <label class="text-muted small d-block">Purchase Order</label>
+                        <span class="fw-bold">
+                            {% if dr.purchase_order %}
+                            <a href="{% url 'purchase_order_detail' dr.purchase_order.id %}" class="text-pink">PO-{{ dr.purchase_order.id }}</a>
+                            {% else %}
+                            None
+                            {% endif %}
+                        </span>
+                    </div>
+                    <div class="mb-3">
+                        <label class="text-muted small d-block">Supplier</label>
+                        <span class="fw-bold">{{ dr.supplier }}</span>
+                    </div>
+                    <div class="mb-3">
+                        <label class="text-muted small d-block">Delivery Date</label>
+                        <span class="fw-bold">{{ dr.date|date:"F d, Y" }}</span>
+                    </div>
+                    <div class="mb-3">
+                        <label class="text-muted small d-block">Status</label>
+                        <span class="badge {% if dr.status == 'Open' %}bg-info-subtle text-dark border border-info{% else %}bg-secondary-subtle text-dark border border-secondary{% endif %}">
+                            {{ dr.status }}
+                        </span>
+                    </div>
+                    <div class="mb-3">
+                        <label class="text-muted small d-block">Comments</label>
+                        <p class="mb-0 text-muted">{{ dr.comments|default:"No comments" }}</p>
+                    </div>
+                    <hr>
+                    <div class="small text-muted">
+                        <div>Created: {{ dr.datetime_created|date:"M d, Y H:i" }}</div>
+                        <div>By: {{ dr.tag_delivered_by }}</div>
+                    </div>
+                </div>
+            </div>
+
+            {% if dr.status == 'Open' %}
+            <!-- Add Item Form -->
+            <div class="inventory-card">
+                <div class="inventory-card-header bg-pink text-white">
+                    <i class="fas fa-plus-circle me-2"></i> Add Material Received
+                </div>
+                <div class="p-4">
+                    <form id="addItemForm">
+                        {% csrf_token %}
+                        <div class="mb-3">
+                            <label class="form-label">Material / Product</label>
+                            <select name="inventory_item_id" class="form-select select2" required>
+                                <option value="">Select an item...</option>
+                                {% for item in inventory_items %}
+                                <option value="{{ item.id }}">{{ item.name }} ({{ item.sub_unit|default:"pc" }})</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Quantity Received</label>
+                            <input type="number" step="0.01" name="quantity" class="form-control" required placeholder="0.00">
+                        </div>
+                        <button type="submit" class="btn btn-primary w-100">
+                            <i class="fas fa-save me-1"></i> Save to Receipt
+                        </button>
+                    </form>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Line Items Table -->
+        <div class="col-md-8">
+            <div class="inventory-card">
+                <div class="inventory-card-header">
+                    <i class="fas fa-list me-2"></i> Delivered Items
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead class="bg-light">
+                            <tr>
+                                <th style="width: 50px;">#</th>
+                                <th>Material Name</th>
+                                <th class="text-center">Quantity</th>
+                                <th class="text-center">Unit</th>
+                                <th class="text-end">Date Added</th>
+                                {% if dr.status == 'Open' %}
+                                <th class="text-center" style="width: 80px;">Actions</th>
+                                {% endif %}
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in items %}
+                            <tr>
+                                <td>{{ forloop.counter }}</td>
+                                <td class="fw-bold text-dark">{{ item.inventory_item.name }}</td>
+                                <td class="text-center">{{ item.quantity }}</td>
+                                <td class="text-center text-muted small">{{ item.unit }}</td>
+                                <td class="text-end text-muted small">{{ item.received_at|date:"M d, Y H:i" }}</td>
+                                {% if dr.status == 'Open' %}
+                                <td class="text-center">
+                                    <button class="btn btn-outline-danger btn-xs border-0" onclick="prepareDelete({{ item.id }}, '{{ item.inventory_item.name|escapejs }}')">
+                                        <i class="fas fa-trash-alt"></i>
+                                    </button>
+                                </td>
+                                {% endif %}
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="{% if dr.status == 'Open' %}6{% else %}5{% endif %}" class="text-center py-5 text-muted">
+                                    <p class="mb-0">No items added to this receipt yet.</p>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Lock Confirmation Modal -->
+    <div class="modal fade" id="lockConfirmModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content border-0 shadow-lg">
+                <div class="modal-header bg-danger text-white border-0">
+                    <h5 class="modal-title text-white"><i class="fas fa-lock me-2"></i> Confirm Lock Receipt</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body p-4 text-center">
+                    <i class="fas fa-exclamation-triangle fa-3x text-warning mb-3"></i>
+                    <h4 class="fw-bold mb-2">Finalize Delivery?</h4>
+                    <p class="text-muted">Are you sure you want to lock this delivery receipt? This action will finalize the delivery and cannot be undone.</p>
+                </div>
+                <div class="modal-footer border-0 justify-content-center pb-4">
+                    <button type="button" class="btn btn-outline-secondary px-4" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-danger px-4" onclick="confirmLock()">
+                        <i class="fas fa-check-circle me-1"></i> Yes, Lock Receipt
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Delete Confirmation Modal -->
+    <div class="modal fade" id="deleteConfirmModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content border-0 shadow-lg">
+                <div class="modal-header bg-danger text-white border-0">
+                    <h5 class="modal-title text-white"><i class="fas fa-trash-alt me-2"></i> Confirm Delete Item</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body p-4 text-center">
+                    <i class="fas fa-exclamation-circle fa-3x text-danger mb-3"></i>
+                    <h4 class="fw-bold mb-2">Remove this item?</h4>
+                    <p class="text-muted">Are you sure you want to remove <span id="deleteItemName" class="fw-bold text-dark"></span> from this receipt? This will also reverse the stock increase created by this entry.</p>
+                </div>
+                <div class="modal-footer border-0 justify-content-center pb-4">
+                    <button type="button" class="btn btn-outline-secondary px-4" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-danger px-4" id="confirmDeleteBtn">
+                        <i class="fas fa-trash-alt me-1"></i> Delete Item
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        {% if dr.status == 'Open' %}
+        document.getElementById('addItemForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            const formData = new FormData(this);
+            fetch("{% url 'api_add_dr_item' dr.id %}", {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'X-CSRFToken': '{{ csrf_token }}'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    window.location.reload();
+                } else {
+                    alert('Error: ' + data.message);
+                }
+            });
+        });
+
+        let itemToDelete = null;
+        function prepareDelete(itemId, itemName) {
+            itemToDelete = itemId;
+            document.getElementById('deleteItemName').textContent = itemName;
+            const deleteModal = new bootstrap.Modal(document.getElementById('deleteConfirmModal'));
+            deleteModal.show();
+        }
+
+        document.getElementById('confirmDeleteBtn').addEventListener('click', function() {
+            if (!itemToDelete) return;
+            
+            fetch(`/dr/item/${itemToDelete}/delete/`, {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': '{{ csrf_token }}'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    window.location.reload();
+                } else {
+                    alert('Error: ' + data.message);
+                }
+            });
+        });
+
+        function lockDR() {
+            const lockModal = new bootstrap.Modal(document.getElementById('lockConfirmModal'));
+            lockModal.show();
+        }
+
+        function confirmLock() {
+            fetch("{% url 'api_lock_dr' dr.id %}", {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': '{{ csrf_token }}'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    window.location.reload();
+                } else {
+                    alert('Error: ' + data.message);
+                }
+            });
+        }
+        {% endif %}
+    </script>
+{% endblock %}

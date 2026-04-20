@@ -1,0 +1,378 @@
+{% extends 'core/base.html' %}
+{% load static %}
+
+{% block title %}Withdrawal Slip Detail - The Potter's House{% endblock %}
+
+{% block content %}
+<div class="row align-items-center mb-4">
+    <div class="col-auto">
+        <a href="{% url 'withdrawal_slips' %}" class="btn btn-light border-0 shadow-sm rounded-circle p-2" style="width: 40px; height: 40px; display: flex; align-items: center; justify-content: center;">
+            <i class="fas fa-chevron-left text-pink"></i>
+        </a>
+    </div>
+    <div class="col">
+        <div class="d-flex align-items-center gap-3">
+            <h4 class="mb-0 fw-bold">WS-{{ slip.id|stringformat:"05d" }}</h4>
+            <span class="badge {% if slip.status|upper == 'PENDING' %}bg-warning-subtle text-dark border border-warning{% elif slip.status|upper == 'VOID' or slip.status|upper == 'VOIDED' %}bg-danger-subtle text-danger border border-danger{% else %}bg-success-subtle text-dark border border-success{% endif %}">
+                {{ slip.status|upper }}
+            </span>
+        </div>
+        <div class="text-muted small">
+            Created on {{ slip.created_at|date:"F d, Y H:i" }} by {{ slip.created_by }}
+        </div>
+    </div>
+    <div class="col-auto">
+        <div class="btn-group shadow-sm">
+            <a href="{% url 'print_withdrawal_slip' slip.id %}" target="_blank" class="btn btn-white btn-sm border">
+                <i class="fas fa-print me-2 text-muted"></i>Print
+            </a>
+            {% if slip.status|upper == 'PENDING' %}
+            <button class="btn btn-success btn-sm px-3" onclick="markAsComplete()">
+                <i class="fas fa-check-circle me-2"></i>Tag as Complete
+            </button>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Meta Info -->
+    <div class="col-xl-3">
+        <div class="card border-0 shadow-sm mb-4">
+            <div class="card-header bg-white border-bottom-0 pt-4 px-4 pb-0">
+                <h6 class="fw-bold mb-0">General Information</h6>
+            </div>
+            <div class="card-body p-4">
+                <div class="mb-4">
+                    <label class="small text-muted mb-1 d-block fw-bold">WIP NUMBER</label>
+                    <div class="fw-bold text-primary fs-5">{{ slip.wip }}</div>
+                    {% if jo %}
+                    <a href="{% url 'job_order_detail' jo.id %}" class="small text-pink text-decoration-none">
+                        <i class="fas fa-external-link-alt me-1"></i>View Job Order
+                    </a>
+                    {% endif %}
+                </div>
+                <div class="mb-4">
+                    <label class="small text-muted mb-1 d-block fw-bold">CLIENT/DESCRIPTION</label>
+                    <div class="text-dark">{{ slip.name }}</div>
+                </div>
+                <div class="mb-0">
+                    <label class="small text-muted mb-1 d-block fw-bold">LAST UPDATED</label>
+                    <div class="text-dark small">{{ slip.created_at|date:"Y-m-d H:i" }}</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Items Table -->
+    <div class="col-xl-9">
+        <div class="inventory-card">
+            <div class="inventory-card-header bg-white px-4 py-3 border-bottom d-flex justify-content-between align-items-center">
+                <h6 class="fw-bold mb-0">Material List & Releases</h6>
+                {% if slip.status|upper == 'PENDING' %}
+                <button class="btn btn-sm btn-outline-pink" data-bs-toggle="modal" data-bs-target="#addItemModal">
+                    <i class="fas fa-plus me-1"></i> Add Material
+                </button>
+                {% endif %}
+            </div>
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="bg-light">
+                        <tr>
+                            <th class="ps-4 fw-bold small text-muted">#</th>
+                            <th class="fw-bold small text-muted">PRODUCT NAME</th>
+                            <th class="fw-bold small text-muted">ITEM NAME</th>
+                            <th class="fw-bold small text-muted text-center">QTY REQUESTED</th>
+                            <th class="fw-bold small text-muted text-center">QTY APPROVED</th>
+                            <th class="fw-bold small text-muted">RELEASED BY</th>
+                            <th class="fw-bold small text-muted">DATETIME UPDATED</th>
+                            <th class="pe-4 text-center fw-bold small text-muted">ACTION</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in items %}
+                        <tr>
+                            <td class="ps-4 small text-muted">{{ forloop.counter }}</td>
+                            <td>
+                                <div class="fw-bold text-pink small">{{ item.product_name|default:"-" }}</div>
+                            </td>
+                            <td>
+                                <div class="fw-bold text-dark">{{ item.item_name }}</div>
+                                {% if item.inventory_item %}
+                                <div class="small text-muted text-truncate" style="max-width: 150px;">SKU: {{ item.inventory_item.sku }}</div>
+                                {% endif %}
+                            </td>
+                            <td class="text-center fw-bold">{{ item.quantity|floatformat:2 }}</td>
+                            <td class="text-center">
+                                <div class="badge bg-success-subtle text-success border border-success px-2 py-1">
+                                    {{ item.quantity_approved|floatformat:2 }}
+                                </div>
+                            </td>
+                            <td class="small">{{ item.released_by|default:"-" }}</td>
+                            <td class="small text-muted">{{ item.datetime_updated|date:"Y-m-d H:i" }}</td>
+                            <td class="pe-4 text-center">
+                                {% if slip.status|upper == 'PENDING' %}
+                                <div class="btn-group">
+                                    <button class="btn btn-sm btn-pink py-1 px-3" onclick="openReleaseModal({{ item.id }}, '{{ item.item_name|escapejs }}', {{ item.quantity }})">
+                                        Release
+                                    </button>
+                                    <button class="btn btn-sm btn-outline-danger py-1 px-2 border-0" onclick="deleteItem({{ item.id }})" title="Remove Item">
+                                        <i class="fas fa-trash-alt"></i>
+                                    </button>
+                                </div>
+                                {% else %}
+                                <i class="fas fa-lock text-muted opacity-50"></i>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="7" class="text-center py-5 text-muted">No items in this withdrawal slip.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Release Modal -->
+<div class="modal fade" id="releaseModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header border-0 bg-light">
+                <h5 class="modal-title fw-bold"><i class="fas fa-shipping-fast me-2 text-pink"></i>Release Material</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-4">
+                <div class="mb-4">
+                    <h6 id="releaseItemName" class="fw-bold mb-1">Item Name</h6>
+                    <div id="releaseReqInfo" class="text-muted small">Requested: 0.00</div>
+                </div>
+                <form id="releaseForm">
+                    <input type="hidden" name="item_id" id="releaseItemId">
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold text-muted">QUANTITY TO RELEASE <span class="text-danger">*</span></label>
+                        <input type="number" step="0.01" name="quantity" class="form-control" placeholder="0.00" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold text-muted">REMARKS</label>
+                        <textarea name="remarks" class="form-control" rows="3" placeholder="Notes for this release..."></textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer border-0 p-4 pt-0">
+                <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-pink btn-sm px-4" onclick="submitRelease()">Confirm Release</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Add Item Modal -->
+<div class="modal fade" id="addItemModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header border-0 bg-light">
+                <h5 class="modal-title fw-bold"><i class="fas fa-box-open me-2 text-pink"></i>Add Material to Slip</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-4">
+                <form id="addItemForm">
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold text-muted">SELECT INVENTORY ITEM <span class="text-danger">*</span></label>
+                        <select name="inventory_item_id" class="form-select" required>
+                            <option value="">-- Choose Item --</option>
+                            {% for inv in inventory_items %}
+                            <option value="{{ inv.id }}">{{ inv.name }} (Bal: {{ inv.total_balance }})</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold text-muted">PRODUCT NAME</label>
+                        <input type="text" name="product_name" class="form-control" placeholder="e.g. Red Mug Box">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold text-muted">QUANTITY REQUESTED <span class="text-danger">*</span></label>
+                        <input type="number" step="0.01" name="quantity" class="form-control" placeholder="0.00" required>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer border-0 p-4 pt-0">
+                <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-pink btn-sm px-4" onclick="submitAddItem()">Add to List</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Confirmation Modal -->
+<div class="modal fade" id="deleteItemModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-sm">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header border-0 bg-light">
+                <h5 class="modal-title fw-bold"><i class="fas fa-trash-alt me-2 text-danger"></i>Remove Item</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-4 text-center">
+                <input type="hidden" id="deleteItemIdInput">
+                <p class="mb-0">Are you sure you want to remove this item from the withdrawal slip?</p>
+            </div>
+            <div class="modal-footer border-0 p-4 pt-0 justify-content-center">
+                <button type="button" class="btn btn-outline-secondary btn-sm px-4" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-danger btn-sm px-4" onclick="confirmDeleteItem()">Confirm Delete</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Complete Confirmation Modal -->
+<div class="modal fade" id="completeSlipModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header border-0 bg-light">
+                <h5 class="modal-title fw-bold"><i class="fas fa-check-circle me-2 text-success"></i>Complete Slip</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-4 text-center">
+                <i class="fas fa-question-circle fa-3x text-warning-subtle mb-3"></i>
+                <p class="mb-0 fw-bold">Mark this withdrawal slip as COMPLETED?</p>
+                <p class="text-muted small">No further items can be released after this action.</p>
+            </div>
+            <div class="modal-footer border-0 p-4 pt-0 justify-content-center">
+                <button type="button" class="btn btn-outline-secondary btn-sm px-4" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-success btn-sm px-4" onclick="confirmCompleteSlip()">Tag as Complete</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function openReleaseModal(id, name, req) {
+    document.getElementById('releaseItemId').value = id;
+    document.getElementById('releaseItemName').textContent = name;
+    document.getElementById('releaseReqInfo').textContent = 'Requested: ' + req.toFixed(2);
+    new bootstrap.Modal(document.getElementById('releaseModal')).show();
+}
+
+function submitRelease() {
+    const form = document.getElementById('releaseForm');
+    const formData = new FormData(form);
+    const data = Object.fromEntries(formData.entries());
+    const itemId = data.item_id;
+
+    fetch(`/api/withdrawal-slip-item/${itemId}/release/`, {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json",
+            "X-CSRFToken": "{{ csrf_token }}"
+        },
+        body: JSON.stringify(data)
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.success) {
+            location.reload();
+        } else {
+            alert("Error: " + data.message);
+        }
+    });
+}
+
+function submitAddItem() {
+    const form = document.getElementById('addItemForm');
+    const formData = new FormData(form);
+    const data = Object.fromEntries(formData.entries());
+
+    fetch("{% url 'add_withdrawal_slip_item_ajax' slip.id %}", {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json",
+            "X-CSRFToken": "{{ csrf_token }}"
+        },
+        body: JSON.stringify(data)
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.success) {
+            location.reload();
+        } else {
+            alert("Error: " + data.message);
+        }
+    });
+}
+
+function markAsComplete() {
+    new bootstrap.Modal(document.getElementById('completeSlipModal')).show();
+}
+
+function confirmCompleteSlip() {
+    fetch("{% url 'complete_withdrawal_slip_ajax' slip.id %}", {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json",
+            "X-CSRFToken": "{{ csrf_token }}"
+        }
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.success) {
+            location.reload();
+        } else {
+            alert("Error: " + data.message);
+        }
+    });
+}
+
+function deleteItem(itemId) {
+    document.getElementById('deleteItemIdInput').value = itemId;
+    new bootstrap.Modal(document.getElementById('deleteItemModal')).show();
+}
+
+function confirmDeleteItem() {
+    const itemId = document.getElementById('deleteItemIdInput').value;
+    fetch(`/api/withdrawal-slip-item/${itemId}/delete/`, {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json",
+            "X-CSRFToken": "{{ csrf_token }}"
+        }
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.success) {
+            location.reload();
+        } else {
+            alert("Error: " + data.message);
+        }
+    });
+}
+</script>
+
+<style>
+    .btn-outline-pink {
+        color: #e91e63;
+        border-color: #e91e63;
+    }
+    .btn-outline-pink:hover {
+        background-color: #e91e63;
+        color: #fff;
+    }
+    .text-pink { color: #e91e63 !important; }
+    .btn-pink {
+        background-color: #e91e63;
+        border-color: #e91e63;
+        color: #fff;
+    }
+    .btn-pink:hover {
+        background-color: #d81b60;
+        border-color: #d81b60;
+        color: #fff;
+    }
+    .btn-white {
+        background-color: #fff;
+        color: #333;
+    }
+</style>
+{% endblock %}

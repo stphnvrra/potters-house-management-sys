@@ -1,0 +1,705 @@
+{% extends 'core/base.html' %}
+{% load static %}
+
+{% block title %}Withdrawal Slip Registry - The Potter's House{% endblock %}
+
+{% block content %}
+<div class="row align-items-center mb-4">
+    <div class="col">
+        <h4 class="mb-0">Withdrawal Slip Registry</h4>
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb mb-0" style="font-size: 0.85rem;">
+                <li class="breadcrumb-item"><a href="{% url 'dashboard' %}" class="text-decoration-none text-muted">Home</a></li>
+                <li class="breadcrumb-item active text-dark" aria-current="page">Withdrawal Slips</li>
+            </ol>
+        </nav>
+    </div>
+</div>
+
+<!-- Statistics Cards -->
+<div class="row g-3 mb-4">
+    <div class="col-xl col-md-3">
+        <div class="card stat-card border-0 shadow-sm {% if not current_status %}stat-card-active{% endif %}" onclick="filterByStatus('')" style="cursor: pointer;">
+            <div class="card-body d-flex align-items-center">
+                <div class="stat-icon bg-primary text-white rounded-circle me-3">
+                    <i class="fas fa-file-invoice"></i>
+                </div>
+                <div class="stat-details">
+                    <div class="stat-label text-muted small uppercase fw-bold">TOTAL RECORDS</div>
+                    <div class="stat-value fw-bold">{{ stats.total_count }}</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-xl col-md-3">
+        <div class="card stat-card border-0 shadow-sm {% if current_status == 'Pending' %}stat-card-active{% endif %}" onclick="filterByStatus('Pending')" style="cursor: pointer;">
+            <div class="card-body d-flex align-items-center">
+                <div class="stat-icon bg-warning text-white rounded-circle me-3">
+                    <i class="fas fa-clock"></i>
+                </div>
+                <div class="stat-details">
+                    <div class="stat-label text-muted small uppercase fw-bold">PENDING SLIPS</div>
+                    <div class="stat-value fw-bold text-warning">{{ stats.pending_count }}</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-xl col-md-3">
+        <div class="card stat-card border-0 shadow-sm {% if current_status == 'Completed' %}stat-card-active{% endif %}" onclick="filterByStatus('Completed')" style="cursor: pointer;">
+            <div class="card-body d-flex align-items-center">
+                <div class="stat-icon bg-success text-white rounded-circle me-3">
+                    <i class="fas fa-check-circle"></i>
+                </div>
+                <div class="stat-details">
+                    <div class="stat-label text-muted small uppercase fw-bold">COMPLETED SLIPS</div>
+                    <div class="stat-value fw-bold text-success">{{ stats.completed_count }}</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-xl col-md-3">
+        <div class="card stat-card border-0 shadow-sm {% if current_status == 'Void' %}stat-card-active{% endif %}" onclick="filterByStatus('Void')" style="cursor: pointer;">
+            <div class="card-body d-flex align-items-center">
+                <div class="stat-icon bg-danger text-white rounded-circle me-3">
+                    <i class="fas fa-ban"></i>
+                </div>
+                <div class="stat-details">
+                    <div class="stat-label text-muted small uppercase fw-bold">VOIDED SLIPS</div>
+                    <div class="stat-value fw-bold text-danger">{{ stats.void_count }}</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="inventory-card">
+    <div class="p-3 bg-white border-bottom tool-bar">
+        <div class="d-flex justify-content-between align-items-center">
+            <div class="d-flex align-items-center">
+                <div class="text-muted small me-3">
+                    <span id="selectedCount">0</span> selected
+                </div>
+                <div class="d-flex align-items-center me-2">
+                    <label class="small text-muted me-2 mb-0">From:</label>
+                    <input type="date" id="dateStart" class="form-control form-control-sm" style="width: 140px;" value="{{ date_start }}">
+                </div>
+                <div class="d-flex align-items-center me-3">
+                    <label class="small text-muted me-2 mb-0">To:</label>
+                    <input type="date" id="dateEnd" class="form-control form-control-sm" style="width: 140px;" value="{{ date_end }}">
+                </div>
+                <div class="btn-group me-3">
+                    <button type="button" class="btn btn-sm btn-outline-secondary" onclick="applyFilters()">
+                        <span class="icon-box" style="width: 20px; height: 20px; margin-right: 4px; border-radius: 4px;">
+                            <i class="fas fa-filter" style="font-size: 0.7rem;"></i>
+                        </span>
+                        Filter
+                    </button>
+                    <button type="button" class="btn btn-sm btn-outline-secondary" onclick="resetFilters()">
+                        <i class="fas fa-times" style="font-size: 0.65rem;"></i>
+                    </button>
+                </div>
+                <div class="text-muted small">
+                    Showing <span id="paginationInfo">{{ items|length }}</span> items
+                </div>
+            </div>
+            <div class="d-flex gap-2">
+                <button class="btn btn-pink btn-sm text-white" data-bs-toggle="modal" data-bs-target="#newSlipModal">
+                    <i class="fas fa-plus me-1"></i> New Slip
+                </button>
+                <div class="dropdown">
+                    <ul class="dropdown-menu dropdown-menu-end shadow">
+                        <li><a class="dropdown-item py-2" href="#" onclick="exportData('csv')"><i class="fas fa-file-csv text-success me-2 fa-lg w-20 text-center"></i> CSV</a></li>
+                        <li><a class="dropdown-item py-2" href="#" onclick="exportData('excel')"><i class="fas fa-file-excel text-success me-2 fa-lg w-20 text-center"></i> Excel</a></li>
+                        <li><a class="dropdown-item py-2" href="#" onclick="exportData('pdf')"><i class="fas fa-file-pdf text-danger me-2 fa-lg w-20 text-center"></i> PDF</a></li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="table-responsive">
+        <table class="table table-hover mb-0" id="wsTable">
+            <thead>
+                <tr>
+                    <th style="width: 40px;"><input type="checkbox" id="selectAll" class="form-check-input"></th>
+                    <th class="sortable"># <i class="fas fa-sort"></i></th>
+                    <th class="sortable">Slip ID <i class="fas fa-sort"></i></th>
+                    <th class="sortable">WIP Number <i class="fas fa-sort"></i></th>
+                    <th class="sortable">Name/Particular <i class="fas fa-sort"></i></th>
+                    <th class="sortable">Status <i class="fas fa-sort"></i></th>
+                    <th class="sortable">Date Created <i class="fas fa-sort"></i></th>
+                    <th class="sortable">Created By <i class="fas fa-sort"></i></th>
+                    <th class="text-center">Action</th>
+                </tr>
+                <tr class="bg-light filter-row">
+                    <td></td>
+                    <td></td>
+                    <td><input type="text" class="form-control form-control-sm table-filter" data-col="2" placeholder="Search ID..."></td>
+                    <td><input type="text" class="form-control form-control-sm table-filter" data-col="3" placeholder="Search WIP..."></td>
+                    <td><input type="text" class="form-control form-control-sm table-filter" data-col="4" placeholder="Search Name..."></td>
+                    <td>
+                        <select class="form-select form-select-sm table-filter" data-col="5" id="statusFilter">
+                            <option value="">All</option>
+                            <option value="Pending" {% if current_status == 'Pending' %}selected{% endif %}>Pending</option>
+                            <option value="Completed" {% if current_status == 'Completed' %}selected{% endif %}>Completed</option>
+                            <option value="Void" {% if current_status == 'Void' %}selected{% endif %}>Void</option>
+                        </select>
+                    </td>
+                    <td></td>
+                    <td><input type="text" class="form-control form-control-sm table-filter" data-col="7" placeholder="Search User..."></td>
+                    <td></td>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in items %}
+                <tr class="{% if item.status|upper == 'VOID' or item.status|upper == 'VOIDED' %}table-danger{% endif %}">
+                    <td><input type="checkbox" class="form-check-input row-checkbox" data-id="{{ item.id }}"></td>
+                    <td class="small text-muted">{{ forloop.counter }}</td>
+                    <td>
+                        <a href="{% url 'withdrawal_slip_detail' item.id %}" class="fw-bold text-pink text-decoration-none">
+                            WS-{{ item.id|stringformat:"05d" }}
+                        </a>
+                    </td>
+                    <td class="fw-bold">{{ item.wip }}</td>
+                    <td>{{ item.name }}</td>
+                    <td>
+                        <span class="badge {% if item.status == 'Pending' %}bg-warning-subtle text-dark border border-warning{% elif item.status == 'Completed' %}bg-success-subtle text-dark border border-success{% else %}bg-danger-subtle text-danger border border-danger{% endif %}">
+                            {{ item.status|upper }}
+                        </span>
+                    </td>
+                    <td class="small">{{ item.created_at|date:"Y-m-d H:i" }}</td>
+                    <td class="small">{{ item.created_by }}</td>
+                    <td class="text-center">
+                        <a href="{% url 'withdrawal_slip_detail' item.id %}" class="btn btn-sm btn-light border" title="View Details">
+                            <i class="fas fa-eye text-muted"></i>
+                        </a>
+                        <a href="{% url 'print_withdrawal_slip' item.id %}" target="_blank" class="btn btn-sm btn-light border" title="Print">
+                            <i class="fas fa-print text-muted"></i>
+                        </a>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="9" class="text-center py-5 text-muted">No withdrawal slips found.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    
+    <div class="p-3 bg-white border-top">
+        <div class="d-flex justify-content-between align-items-center">
+            <div class="text-muted small">
+                Showing entries <span id="showingStart">1</span> to <span id="showingEnd">20</span> of <span id="totalEntries">{{ items|length }}</span>
+            </div>
+            <nav id="paginationNav">
+                <!-- Pagination injected by JS -->
+            </nav>
+        </div>
+    </div>
+</div>
+
+<!-- Withdrawal Slip Activity Logs Table -->
+<div class="inventory-card mt-4 shadow-sm border-0">
+    <div class="p-3 bg-white border-bottom d-flex justify-content-between align-items-center">
+        <div class="d-flex align-items-center">
+            <div class="icon-box me-2 rounded-circle" style="width: 32px; height: 32px;">
+                <i class="fas fa-history" style="font-size: 0.85rem;"></i>
+            </div>
+            <h6 class="mb-0 fw-bold text-pink" style="font-size: 0.9rem;">Withdrawal Slip Activity Logs</h6>
+        </div>
+        <div class="d-flex align-items-center gap-2">
+            <div class="d-flex align-items-center">
+                <label class="small text-muted me-2 mb-0">From:</label>
+                <input type="date" id="logDateStart" class="form-control form-control-sm" style="width: 140px;" value="{{ log_date_start }}">
+            </div>
+            <div class="d-flex align-items-center me-2">
+                <label class="small text-muted me-2 mb-0">To:</label>
+                <input type="date" id="logDateEnd" class="form-control form-control-sm" style="width: 140px;" value="{{ log_date_end }}">
+            </div>
+            <div class="btn-group">
+                <button type="button" class="btn btn-sm btn-outline-secondary" onclick="applyLogFilters()">
+                    <i class="fas fa-filter me-1"></i> Log Filter
+                </button>
+                <button type="button" class="btn btn-sm btn-outline-secondary" onclick="resetLogFilters()">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+    <div class="table-responsive">
+        <table class="table table-hover mb-0" id="wsLogsTable">
+            <thead>
+                <tr>
+                    <th style="width: 50px; background-color: #fdf2f8; font-size: 0.75rem; color: #e91e63;">#</th>
+                    <th style="width: 180px; background-color: #fdf2f8; font-size: 0.75rem; color: #e91e63;">Timestamp</th>
+                    <th style="width: 120px; background-color: #fdf2f8; font-size: 0.75rem; color: #e91e63;">Action</th>
+                    <th style="width: 150px; background-color: #fdf2f8; font-size: 0.75rem; color: #e91e63;">User</th>
+                    <th style="background-color: #fdf2f8; font-size: 0.75rem; color: #e91e63;">Description</th>
+                </tr>
+                <tr class="bg-light filter-row">
+                    <td></td>
+                    <td><input type="text" class="form-control form-control-sm column-filter-log" data-col="1" placeholder="Search Time..." style="font-size: 0.7rem;"></td>
+                    <td><input type="text" class="form-control form-control-sm column-filter-log" data-col="2" placeholder="Search Action..." style="font-size: 0.7rem;"></td>
+                    <td><input type="text" class="form-control form-control-sm column-filter-log" data-col="3" placeholder="Search User..." style="font-size: 0.7rem;"></td>
+                    <td><input type="text" class="form-control form-control-sm column-filter-log" data-col="4" placeholder="Search Description..." style="font-size: 0.7rem;"></td>
+                </tr>
+            </thead>
+            <tbody id="wsLogsBody">
+                {% for log in withdrawal_slip_logs %}
+                <tr>
+                    <td>{{ forloop.counter }}</td>
+                    <td class="text-muted small">{{ log.timestamp|date:"Y-m-d H:i:s" }}</td>
+                    <td>
+                        {% if log.action == 'generated' %}
+                        <span class="badge bg-info-subtle text-info extra-small border border-info-subtle">GENERATED</span>
+                        {% elif log.action == 'created' %}
+                        <span class="badge bg-info-subtle text-info extra-small border border-info-subtle">CREATED</span>
+                        {% elif log.action == 'added_material' %}
+                        <span class="badge bg-success-subtle text-success extra-small border border-success-subtle">ADDED</span>
+                        {% elif log.action == 'released' %}
+                        <span class="badge bg-success-subtle text-success extra-small border border-success-subtle">RELEASED</span>
+                        {% elif log.action == 'status_change' %}
+                        <span class="badge bg-primary-subtle text-primary extra-small border border-primary-subtle">STATUS</span>
+                        {% elif log.action == 'deleted' %}
+                        <span class="badge bg-danger-subtle text-danger extra-small border border-danger-subtle">DELETED</span>
+                        {% else %}
+                        <span class="badge bg-secondary-subtle text-secondary extra-small border border-secondary-subtle">{{ log.action|upper }}</span>
+                        {% endif %}
+                    </td>
+                    <td class="fw-bold">{{ log.user }}</td>
+                    <td class="small">{{ log.description|linebreaksbr }}</td>
+                </tr>
+                {% empty %}
+                <tr class="no-results-log">
+                    <td colspan="5" class="text-center p-4 text-muted small">No activity logs found.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    <!-- Log Pagination -->
+    <div class="p-3 bg-white border-top d-flex justify-content-between align-items-center">
+        <div class="small text-muted">
+            Showing <span id="logPaginationInfo" class="fw-bold">0</span> of <span id="logPaginationTotal" class="fw-bold">{{ withdrawal_slip_logs|length }}</span> activities
+        </div>
+        <ul class="pagination pagination-sm mb-0" id="logPaginationContainer"></ul>
+    </div>
+</div>
+
+<!-- New Slip Modal -->
+<div class="modal fade" id="newSlipModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header border-0 bg-light">
+                <h5 class="modal-title fw-bold"><i class="fas fa-file-plus me-2 text-pink"></i>Create New Withdrawal Slip</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-4">
+                <form id="newSlipForm">
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold text-muted">WIP NUMBER <span class="text-danger">*</span></label>
+                        <input type="text" name="wip" class="form-control" placeholder="WIP-XXXXX" required>
+                        <div class="form-text small">Enter the Work-In-Progress number this slip belongs to.</div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold text-muted">NAME/DESCRIPTION <span class="text-danger">*</span></label>
+                        <input type="text" name="name" class="form-control" placeholder="e.g. Materials for Client X" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold text-muted">REMARKS</label>
+                        <textarea name="remarks" class="form-control" rows="3" placeholder="Additional notes..."></textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer border-0 p-4 pt-0">
+                <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-pink btn-sm px-4" onclick="submitNewSlip()">Create Slip</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    initTableHandling();
+});
+
+function initTableHandling() {
+    const table = document.getElementById('wsTable');
+    const filters = document.querySelectorAll('.table-filter');
+    const selectAll = document.getElementById('selectAll');
+    const rowCheckboxes = document.querySelectorAll('.row-checkbox');
+    const selectedCount = document.getElementById('selectedCount');
+
+    // Filter Logic
+    filters.forEach(filter => {
+        filter.addEventListener('input', function() {
+            const val = this.value.toLowerCase();
+            const colIndex = parseInt(this.dataset.col);
+            const rows = table.querySelectorAll('tbody tr');
+            
+            rows.forEach(row => {
+                if (row.cells.length < colIndex) return;
+                const text = row.cells[colIndex].textContent.toLowerCase();
+                row.style.display = text.includes(val) ? '' : 'none';
+            });
+            updatePaginationInfo();
+        });
+    });
+
+    // Selection Logic
+    selectAll.addEventListener('change', function() {
+        rowCheckboxes.forEach(cb => {
+            if (cb.closest('tr').style.display !== 'none') {
+                cb.checked = this.checked;
+            }
+        });
+        updateSelectionCount();
+    });
+
+    rowCheckboxes.forEach(cb => {
+        cb.addEventListener('change', updateSelectionCount);
+    });
+
+    function updateSelectionCount() {
+        const count = Array.from(rowCheckboxes).filter(cb => cb.checked).length;
+        selectedCount.textContent = count;
+    }
+    
+    initSorting('wsTable');
+    initPagination(20);
+}
+
+function initSorting(tableId) {
+    const table = document.getElementById(tableId);
+    let sortDirection = 1; // 1 for asc, -1 for desc
+
+    table.querySelectorAll('th.sortable').forEach((header, index) => {
+        // Adjust index for "selectAll" column if checking the actual row cells
+        const cellIndex = index + 1; 
+
+        header.addEventListener('click', () => {
+            const tbody = table.querySelector('tbody');
+            const rowsArray = Array.from(tbody.querySelectorAll('tr:not(.no-results-log)'));
+
+            // Reset other headers
+            table.querySelectorAll('th.sortable i').forEach(icon => {
+                icon.className = 'fas fa-sort';
+            });
+
+            // Set current header icon direction
+            const icon = header.querySelector('i');
+            if (sortDirection === 1) {
+                icon.className = 'fas fa-sort-up text-pink';
+            } else {
+                icon.className = 'fas fa-sort-down text-pink';
+            }
+            
+            rowsArray.sort((a, b) => {
+                let textA = a.cells[cellIndex].textContent.trim();
+                let textB = b.cells[cellIndex].textContent.trim();
+
+                // Helper to extract numbers for Slip ID or '#'
+                const extractNumber = (str) => {
+                    const match = str.match(/\d+/);
+                    return match ? parseInt(match[0], 10) : 0;
+                };
+
+                // Check type of content to sort correctly
+                if (header.textContent.includes('#') || header.textContent.includes('Slip ID')) {
+                    textA = extractNumber(textA);
+                    textB = extractNumber(textB);
+                } else if (!isNaN(Date.parse(textA)) && !isNaN(Date.parse(textB))) {
+                    textA = new Date(textA).getTime();
+                    textB = new Date(textB).getTime();
+                } else {
+                    textA = textA.toLowerCase();
+                    textB = textB.toLowerCase();
+                }
+
+                if (textA < textB) return -1 * sortDirection;
+                if (textA > textB) return 1 * sortDirection;
+                return 0;
+            });
+
+            // Re-append sorted rows to tbody
+            rowsArray.forEach(row => tbody.appendChild(row));
+            
+            // Toggle direction for next click
+            sortDirection *= -1;
+            
+            // Re-apply pagination to current sorted state
+            const rowsPerPage = 20;
+            const totalRows = rowsArray.length;
+            const totalPages = Math.ceil(totalRows / rowsPerPage);
+            const currentPageStart = parseInt(document.getElementById('showingStart').textContent) || 1;
+            const currentPage = Math.ceil(currentPageStart / rowsPerPage) || 1;
+            
+            // Refresh pagination UI
+            if(window.changePage) {
+                window.changePage(currentPage);
+            }
+        });
+    });
+}
+
+function initPagination(rowsPerPage) {
+    const table = document.getElementById('wsTable');
+    const tbody = table.querySelector('tbody');
+    const rows = Array.from(tbody.querySelectorAll('tr'));
+    const totalRows = rows.length;
+    const totalPages = Math.ceil(totalRows / rowsPerPage);
+    let currentPage = 1;
+
+    function showPage(page) {
+        const start = (page - 1) * rowsPerPage;
+        const end = start + rowsPerPage;
+        
+        rows.forEach((row, index) => {
+            row.style.display = (index >= start && index < end) ? '' : 'none';
+        });
+        
+        document.getElementById('showingStart').textContent = totalRows > 0 ? start + 1 : 0;
+        document.getElementById('showingEnd').textContent = Math.min(end, totalRows);
+        renderPaginationButtons(page, totalPages);
+    }
+
+    function renderPaginationButtons(current, total) {
+        const nav = document.getElementById('paginationNav');
+        nav.innerHTML = '';
+        if (total <= 1) return;
+
+        const ul = document.createElement('ul');
+        ul.className = 'pagination pagination-sm mb-0';
+
+        // Prev
+        const prevLi = document.createElement('li');
+        prevLi.className = `page-item ${current === 1 ? 'disabled' : ''}`;
+        prevLi.innerHTML = `<a class="page-link" href="#" onclick="changePage(${current - 1})"><i class="fas fa-chevron-left"></i></a>`;
+        ul.appendChild(prevLi);
+
+        // Pages
+        for (let i = 1; i <= total; i++) {
+            const li = document.createElement('li');
+            li.className = `page-item ${i === current ? 'active' : ''}`;
+            li.innerHTML = `<a class="page-link" href="#" onclick="changePage(${i})">${i}</a>`;
+            ul.appendChild(li);
+        }
+
+        // Next
+        const nextLi = document.createElement('li');
+        nextLi.className = `page-item ${current === total ? 'disabled' : ''}`;
+        nextLi.innerHTML = `<a class="page-link" href="#" onclick="changePage(${current + 1})"><i class="fas fa-chevron-right"></i></a>`;
+        ul.appendChild(nextLi);
+
+        nav.appendChild(ul);
+    }
+
+    window.changePage = function(page) {
+        if (page < 1 || page > totalPages) return;
+        currentPage = page;
+        showPage(currentPage);
+    };
+
+    showPage(1);
+}
+
+function applyFilters() {
+    const start = document.getElementById('dateStart').value;
+    const end = document.getElementById('dateEnd').value;
+    const status = document.getElementById('statusFilter').value;
+    
+    let url = new URL(window.location.href);
+    if (start) url.searchParams.set('date_start', start); else url.searchParams.delete('date_start');
+    if (end) url.searchParams.set('date_end', end); else url.searchParams.delete('date_end');
+    if (status) url.searchParams.set('status', status); else url.searchParams.delete('status');
+    
+    // Reset to page 1 on filter
+    url.searchParams.delete('page');
+    window.location.href = url.href;
+}
+
+function filterByStatus(status) {
+    let url = new URL(window.location.href);
+    if (status) url.searchParams.set('status', status); else url.searchParams.delete('status');
+    url.searchParams.delete('page');
+    window.location.href = url.href;
+}
+
+function resetFilters() {
+    window.location.href = "{% url 'withdrawal_slips' %}";
+}
+
+function submitNewSlip() {
+    const form = document.getElementById('newSlipForm');
+    const formData = new FormData(form);
+    const data = Object.fromEntries(formData.entries());
+
+    fetch("{% url 'create_withdrawal_slip_ajax' %}", {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json",
+            "X-CSRFToken": "{{ csrf_token }}"
+        },
+        body: JSON.stringify(data)
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.success) {
+            window.location.href = `/withdrawal-slip/${data.id}/`;
+        } else {
+            alert("Error: " + data.message);
+        }
+    });
+}
+
+function applyLogFilters() {
+    const start = document.getElementById('logDateStart').value;
+    const end = document.getElementById('logDateEnd').value;
+    const url = new URL(window.location.href);
+    if (start) url.searchParams.set('log_date_start', start);
+    else url.searchParams.delete('log_date_start');
+    if (end) url.searchParams.set('log_date_end', end);
+    else url.searchParams.delete('log_date_end');
+    url.searchParams.delete('page'); // Reset main page if needed, though they are independent
+    window.location.href = url.href;
+}
+
+function resetLogFilters() {
+    const url = new URL(window.location.href);
+    url.searchParams.delete('log_date_start');
+    url.searchParams.delete('log_date_end');
+    window.location.href = url.href;
+}
+
+// Log Pagination/Filtering Logic
+document.addEventListener('DOMContentLoaded', function() {
+    const logTbody = document.getElementById('wsLogsBody');
+    if (!logTbody) return;
+
+    let currentLogPage = 1;
+    const logsPerPage = 10;
+    const logPaginationContainer = document.getElementById('logPaginationContainer');
+    const logPaginationInfo = document.getElementById('logPaginationInfo');
+    const logPaginationTotal = document.getElementById('logPaginationTotal');
+    const allLogRows = Array.from(logTbody.querySelectorAll('tr:not(.no-results-log)'));
+    let filteredLogRows = [...allLogRows];
+
+    function filterLogs() {
+        const filterInputs = document.querySelectorAll('.column-filter-log');
+        filteredLogRows = allLogRows.filter(row => {
+            let matches = true;
+            filterInputs.forEach(input => {
+                const colIdx = parseInt(input.getAttribute('data-col'));
+                const filterVal = input.value.toLowerCase().trim();
+                if (filterVal) {
+                    const cellText = row.cells[colIdx] ? row.cells[colIdx].textContent.toLowerCase().trim() : '';
+                    if (cellText.indexOf(filterVal) === -1) {
+                        matches = matches && false; // Using boolean logic
+                        matches = false;
+                    }
+                }
+            });
+            return matches;
+        });
+        currentLogPage = 1;
+        updateLogsView();
+    }
+
+    document.querySelectorAll('.column-filter-log').forEach(input => {
+        input.addEventListener('input', filterLogs);
+    });
+
+    function updateLogsView() {
+        if (filteredLogRows.length === 0) {
+            logTbody.querySelectorAll('tr').forEach(row => row.style.display = 'none');
+            const existingNoResults = logTbody.querySelector('.no-results-log');
+            if (existingNoResults) existingNoResults.remove();
+            const noResults = document.createElement('tr');
+            noResults.className = 'no-results-log';
+            noResults.innerHTML = `<td colspan="5" class="text-center p-4 text-muted small">No matching activity logs found.</td>`;
+            logTbody.appendChild(noResults);
+            if (logPaginationInfo) logPaginationInfo.textContent = '0';
+            if (logPaginationTotal) logPaginationTotal.textContent = '0';
+            logPaginationContainer.innerHTML = '';
+            return;
+        }
+        const existingNoResults = logTbody.querySelector('.no-results-log');
+        if (existingNoResults) existingNoResults.remove();
+        allLogRows.forEach(row => row.style.display = 'none');
+        const start = (currentLogPage - 1) * logsPerPage;
+        const end = start + logsPerPage;
+        const pageRows = filteredLogRows.slice(start, end);
+        pageRows.forEach(row => row.style.display = '');
+        const rowStart = start + 1;
+        const rowEnd = Math.min(end, filteredLogRows.length);
+        if (logPaginationInfo) logPaginationInfo.textContent = `${rowStart}-${rowEnd}`;
+        if (logPaginationTotal) logPaginationTotal.textContent = filteredLogRows.length;
+        buildLogPagination();
+    }
+
+    function buildLogPagination() {
+        logPaginationContainer.innerHTML = '';
+        const totalPages = Math.ceil(filteredLogRows.length / logsPerPage);
+        if (totalPages <= 1) return;
+        
+        const createPageItem = (label, page, active = false, disabled = false) => {
+            const li = document.createElement('li');
+            li.className = `page-item ${active ? 'active' : ''} ${disabled ? 'disabled' : ''}`;
+            li.innerHTML = `<a class="page-link" href="#" style="padding: 0.25rem 0.5rem; font-size: 0.75rem;">${label}</a>`;
+            li.onclick = (e) => {
+                e.preventDefault();
+                if (!disabled && currentLogPage !== page) {
+                    currentLogPage = page;
+                    updateLogsView();
+                }
+            };
+            return li;
+        };
+        
+        logPaginationContainer.appendChild(createPageItem('&laquo;', currentLogPage - 1, false, currentLogPage === 1));
+        for (let i = 1; i <= totalPages; i++) {
+            if (i === 1 || i === totalPages || (i >= currentLogPage - 2 && i <= currentLogPage + 2)) {
+                logPaginationContainer.appendChild(createPageItem(i, i, i === currentLogPage));
+            } else if (i === currentLogPage - 3 || i === currentLogPage + 3) {
+                const dots = document.createElement('li');
+                dots.className = 'page-item disabled';
+                dots.innerHTML = '<span class="page-link" style="padding: 0.25rem 0.5rem; font-size: 0.75rem;">...</span>';
+                logPaginationContainer.appendChild(dots);
+            }
+        }
+        logPaginationContainer.appendChild(createPageItem('&raquo;', currentLogPage + 1, false, currentLogPage === totalPages));
+    }
+
+    updateLogsView();
+});
+</script>
+
+<style>
+    .icon-box {
+        background: transparent;
+        color: #e91e63;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+    }
+    .btn-pink {
+        background-color: #e91e63;
+        border-color: #e91e63;
+        color: #fff;
+    }
+    .btn-pink:hover {
+        background-color: #d81b60;
+        border-color: #d81b60;
+        color: #fff;
+    }
+    .text-pink { color: #e91e63 !important; }
+    .stat-card-active { border-left: 4px solid #e91e63 !important; }
+    .pagination .page-item.active .page-link {
+        background-color: #e91e63;
+        border-color: #e91e63;
+    }
+    .pagination .page-link { color: #e91e63; }
+</style>
+{% endblock %}

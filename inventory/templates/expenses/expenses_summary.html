@@ -1,0 +1,895 @@
+{% extends 'core/base.html' %}
+{% load static humanize %}
+
+{% block title %}Expenses Summary - The Potter's House{% endblock %}
+
+{% block extra_css %}
+<style>
+    .stat-card {
+        background: white;
+        border-radius: 12px;
+        padding: 1.5rem;
+        box-shadow: 0 2px 12px rgba(0,0,0,0.04);
+        border: 1px solid rgba(0,0,0,0.05);
+        height: 100%;
+        transition: all 0.3s ease;
+    }
+    .stat-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 8px 15px rgba(0,0,0,0.1);
+    }
+    .stat-icon {
+        width: 48px;
+        height: 48px;
+        border-radius: 10px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.5rem;
+        margin-bottom: 1rem;
+    }
+    .bg-light-pink { background-color: #fff1f2; color: #ff3366; }
+    .bg-light-blue { background-color: #f0f9ff; color: #0ea5e9; }
+    .bg-light-green { background-color: #f0fdf4; color: #22c55e; }
+    .bg-light-amber { background-color: #fffbeb; color: #f59e0b; }
+    
+    .text-pink { color: #ff3366; }
+    
+    .sortable { cursor: pointer; position: relative; padding-right: 25px !important; transition: background-color 0.2s; }
+    .sortable:hover { background-color: #fff1f2 !important; }
+    .sortable i { position: absolute; right: 8px; top: 50%; transform: translateY(-50%); opacity: 0.2; font-size: 0.75rem; transition: all 0.2s; }
+    .sortable.asc i.fa-sort-up, .sortable.desc i.fa-sort-down { opacity: 1; color: #ff3366; }
+    .sortable.asc i.fa-sort, .sortable.desc i.fa-sort { display: none; }
+    .sortable:not(.asc):not(.desc) i.fa-sort-up, .sortable:not(.asc):not(.desc) i.fa-sort-down { display: none; }
+    
+    .filter-row input {
+        padding: 0.25rem 0.5rem;
+        font-size: 0.8rem;
+        border-radius: 4px;
+        border: 1px solid #dee2e6;
+        width: 100%;
+    }
+
+    .tool-bar {
+        background: white;
+        border-bottom: 1px solid #eee;
+        padding: 1rem;
+    }
+    .icon-box {
+        width: 32px;
+        height: 32px;
+        background: #fff1f2;
+        color: #ff3366;
+        border-radius: 6px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        margin-right: 8px;
+        transition: all 0.2s;
+        border: none;
+    }
+    .icon-box:hover {
+        background: #ff3366;
+        color: white;
+    }
+    
+    .clickable-date { 
+        cursor: pointer; 
+        color: #ff3366; 
+        text-decoration: underline;
+        font-weight: 600;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid p-0">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h4 class="fw-bold mb-1">Expenses Summary</h4>
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb small mb-0">
+                    <li class="breadcrumb-item"><a href="/" class="text-decoration-none text-muted">Dashboard</a></li>
+                    <li class="breadcrumb-item"><a href="{% url 'expenses' %}" class="text-decoration-none text-muted">All Expenses</a></li>
+                    <li class="breadcrumb-item active fw-bold text-primary">Daily Summaries</li>
+                </ol>
+            </nav>
+        </div>
+        <button type="button" class="btn d-flex align-items-center gap-2 px-3 shadow-sm" data-bs-toggle="modal" data-bs-target="#newSummaryModal" style="background-color: #e92487ff;">
+            <i class="fas fa-plus text-white"></i>
+            <span class="text-white">New Summary</span>
+        </button>
+    </div>
+
+    <!-- Quick Stats -->
+    <div class="row g-3 mb-4">
+        <div class="col-md-3">
+            <div class="stat-card">
+                <div class="stat-icon bg-light-pink">
+                    <i class="fas fa-wallet"></i>
+                </div>
+                <div class="text-muted small mb-1">Total Cash from Chin Yu</div>
+                <h3 class="fw-bold mb-0 text-pink">₱ {{ total_chin_yu|floatformat:2|intcomma }}</h3>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stat-card">
+                <div class="stat-icon bg-light-blue">
+                    <i class="fas fa-hand-holding-usd"></i>
+                </div>
+                <div class="text-muted small mb-1">Total Reimbursements</div>
+                <h3 class="fw-bold mb-0 text-primary">₱ {{ total_reimbursement|floatformat:2|intcomma }}</h3>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stat-card">
+                <div class="stat-icon bg-light-amber">
+                    <i class="fas fa-coins"></i>
+                </div>
+                <div class="text-muted small mb-1">Total Others</div>
+                <h3 class="fw-bold mb-0 text-warning">₱ {{ total_others|floatformat:2|intcomma }}</h3>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stat-card">
+                <div class="stat-icon bg-light-green">
+                    <i class="fas fa-calendar-check"></i>
+                </div>
+                <div class="text-muted small mb-1">Recorded Days</div>
+                <h3 class="fw-bold mb-0 text-success">{{ items|length }} <small class="fs-6 text-muted">days</small></h3>
+            </div>
+        </div>
+    </div>
+
+    <div class="inventory-card shadow-sm border-0 overflow-hidden">
+        <!-- Toolbar for Date Filters and Export -->
+        <div class="p-3 bg-white border-bottom tool-bar">
+            <div class="d-flex justify-content-between align-items-center">
+                <div class="d-flex align-items-center">
+                    <div class="text-muted small me-3" id="selectionInfo">
+                        <span id="selectedCount" class="fw-bold">0</span> item(s) selected
+                    </div>
+                    <div class="d-flex align-items-center me-2">
+                        <label class="small text-muted me-2 mb-0">From:</label>
+                        <input type="date" id="dateStart" class="form-control form-control-sm" style="width: 140px;" value="{{ date_start }}">
+                    </div>
+                    <div class="d-flex align-items-center me-3">
+                        <label class="small text-muted me-2 mb-0">To:</label>
+                        <input type="date" id="dateEnd" class="form-control form-control-sm" style="width: 140px;" value="{{ date_end }}">
+                    </div>
+                    <div class="btn-group me-3">
+                        <button type="button" class="btn btn-sm btn-outline-secondary" onclick="applyDateFilter()">
+                            <span class="icon-box" style="width: 20px; height: 20px; margin-right: 4px; border-radius: 4px;">
+                                <i class="fas fa-filter" style="font-size: 0.7rem;"></i>
+                            </span>
+                            Filter
+                        </button>
+                        <button type="button" class="btn btn-sm btn-outline-secondary" onclick="clearDateFilter()" style="padding-left: 6px; padding-right: 6px;">
+                            <span class="icon-box" style="width: 20px; height: 20px; margin-right: 0; border-radius: 4px;">
+                                <i class="fas fa-times" style="font-size: 0.7rem;"></i>
+                            </span>
+                        </button>
+                    </div>
+                    <div class="text-muted small">
+                        Showing <span id="paginationInfoTop">0</span> of {{ items|length }} items
+                    </div>
+                </div>
+                <div class="d-flex gap-2">
+                    <div class="dropdown">
+                        <button class="btn btn-outline-secondary btn-sm dropdown-toggle shadow-sm" type="button" id="exportDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                            <i class="fas fa-file-export me-1"></i> Export
+                        </button>
+                        <ul class="dropdown-menu dropdown-menu-end shadow border-0" aria-labelledby="exportDropdown">
+                            <li><a class="dropdown-item py-2" href="#" onclick="exportData('csv')"><i class="fas fa-file-csv text-success me-2 fa-lg w-20 text-center"></i> CSV Format</a></li>
+                            <li><a class="dropdown-item py-2" href="#" onclick="exportData('json')"><i class="fas fa-file-code text-info me-2 fa-lg w-20 text-center"></i> JSON Format</a></li>
+                            <li><a class="dropdown-item py-2" href="#" onclick="exportData('excel')"><i class="fas fa-file-excel text-success me-2 fa-lg w-20 text-center"></i> Excel Format</a></li>
+                            <li><a class="dropdown-item py-2" href="#" onclick="exportData('pdf')"><i class="fas fa-file-pdf text-danger me-2 fa-lg w-20 text-center"></i> PDF Format</a></li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Summary Table -->
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0" id="summariesTable">
+                <thead class="bg-light">
+                    <tr>
+                        <th style="width: 40px;">
+                            <input type="checkbox" id="selectAll" class="form-check-input">
+                        </th>
+                        <th style="width: 60px;">#</th>
+                        <th class="sortable" onclick="sortTable(2)">DATE <i class="fas fa-sort"></i><i class="fas fa-sort-up"></i><i class="fas fa-sort-down"></i></th>
+                        <th class="sortable" onclick="sortTable(3)">CASH FROM CHIN YU <i class="fas fa-sort"></i><i class="fas fa-sort-up"></i><i class="fas fa-sort-down"></i></th>
+                        <th class="sortable" onclick="sortTable(4)">TRANS. BY CHIN YU <i class="fas fa-sort"></i><i class="fas fa-sort-up"></i><i class="fas fa-sort-down"></i></th>
+                        <th class="sortable" onclick="sortTable(5)">REIMBURSEMENT <i class="fas fa-sort"></i><i class="fas fa-sort-up"></i><i class="fas fa-sort-down"></i></th>
+                        <th class="sortable" onclick="sortTable(6)">OTHERS <i class="fas fa-sort"></i><i class="fas fa-sort-up"></i><i class="fas fa-sort-down"></i></th>
+                        <th class="sortable" onclick="sortTable(7)">UPDATED BY <i class="fas fa-sort"></i><i class="fas fa-sort-up"></i><i class="fas fa-sort-down"></i></th>
+                        <th class="sortable" onclick="sortTable(8)">LAST UPDATED <i class="fas fa-sort"></i><i class="fas fa-sort-up"></i><i class="fas fa-sort-down"></i></th>
+                    </tr>
+                    <tr class="filter-row bg-white border-bottom">
+                        <td></td>
+                        <td></td>
+                        <td><input type="text" onkeyup="updateFilters()" placeholder="Filter date..."></td>
+                        <td><input type="text" onkeyup="updateFilters()" placeholder="Filter amount..."></td>
+                        <td><input type="text" onkeyup="updateFilters()" placeholder="Filter transaction..."></td>
+                        <td><input type="text" onkeyup="updateFilters()" placeholder="Filter reimburse..."></td>
+                        <td><input type="text" onkeyup="updateFilters()" placeholder="Filter others..."></td>
+                        <td><input type="text" onkeyup="updateFilters()" placeholder="Filter user..."></td>
+                        <td><input type="text" onkeyup="updateFilters()" placeholder="Filter time..."></td>
+                    </tr>
+                </thead>
+                <tbody id="tableBody">
+                    {% for item in items %}
+                    <tr class="summary-row">
+                        <td>
+                            <input type="checkbox" class="form-check-input row-checkbox" value="{{ item.id }}">
+                        </td>
+                        <td class="text-muted small row-counter">{{ forloop.counter }}</td>
+                        <td class="fw-bold clickable-date" 
+                            data-bs-toggle="modal" 
+                            data-bs-target="#updateSummaryModal"
+                            data-id="{{ item.id }}"
+                            data-date="{{ item.date|date:'Y-m-d' }}"
+                            data-cash="{{ item.cash_from_chin_yu|floatformat:2 }}"
+                            data-trans="{{ item.transaction_by_chin_yu|floatformat:2 }}"
+                            data-reimb="{{ item.cash_reimbursement|floatformat:2 }}"
+                            data-others="{{ item.others|floatformat:2 }}"
+                            >{{ item.date|date:"Y-m-d" }}</td>
+                        <td class="fw-bold">₱ {{ item.cash_from_chin_yu|floatformat:2|intcomma }}</td>
+                        <td class="text-muted">₱ {{ item.transaction_by_chin_yu|floatformat:2|intcomma }}</td>
+                        <td class="text-primary fw-bold">₱ {{ item.cash_reimbursement|floatformat:2|intcomma }}</td>
+                        <td class="text-warning">₱ {{ item.others|floatformat:2|intcomma }}</td>
+                        <td><span class="badge bg-light text-dark border">{{ item.updated_by }}</span></td>
+                        <td class="small text-muted">{{ item.datetime_updated|date:"Y-m-d H:i:s" }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr id="noResults">
+                        <td colspan="9" class="text-center py-5">
+                            <i class="fas fa-info-circle fa-3x mb-3 text-muted opacity-25"></i>
+                            <p class="text-muted">No expense summaries found.</p>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Footer / Pagination -->
+        <div class="p-3 bg-white border-top d-flex justify-content-between align-items-center">
+            <div class="small text-muted" id="paginationInfo">
+                Showing <span class="fw-bold">0-0</span> of <span class="fw-bold">0</span> entries
+            </div>
+            <ul class="pagination pagination-sm mb-0 shadow-sm" id="paginationContainer"></ul>
+        </div>
+    </div>
+</div>
+
+<!-- New Summary Modal -->
+<div class="modal fade" id="newSummaryModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg">
+            <div class="modal-header text-white" style="background-color: #e92487ff;">
+                <h5 class="modal-title text-white"><i class="fas fa-plus-circle me-2"></i>New Daily Summary</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST" action="{% url 'expenses_summary' %}">
+                {% csrf_token %}
+                <div class="modal-body p-4 bg-light">
+                    <div class="row g-3">
+                        <div class="col-12">
+                            <label class="form-label small fw-bold text-muted text-uppercase">Date</label>
+                            <input type="date" name="date" class="form-control" required value="{{ now|date:'Y-m-d' }}">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small fw-bold text-muted text-uppercase">Cash from Chin Yu</label>
+                            <div class="input-group">
+                                <span class="input-group-text bg-white">₱</span>
+                                <input type="number" step="0.01" name="cash_from_chin_yu" class="form-control" value="0.00">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small fw-bold text-muted text-uppercase">Transaction by Chin Yu</label>
+                            <div class="input-group">
+                                <span class="input-group-text bg-white">₱</span>
+                                <input type="number" step="0.01" name="transaction_by_chin_yu" class="form-control" value="0.00">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small fw-bold text-muted text-uppercase">Cash Reimbursement</label>
+                            <div class="input-group">
+                                <span class="input-group-text bg-white">₱</span>
+                                <input type="number" step="0.01" name="cash_reimbursement" class="form-control" value="0.00">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small fw-bold text-muted text-uppercase">Others</label>
+                            <div class="input-group">
+                                <span class="input-group-text bg-white">₱</span>
+                                <input type="number" step="0.01" name="others" class="form-control" value="0.00">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer p-3 bg-white border-top-0">
+                    <button type="button" class="btn btn-outline-secondary px-4" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary px-4 shadow">Save Summary</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Update Summary Modal -->
+<div class="modal fade" id="updateSummaryModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg">
+            <div class="modal-header text-white" style="background-color: #e92487ff;">
+                <h5 class="modal-title text-white"><i class="fas fa-edit me-2"></i>Update Summary</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="updateSummaryForm" method="POST">
+                {% csrf_token %}
+                <div class="modal-body p-4 bg-light">
+                    <div class="row g-3">
+                        <input type="hidden" id="update_id">
+                        <div class="col-12">
+                            <label class="form-label small fw-bold text-muted text-uppercase">Date</label>
+                            <input type="date" name="date" id="update_date" class="form-control" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small fw-bold text-muted text-uppercase">Cash from Chin Yu</label>
+                            <div class="input-group">
+                                <span class="input-group-text bg-white">₱</span>
+                                <input type="number" step="0.01" name="cash_from_chin_yu" id="update_cash" class="form-control">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small fw-bold text-muted text-uppercase">Transaction by Chin Yu</label>
+                            <div class="input-group">
+                                <span class="input-group-text bg-white">₱</span>
+                                <input type="number" step="0.01" name="transaction_by_chin_yu" id="update_trans" class="form-control">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small fw-bold text-muted text-uppercase">Cash Reimbursement</label>
+                            <div class="input-group">
+                                <span class="input-group-text bg-white">₱</span>
+                                <input type="number" step="0.01" name="cash_reimbursement" id="update_reimb" class="form-control">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small fw-bold text-muted text-uppercase">Others</label>
+                            <div class="input-group">
+                                <span class="input-group-text bg-white">₱</span>
+                                <input type="number" step="0.01" name="others" id="update_others" class="form-control">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer p-3 bg-white border-top-0">
+                    <div class="ms-auto">
+                        <button type="button" class="btn btn-outline-secondary px-4 border-0" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn btn-primary px-4 shadow-sm" style="background-color: #e92487ff; border: none;">Update Changes</button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Expense Summary Activity Logs Table -->
+<div class="inventory-card mt-4">
+    <div class="inventory-card-header bg-light py-2 px-3 border-bottom d-flex justify-content-between align-items-center">
+        <div class="d-flex align-items-center">
+            <div class="icon-box" style="width: 28px; height: 28px; background-color: #fdf2f8; color: #e91e63; border-radius: 6px; display: flex; align-items: center; justify-content: center; margin-right: 10px; border: 1px solid #fbcfe8;">
+                <i class="fas fa-history" style="font-size: 0.8rem;"></i>
+            </div>
+            <h6 class="mb-0 fw-bold text-pink" style="font-size: 0.85rem; color: #e91e63;">Expenses Summary Activity Logs</h6>
+        </div>
+        <div class="d-flex align-items-center gap-2">
+            <div class="d-flex align-items-center">
+                <label class="extra-small text-muted me-1 mb-0" style="font-size: 0.65rem;">From:</label>
+                <input type="date" id="logDateStart" class="form-control form-control-sm" style="width: 120px; font-size: 0.7rem; height: 26px;" value="{{ log_date_start }}">
+            </div>
+            <div class="d-flex align-items-center">
+                <label class="extra-small text-muted me-1 mb-0" style="font-size: 0.65rem;">To:</label>
+                <input type="date" id="logDateEnd" class="form-control form-control-sm" style="width: 120px; font-size: 0.7rem; height: 26px;" value="{{ log_date_end }}">
+            </div>
+            <div class="btn-group">
+                <button type="button" class="btn btn-sm btn-outline-secondary" style="font-size: 0.7rem;" onclick="applyLogDateFilter()">
+                    <span class="icon-box" style="width: 18px; height: 18px; margin-right: 3px; border-radius: 3px;">
+                        <i class="fas fa-filter" style="font-size: 0.65rem;"></i>
+                    </span>
+                    Filter
+                </button>
+                <button type="button" class="btn btn-sm btn-outline-secondary" style="font-size: 0.7rem; padding-left: 4px; padding-right: 4px;" onclick="clearLogDateFilter()">
+                    <span class="icon-box" style="width: 18px; height: 18px; margin-right: 0; border-radius: 3px;">
+                        <i class="fas fa-times" style="font-size: 0.65rem;"></i>
+                    </span>
+                </button>
+            </div>
+        </div>
+    </div>
+    <div class="table-responsive">
+        <table class="table table-hover mb-0" id="expenseLogsTable">
+            <thead>
+                <tr>
+                    <th style="width: 40px;">#</th>
+                    <th style="width: 180px;">Timestamp</th>
+                    <th style="width: 100px;">Action</th>
+                    <th style="width: 120px;">User</th>
+                    <th>Description</th>
+                </tr>
+                <tr class="bg-light filter-row">
+                    <td></td>
+                    <td><input type="text" class="form-control form-control-sm column-filter-log" data-column="1" placeholder="Timestamp" style="font-size: 0.7rem; height: 24px;"></td>
+                    <td><input type="text" class="form-control form-control-sm column-filter-log" data-column="2" placeholder="Action" style="font-size: 0.7rem; height: 24px;"></td>
+                    <td><input type="text" class="form-control form-control-sm column-filter-log" data-column="3" placeholder="User" style="font-size: 0.7rem; height: 24px;"></td>
+                    <td><input type="text" class="form-control form-control-sm column-filter-log" data-column="4" placeholder="Description" style="font-size: 0.7rem; height: 24px;"></td>
+                </tr>
+            </thead>
+            <tbody id="expenseLogsBody">
+                {% for log in activity_logs %}
+                <tr>
+                    <td>{{ forloop.counter }}</td>
+                    <td class="text-muted small">{{ log.timestamp|date:"Y-m-d H:i:s" }}</td>
+                    <td>
+                        {% if log.action == 'created' %}
+                        <span class="badge bg-success-subtle text-success extra-small border border-success-subtle" style="font-size: 0.6rem;">CREATED</span>
+                        {% elif log.action == 'updated' %}
+                        <span class="badge bg-primary-subtle text-primary extra-small border border-primary-subtle" style="font-size: 0.6rem;">UPDATED</span>
+                        {% elif log.action == 'deleted' %}
+                        <span class="badge bg-danger-subtle text-danger extra-small border border-danger-subtle" style="font-size: 0.6rem;">DELETED</span>
+                        {% else %}
+                        <span class="badge bg-secondary-subtle text-secondary extra-small border border-secondary-subtle" style="font-size: 0.6rem;">{{ log.action|upper }}</span>
+                        {% endif %}
+                    </td>
+                    <td class="small">{{ log.user }}</td>
+                    <td class="small text-muted" style="white-space: pre-line; line-height: 1.4;">{{ log.description }}</td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="5" class="text-center p-4 text-muted small">No activity logs found.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    <!-- Pagination for logs -->
+    <div class="p-3 bg-white border-top d-flex justify-content-between align-items-center">
+        <div class="small text-muted">
+            Showing <span id="logPaginationInfo" class="fw-bold">0</span> of <span id="logPaginationTotal" class="fw-bold">0</span> entries
+        </div>
+        <ul class="pagination pagination-sm mb-0" id="logPaginationContainer"></ul>
+    </div>
+</div>
+
+<!-- Forms for actions -->
+<form id="deleteSummaryForm" method="POST" style="display: none;">
+    {% csrf_token %}
+</form>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+    let rows = [];
+    let currentPage = 1;
+    const itemsPerPage = 20;
+    let filteredItems = [];
+
+    document.addEventListener('DOMContentLoaded', function() {
+        // Collect data
+        const tableRows = document.querySelectorAll('.summary-row');
+        tableRows.forEach(row => {
+            const cells = row.querySelectorAll('td');
+            rows.push({
+                element: row,
+                data: Array.from(cells).map(c => c.textContent.trim().toLowerCase()),
+                date: row.querySelector('[data-date]').dataset.date,
+                checkbox: row.querySelector('.row-checkbox')
+            });
+        });
+
+        updateFilters();
+
+        // Modal population
+        const updateModal = document.getElementById('updateSummaryModal');
+        if (updateModal) {
+            updateModal.addEventListener('show.bs.modal', function (event) {
+                const button = event.relatedTarget;
+                const id = button.dataset.id;
+                
+                document.getElementById('update_id').value = id;
+                document.getElementById('update_date').value = button.dataset.date;
+                document.getElementById('update_cash').value = button.dataset.cash.replace(/,/g, '');
+                document.getElementById('update_trans').value = button.dataset.trans.replace(/,/g, '');
+                document.getElementById('update_reimb').value = button.dataset.reimb.replace(/,/g, '');
+                document.getElementById('update_others').value = button.dataset.others.replace(/,/g, '');
+                
+                document.getElementById('updateSummaryForm').action = `/api/expenses-summary/update/${id}/`;
+            });
+        }
+
+        // Select All handler
+        const selectAll = document.getElementById('selectAll');
+        if (selectAll) {
+            selectAll.addEventListener('change', function() {
+                const isChecked = this.checked;
+                filteredItems.forEach(row => {
+                    if (row.element.style.display !== 'none') {
+                        row.checkbox.checked = isChecked;
+                    }
+                });
+                updateSelectedCount();
+            });
+        }
+
+        // Row checkbox delegate
+        document.getElementById('tableBody').addEventListener('change', function(e) {
+            if (e.target.classList.contains('row-checkbox')) {
+                updateSelectedCount();
+            }
+        });
+    });
+
+    function updateSelectedCount() {
+        const checkedCount = document.querySelectorAll('.row-checkbox:checked').length;
+        document.getElementById('selectedCount').textContent = checkedCount;
+    }
+
+    function applyDateFilter() {
+        const start = document.getElementById('dateStart').value;
+        const end = document.getElementById('dateEnd').value;
+        let url = window.location.pathname + '?';
+        if (start) url += 'date_start=' + start + '&';
+        if (end) url += 'date_end=' + end;
+        window.location.href = url;
+    }
+
+    function clearDateFilter() {
+        window.location.href = window.location.pathname;
+    }
+
+    function updateFilters() {
+        const filterInputs = document.querySelectorAll('.filter-row input');
+        const searchTerms = Array.from(filterInputs).map(i => i.value.toLowerCase());
+        
+        filteredItems = rows.filter(row => {
+            return searchTerms.every((term, index) => {
+                if (!term) return true;
+                return row.data[index+2].includes(term); // +2 because checkbox=0, #=1
+            });
+        });
+
+        renderTable(filteredItems);
+    }
+
+    function renderTable(data) {
+        const start = (currentPage - 1) * itemsPerPage;
+        const end = start + itemsPerPage;
+        const tbody = document.getElementById('tableBody');
+        
+        rows.forEach(r => r.element.style.display = 'none');
+        
+        const pageData = data.slice(start, end);
+        pageData.forEach((row, index) => {
+            row.element.style.display = '';
+            row.element.querySelector('.row-counter').textContent = start + index + 1;
+            tbody.appendChild(row.element);
+        });
+
+        const noResults = document.getElementById('noResults');
+        if (noResults) {
+            tbody.appendChild(noResults);
+            noResults.style.display = data.length === 0 ? '' : 'none';
+        }
+
+        buildPagination(data.length);
+        updatePaginationInfo(data.length, start, end);
+    }
+
+    function buildPagination(totalItems) {
+        const totalPages = Math.ceil(totalItems / itemsPerPage);
+        const container = document.getElementById('paginationContainer');
+        container.innerHTML = '';
+        if (totalPages < 1) return;
+        
+        addPageItem('«', currentPage > 1 ? currentPage - 1 : null);
+        for (let i = 1; i <= totalPages; i++) {
+            if (i === 1 || i === totalPages || (i >= currentPage - 2 && i <= currentPage + 2)) {
+                addPageItem(i, i, i === currentPage);
+            } else if (i === currentPage - 3 || i === currentPage + 3) {
+                addPageItem('...', null);
+            }
+        }
+        addPageItem('»', currentPage < totalPages ? currentPage + 1 : null);
+    }
+
+    function addPageItem(label, page, active = false) {
+        const li = document.createElement('li');
+        li.className = `page-item ${active ? 'active' : ''} ${page === null ? 'disabled' : ''}`;
+        const a = document.createElement('a');
+        a.className = 'page-link border-0 shadow-none';
+        a.href = '#';
+        a.textContent = label;
+        if (page !== null) {
+            a.onclick = (e) => {
+                e.preventDefault();
+                currentPage = page;
+                renderTable(filteredItems);
+            };
+        }
+        li.appendChild(a);
+        document.getElementById('paginationContainer').appendChild(li);
+    }
+
+    function updatePaginationInfo(total, start, end) {
+        const info = document.getElementById('paginationInfo');
+        const infoTop = document.getElementById('paginationInfoTop');
+        const displayedEnd = Math.min(end, total);
+        const text = `Showing <span class="fw-bold">${total > 0 ? start + 1 : 0}-${displayedEnd}</span> of <span class="fw-bold">${total}</span> entries`;
+        info.innerHTML = text;
+        if (infoTop) infoTop.textContent = `${total > 0 ? start + 1 : 0}-${displayedEnd}`;
+    }
+
+    function sortTable(colIndex) {
+        const table = document.getElementById('summariesTable');
+        const headers = table.querySelectorAll('th.sortable');
+        const currentHeader = Array.from(headers).find(h => h.attributes.onclick.value.includes(`(${colIndex})`));
+        
+        let sortMode = 'asc';
+        if (currentHeader.classList.contains('asc')) sortMode = 'desc';
+        else if (currentHeader.classList.contains('desc')) sortMode = 'none';
+
+        headers.forEach(h => h.classList.remove('asc', 'desc'));
+
+        if (sortMode === 'none') {
+            filteredItems.sort((a, b) => b.date.localeCompare(a.date));
+        } else {
+            currentHeader.classList.add(sortMode);
+            const isAsc = sortMode === 'asc';
+            
+            filteredItems.sort((a, b) => {
+                let valA = a.data[colIndex];
+                let valB = b.data[colIndex];
+                
+                if (colIndex === 2) return isAsc ? a.date.localeCompare(b.date) : b.date.localeCompare(a.date);
+                if (colIndex >= 3 && colIndex <= 6) {
+                    let numA = parseFloat(valA.replace(/[^0-9.-]+/g, "")) || 0;
+                    let numB = parseFloat(valB.replace(/[^0-9.-]+/g, "")) || 0;
+                    return isAsc ? numA - numB : numB - numA;
+                }
+                return isAsc ? valA.localeCompare(valB) : valB.localeCompare(valA);
+            });
+        }
+        renderTable(filteredItems);
+    }
+
+    function deleteCurrentSummary() {
+        const id = document.getElementById('update_id').value;
+        const date = document.getElementById('update_date').value;
+        if (confirm(`Are you sure you want to delete the summary for ${date}?`)) {
+            const form = document.getElementById('deleteSummaryForm');
+            form.action = `/api/expenses-summary/delete/${id}/`;
+            form.submit();
+        }
+    }
+
+    const downloadFile = (content, fileName, contentType) => {
+        const a = document.createElement("a");
+        const file = new Blob([content], { type: contentType });
+        a.href = URL.createObjectURL(file);
+        a.download = fileName;
+        a.click();
+    };
+
+    window.exportData = function(format) {
+        const table = document.getElementById('summariesTable');
+        const checkedBoxes = Array.from(table.querySelectorAll('.row-checkbox:checked'));
+        
+        const cleanCell = (text) => {
+            return text.replace(/₱/g, 'PHP ').replace(/\s+/g, ' ').trim();
+        };
+
+        const parseAmount = (text) => {
+            return parseFloat(text.replace(/[^0-9.-]+/g, "")) || 0;
+        };
+
+        let rawRows = (checkedBoxes.length > 0 ? checkedBoxes.map(cb => cb.closest('tr')) : filteredItems.map(row => row.element));
+        
+        // Calculate Summary Totals
+        let totalCash = 0, totalReimb = 0, totalOthers = 0, recordedDays = rawRows.length;
+        rawRows.forEach(tr => {
+            const tds = tr.querySelectorAll('td');
+            totalCash += parseAmount(tds[3].textContent);
+            totalReimb += parseAmount(tds[5].textContent);
+            totalOthers += parseAmount(tds[6].textContent);
+        });
+
+        const formatCurrency = (num) => "PHP " + num.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
+        
+        const summaryData = {
+            "Total Cash from Chin Yu": formatCurrency(totalCash),
+            "Total Reimbursement": formatCurrency(totalReimb),
+            "Total Others": formatCurrency(totalOthers),
+            "Recorded Days": recordedDays.toString()
+        };
+
+        let rowsToExport = rawRows.map((tr, idx) => {
+                const cells = Array.from(tr.querySelectorAll('td')).slice(2).map(td => cleanCell(td.textContent));
+                return [(idx + 1).toString(), ...cells];
+            });
+
+        if (rowsToExport.length === 0) { alert('No data to export.'); return; }
+
+        const baseHeaders = Array.from(table.querySelectorAll('thead tr:first-child th')).slice(2).map(th => th.textContent.replace(' \n', '').trim());
+        const headers = ['#', ...baseHeaders];
+        const filename = `expenses_summary_${new Date().toISOString().slice(0, 10)}`;
+
+        if (format === 'csv') {
+            let content = "Summary Totals\n" + Object.entries(summaryData).map(([k, v]) => `${k},"${v}"`).join('\n') + "\n\n";
+            content += headers.join(',') + '\n' + rowsToExport.map(row => row.map(c => `"${c.replace(/"/g, '""')}"`).join(',')).join('\n');
+            downloadFile(content, filename + '.csv', 'text/csv');
+        } else if (format === 'json') {
+            const jsonData = {
+                summary: summaryData,
+                data: rowsToExport.map(row => Object.fromEntries(headers.map((h, i) => [h, row[i]])))
+            };
+            downloadFile(JSON.stringify(jsonData, null, 2), filename + '.json', 'application/json');
+        } else if (format === 'excel') {
+            if (typeof XLSX === 'undefined') return alert('Excel library not loaded.');
+            const summaryRows = [["Summary Totals"], ...Object.entries(summaryData), []];
+            const ws = XLSX.utils.aoa_to_sheet([...summaryRows, headers, ...rowsToExport]);
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, "Expenses");
+            XLSX.writeFile(wb, `${filename}.xlsx`);
+        } else if (format === 'pdf') {
+            if (typeof window.jspdf === 'undefined') return alert('PDF library not loaded.');
+            const { jsPDF } = window.jspdf;
+            const doc = jsPDF.hasOwnProperty('default') ? new jsPDF.default('l', 'mm', 'a4') : new jsPDF('l', 'mm', 'a4');
+            doc.setFontSize(18); doc.text("Expenses Summary Report", 14, 15);
+            doc.setFontSize(10);
+            let y = 25;
+            Object.entries(summaryData).forEach(([k, v]) => {
+                doc.text(`${k}: ${v}`, 14, y);
+                y += 5;
+            });
+            doc.autoTable({ head: [headers], body: rowsToExport, startY: y + 2, theme: 'grid', styles: { fontSize: 7 } });
+            doc.save(`${filename}.pdf`);
+        }
+    };
+
+    // Logs Filtering & Pagination
+    let logsPerPage = 10;
+    let currentLogPage = 1;
+    let logTbody = document.getElementById('expenseLogsBody');
+    let allLogRows = Array.from(logTbody.querySelectorAll('tr:not(.no-results-log)'));
+    let filteredLogRows = [...allLogRows];
+
+    function filterLogs() {
+        filteredLogRows = allLogRows.filter(row => {
+            const cells = row.cells;
+            if (cells.length < 5) return false;
+
+            let matches = true;
+            document.querySelectorAll('.column-filter-log').forEach(input => {
+                const colIdx = parseInt(input.getAttribute('data-column'));
+                const filterVal = input.value.toLowerCase().trim();
+                if (filterVal) {
+                    const cellText = cells[colIdx] ? cells[colIdx].textContent.toLowerCase().trim() : '';
+                    if (cellText.indexOf(filterVal) === -1) matches = false;
+                }
+            });
+            return matches;
+        });
+
+        currentLogPage = 1;
+        updateLogsView();
+    }
+
+    document.querySelectorAll('.column-filter-log').forEach(input => {
+        input.addEventListener('input', filterLogs);
+    });
+
+    function updateLogsView() {
+        if (!logTbody) return;
+        
+        const noResultsId = 'no-results-log-row';
+        if (filteredLogRows.length === 0) {
+            logTbody.querySelectorAll('tr').forEach(row => row.style.display = 'none');
+            let noResults = document.getElementById(noResultsId);
+            if (!noResults) {
+                noResults = document.createElement('tr');
+                noResults.id = noResultsId;
+                noResults.innerHTML = `<td colspan="5" class="text-center p-4 text-muted small">No matching activity logs found.</td>`;
+                logTbody.appendChild(noResults);
+            } else {
+                noResults.style.display = '';
+            }
+            document.getElementById('logPaginationInfo').textContent = '0';
+            document.getElementById('logPaginationTotal').textContent = '0';
+            document.getElementById('logPaginationContainer').innerHTML = '';
+            return;
+        }
+
+        const noResults = document.getElementById(noResultsId);
+        if (noResults) noResults.style.display = 'none';
+        
+        allLogRows.forEach(row => row.style.display = 'none');
+
+        const start = (currentLogPage - 1) * logsPerPage;
+        const end = start + logsPerPage;
+        const pageRows = filteredLogRows.slice(start, end);
+        pageRows.forEach(row => row.style.display = '');
+
+        const rowEnd = Math.min(end, filteredLogRows.length);
+        document.getElementById('logPaginationInfo').textContent = `${filteredLogRows.length > 0 ? start + 1 : 0}-${rowEnd}`;
+        document.getElementById('logPaginationTotal').textContent = filteredLogRows.length;
+
+        buildLogPagination();
+    }
+
+    function buildLogPagination() {
+        const totalPages = Math.ceil(filteredLogRows.length / logsPerPage);
+        const container = document.getElementById('logPaginationContainer');
+        container.innerHTML = '';
+        if (totalPages < 1) return;
+
+        const createItem = (label, page, active = false, disabled = false) => {
+            const li = document.createElement('li');
+            li.className = `page-item ${active ? 'active' : ''} ${disabled ? 'disabled' : ''}`;
+            const a = document.createElement('a');
+            a.className = 'page-link border-0 shadow-none';
+            a.href = '#';
+            a.innerHTML = label;
+            a.onclick = (e) => {
+                e.preventDefault();
+                if (!disabled && currentLogPage !== page) {
+                    currentLogPage = page;
+                    updateLogsView();
+                }
+            };
+            li.appendChild(a);
+            return li;
+        };
+
+        container.appendChild(createItem('«', currentLogPage - 1, false, currentLogPage === 1));
+        for (let i = 1; i <= totalPages; i++) {
+            if (i === 1 || i === totalPages || (i >= currentLogPage - 2 && i <= currentLogPage + 2)) {
+                container.appendChild(createItem(i, i, i === currentLogPage));
+            } else if (i === currentLogPage - 3 || i === currentLogPage + 3) {
+                const dots = document.createElement('li');
+                dots.className = 'page-item disabled';
+                dots.innerHTML = '<span class="page-link border-0">...</span>';
+                container.appendChild(dots);
+            }
+        }
+        container.appendChild(createItem('»', currentLogPage + 1, false, currentLogPage === totalPages));
+    }
+
+    function applyLogDateFilter() {
+        const start = document.getElementById('logDateStart').value;
+        const end = document.getElementById('logDateEnd').value;
+        let url = new URL(window.location.href);
+        if (start) url.searchParams.set('log_date_start', start);
+        else url.searchParams.delete('log_date_start');
+        if (end) url.searchParams.set('log_date_end', end);
+        else url.searchParams.delete('log_date_end');
+        window.location.href = url.toString();
+    }
+
+    function clearLogDateFilter() {
+        let url = new URL(window.location.href);
+        url.searchParams.delete('log_date_start');
+        url.searchParams.delete('log_date_end');
+        window.location.href = url.toString();
+    }
+
+    // Initialize logs view
+    document.addEventListener('DOMContentLoaded', function() {
+        updateLogsView();
+    });
+</script>
+{% endblock %}

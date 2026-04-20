@@ -1,0 +1,1344 @@
+{% extends 'core/base.html' %}
+{% load static humanize %}
+{% block title %}Inventory Logs{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb breadcrumb-custom mb-0">
+            <li class="breadcrumb-item"><a href="#">Home</a></li>
+            <li class="breadcrumb-item active" aria-current="page">Inventory Logs</li>
+        </ol>
+    </nav>
+</div>
+
+<!-- Time Period Controls -->
+<div class="filter-card mb-4">
+    <div class="filter-card-header">
+        <i class="fas fa-calendar-alt"></i> Time Period
+    </div>
+    <div class="filter-card-body">
+        <div class="d-flex flex-wrap align-items-center gap-3">
+            <!-- Period Buttons -->
+            <div class="btn-group" role="group" aria-label="Time period">
+                <a href="{% url 'inventory_logs' %}?period=weekly&year={{ selected_year }}"
+                    class="btn btn-sm {% if period == 'weekly' %}btn-secondary{% else %}btn-outline-secondary{% endif %}">
+                    <i class="fas fa-calendar-week me-1"></i> Weekly
+                </a>
+                <a href="{% url 'inventory_logs' %}?period=monthly&year={{ selected_year }}"
+                    class="btn btn-sm {% if period == 'monthly' %}btn-secondary{% else %}btn-outline-secondary{% endif %}">
+                    <i class="fas fa-calendar-alt me-1"></i> Monthly
+                </a>
+                <a href="{% url 'inventory_logs' %}?period=yearly&year={{ selected_year }}"
+                    class="btn btn-sm {% if period == 'yearly' %}btn-secondary{% else %}btn-outline-secondary{% endif %}">
+                    <i class="fas fa-calendar me-1"></i> Yearly
+                </a>
+                <a href="{% url 'inventory_logs' %}?period=all&year={{ selected_year }}"
+                    class="btn btn-sm {% if period == 'all' %}btn-secondary{% else %}btn-outline-secondary{% endif %}">
+                    <i class="fas fa-infinity me-1"></i> All Time
+                </a>
+            </div>
+
+            <!-- Year Selector -->
+            <div class="d-flex align-items-center gap-2">
+                <label class="text-muted small fw-bold mb-0">Year:</label>
+                <select class="form-select form-select-sm" id="yearSelector" style="width: auto;">
+                    {% for yr in year_options %}
+                    <option value="{{ yr }}" {% if yr == selected_year %}selected{% endif %}>{{ yr }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Statistics Cards and Pie Chart Side by Side -->
+<div class="row g-4 mb-4">
+    <!-- Doughnut Chart - Transaction Distribution -->
+    <div class="col-lg-4">
+        <div class="inventory-card h-100">
+            <div class="inventory-card-header">
+                <div>
+                    <i class="fas fa-chart-pie"></i> Transaction Distribution
+                </div>
+            </div>
+            <div class="card-body">
+                <div class="d-flex justify-content-center align-items-center" style="height: 300px;">
+                    <canvas id="distributionChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Statistics Cards on the Right -->
+    <div class="col-lg-8">
+        <div class="row g-3 h-100">
+            <div class="col-md-4 col-6">
+                <div class="card stat-card border-0 shadow-sm h-100">
+                    <div class="card-body d-flex align-items-center">
+                        <div class="stat-icon bg-primary text-white rounded-circle me-3">
+                            <i class="fas fa-list"></i>
+                        </div>
+                        <div class="stat-details">
+                            <div class="stat-label text-muted small">Total Transactions</div>
+                            <div class="stat-value fw-bold">{{ stats.total_transactions }}</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4 col-6">
+                <div class="card stat-card border-0 shadow-sm h-100">
+                    <div class="card-body d-flex align-items-center">
+                        <div class="stat-icon bg-success text-white rounded-circle me-3">
+                            <i class="fas fa-plus-circle"></i>
+                        </div>
+                        <div class="stat-details">
+                            <div class="stat-label text-muted small">Purchases</div>
+                            <div class="stat-value fw-bold text-success">{{ stats.purchases_count }}</div>
+                            <div class="text-muted small">Qty: {{ stats.purchases_qty|floatformat:2|intcomma }}</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4 col-6">
+                <div class="card stat-card border-0 shadow-sm h-100">
+                    <div class="card-body d-flex align-items-center">
+                        <div class="stat-icon bg-warning text-white rounded-circle me-3">
+                            <i class="fas fa-minus-circle"></i>
+                        </div>
+                        <div class="stat-details">
+                            <div class="stat-label text-muted small">Withdrawals</div>
+                            <div class="stat-value fw-bold text-warning">{{ stats.withdrawals_count }}</div>
+                            <div class="text-muted small">Qty: {{ stats.withdrawals_qty|floatformat:2|intcomma }}</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4 col-6">
+                <div class="card stat-card border-0 shadow-sm h-100">
+                    <div class="card-body d-flex align-items-center">
+                        <div class="stat-icon bg-danger text-white rounded-circle me-3">
+                            <i class="fas fa-times-circle"></i>
+                        </div>
+                        <div class="stat-details">
+                            <div class="stat-label text-muted small">Damage</div>
+                            <div class="stat-value fw-bold text-danger">{{ stats.damage_count }}</div>
+                            <div class="text-muted small">Qty: {{ stats.damage_qty|floatformat:2|intcomma }}</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4 col-6">
+                <div class="card stat-card border-0 shadow-sm h-100">
+                    <div class="card-body d-flex align-items-center">
+                        <div class="stat-icon bg-info text-white rounded-circle me-3">
+                            <i class="fas fa-undo"></i>
+                        </div>
+                        <div class="stat-details">
+                            <div class="stat-label text-muted small">Returned</div>
+                            <div class="stat-value fw-bold text-info">{{ stats.returned_count }}</div>
+                            <div class="text-muted small">Qty: {{ stats.returned_qty|floatformat:2|intcomma }}</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4 col-6">
+                <div class="card stat-card border-0 shadow-sm h-100">
+                    <div class="card-body d-flex align-items-center">
+                        <div class="stat-icon bg-secondary text-white rounded-circle me-3">
+                            <i class="fas fa-cog"></i>
+                        </div>
+                        <div class="stat-details">
+                            <div class="stat-label text-muted small">Other Actions</div>
+                            <div class="stat-value fw-bold text-secondary">{{ stats.other_count }}</div>
+                            <div class="text-muted small">Updates, Archives</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Bar Chart - Full Width Below -->
+<div class="row g-4 mb-4">
+    <div class="col-12">
+        <div class="inventory-card">
+            <div class="inventory-card-header">
+                <div>
+                    <i class="fas fa-chart-bar"></i> Transaction Trends
+                    <span class="badge bg-light text-dark ms-2">
+                        {% if period == 'weekly' %}Last 7 Days
+                        {% elif period == 'monthly' %}This Month
+                        {% elif period == 'yearly' %}{{ selected_year }}
+                        {% else %}All Time{% endif %}
+                    </span>
+                </div>
+            </div>
+            <div class="card-body">
+                <div style="height: 350px;">
+                    <canvas id="trendsChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+<!-- Search & Filter Card -->
+<div class="filter-card mb-4">
+    <div class="filter-card-header">
+        <i class="fas fa-filter"></i> Search & Filter
+    </div>
+    <div class="filter-card-body">
+        <form method="GET" action="{% url 'inventory_logs' %}">
+            <input type="hidden" name="period" value="{{ period }}">
+            <input type="hidden" name="year" value="{{ selected_year }}">
+            <div class="row g-2 align-items-end">
+                <div class="col-md-3">
+                    <label class="filter-label">Search</label>
+                    <input type="text" class="form-control filter-input" id="globalSearch" placeholder="Search...">
+                </div>
+                <div class="col-md-2">
+                    <label class="filter-label">User</label>
+                    <select class="form-select filter-input" id="filterUser">
+                        <option value="">All Users</option>
+                        <!-- Populated by JS -->
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label class="filter-label">Transaction</label>
+                    <select class="form-select filter-input" name="transaction_type" id="filterTransactionType">
+                        <option value="">All Types</option>
+                        <option value="purchase" {% if transaction_filter == 'purchase' %}selected{% endif %}>Purchase
+                        </option>
+                        <option value="withdrawal" {% if transaction_filter == 'withdrawal' %}selected{% endif %}>
+                            Withdrawal</option>
+                        <option value="damage" {% if transaction_filter == 'damage' %}selected{% endif %}>Damage</option>
+                        <option value="returned" {% if transaction_filter == 'returned' %}selected{% endif %}>Returned
+                        </option>
+                        <option value="create" {% if transaction_filter == 'create' %}selected{% endif %}>Create</option>
+                        <option value="update" {% if transaction_filter == 'update' %}selected{% endif %}>Update</option>
+                        <option value="archive" {% if transaction_filter == 'archive' %}selected{% endif %}>Archive
+                        </option>
+                        <option value="restore" {% if transaction_filter == 'restore' %}selected{% endif %}>Restore
+                        </option>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label class="filter-label">Item Type</label>
+                    <select class="form-select filter-input" name="item_type" id="filterItemType">
+                        <option value="">All Types</option>
+                        {% for type in item_types %}
+                        <option value="{{ type }}" {% if item_type_filter == type %}selected{% endif %}>{{ type }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <div class="row g-1">
+                        <div class="col-6">
+                            <label class="filter-label">From</label>
+                            <input type="date" class="form-control filter-input p-1" style="font-size: 0.8rem;"
+                                id="filterFromDate">
+                        </div>
+                        <div class="col-6">
+                            <label class="filter-label">To</label>
+                            <input type="date" class="form-control filter-input p-1" style="font-size: 0.8rem;"
+                                id="filterToDate">
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="filter-actions mt-3">
+                <button type="submit" class="btn btn-primary btn-sm">
+                    <i class="fas fa-filter"></i> Apply Filters
+                </button>
+                <a href="{% url 'inventory_logs' %}?period={{ period }}&year={{ selected_year }}"
+                    class="btn btn-outline-secondary btn-sm">
+                    <i class="fas fa-times-circle"></i> Clear Filters
+                </a>
+
+                <!-- Export Dropdown -->
+                <div class="dropdown d-inline-block">
+                    <button class="btn btn-outline-secondary btn-sm dropdown-toggle" type="button" id="exportDropdown"
+                        data-bs-toggle="dropdown" aria-expanded="false">
+                        <i class="fas fa-file-export"></i> Export
+                    </button>
+                    <ul class="dropdown-menu dropdown-menu-end shadow border-0" aria-labelledby="exportDropdown">
+                        <li class="px-3 py-2 text-muted small fw-bold text-uppercase ls-1">Export Data</li>
+                        <li>
+                            <hr class="dropdown-divider my-0">
+                        </li>
+                        <li><a class="dropdown-item py-2" href="#" onclick="exportLogs('csv')">
+                                <i class="fas fa-file-csv text-success me-2 fa-lg w-20 text-center"></i> CSV Format
+                            </a></li>
+                        <li><a class="dropdown-item py-2" href="#" onclick="exportLogs('json')">
+                                <i class="fas fa-file-code text-warning me-2 fa-lg w-20 text-center"></i> JSON Data
+                            </a></li>
+                        <li><a class="dropdown-item py-2" href="#" onclick="exportLogs('excel')">
+                                <i class="fas fa-file-excel small me-2 fa-lg w-20 text-center text-success"></i> Excel
+                            </a></li>
+                        <li><a class="dropdown-item py-2" href="#" onclick="exportLogs('pdf')">
+                                <i class="fas fa-file-pdf small me-2 fa-lg w-20 text-center text-danger"></i> PDF Document
+                            </a></li>
+                    </ul>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Item Usage Analysis Section -->
+<div class="row g-4 mb-4">
+    <!-- Most Active Items -->
+    <div class="col-lg-6">
+        <div class="inventory-card h-100">
+            <div class="inventory-card-header">
+                <div>
+                    <i class="fas fa-fire"></i> Most Active Items
+                </div>
+                <div class="text-muted small">
+                    Top 50 by transaction count
+                </div>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive" style="max-height: 400px; overflow-y: auto;">
+                    <table class="table table-sm table-hover mb-0">
+                        <thead class="bg-light sticky-top">
+                            <tr>
+                                <th style="width: 40px;">#</th>
+                                <th>Item Name</th>
+                                <th>SKU</th>
+                                <th>Type</th>
+                                <th class="text-center">Transactions</th>
+                                <th class="text-center">Qty Moved</th>
+                                <th>Stock</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in most_active_items %}
+                            <tr>
+                                <td class="text-muted small">{{ forloop.counter }}</td>
+                                <td class="fw-bold">{{ item.name }}</td>
+                                <td class="text-muted small">{{ item.sku }}</td>
+                                <td class="small">{{ item.item_type }}</td>
+                                <td class="text-center">
+                                    <span class="badge bg-success">{{ item.transaction_count }}</span>
+                                </td>
+                                <td class="text-center font-monospace">{{ item.total_qty_moved|floatformat:2|intcomma }}</td>
+                                <td>
+                                    {% if item.stock_status == 'In Stock' %}
+                                    <span class="badge bg-success">In Stock</span>
+                                    {% elif item.stock_status == 'Low Stock' %}
+                                    <span class="badge bg-warning text-dark">Low</span>
+                                    {% else %}
+                                    <span class="badge bg-danger">Out</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="7" class="text-center py-4 text-muted">
+                                    <i class="fas fa-fire-alt fa-2x mb-2 text-secondary"></i>
+                                    <p class="mb-0">No activity data available.</p>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Least Used Items -->
+    <div class="col-lg-6">
+        <div class="inventory-card h-100">
+            <div class="inventory-card-header">
+                <div>
+                    <i class="fas fa-snowflake"></i> Least Used Items
+                </div>
+                <div class="text-muted small">
+                    Bottom 50 by transaction count
+                </div>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive" style="max-height: 400px; overflow-y: auto;">
+                    <table class="table table-sm table-hover mb-0">
+                        <thead class="bg-light sticky-top">
+                            <tr>
+                                <th style="width: 40px;">#</th>
+                                <th>Item Name</th>
+                                <th>SKU</th>
+                                <th>Type</th>
+                                <th class="text-center">Transactions</th>
+                                <th class="text-center">Balance</th>
+                                <th>Stock</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in least_used_items %}
+                            <tr class="{% if item.transaction_count == 0 %}table-warning{% endif %}">
+                                <td class="text-muted small">{{ forloop.counter }}</td>
+                                <td class="fw-bold"><a href="#"
+                                        onclick="showItemLogs({{ item.id }}, '{{ item.name }}'); return false;"
+                                        class="text-decoration-none" style="color: var(--primary-color);">{{ item.name }}</a></td>
+                                <td class="text-muted small">{{ item.sku }}</td>
+                                <td class="small">{{ item.item_type }}</td>
+                                <td class="text-center">
+                                    {% if item.transaction_count == 0 %}
+                                    <span class="badge bg-secondary">None</span>
+                                    {% else %}
+                                    <span class="badge bg-warning text-dark">{{ item.transaction_count }}</span>
+                                    {% endif %}
+                                </td>
+                                <td class="text-center font-monospace">{{ item.total_balance }}</td>
+                                <td>
+                                    {% if item.stock_status == 'In Stock' %}
+                                    <span class="badge bg-success">In Stock</span>
+                                    {% elif item.stock_status == 'Low Stock' %}
+                                    <span class="badge bg-warning text-dark">Low</span>
+                                    {% else %}
+                                    <span class="badge bg-danger">Out</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="7" class="text-center py-4 text-muted">
+                                    <i class="fas fa-snowflake fa-2x mb-2 text-secondary"></i>
+                                    <p class="mb-0">No items to display.</p>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+<!-- Logs Table -->
+<div class="inventory-card">
+    <div class="inventory-card-header">
+        <div>
+            <i class="fas fa-history"></i> Inventory Logs
+        </div>
+        <div class="text-muted small">
+            Showing <strong id="showingCount">{{ logs|length }}</strong> of <strong>{{ logs|length }}</strong> logs
+        </div>
+    </div>
+
+    <div class="table-responsive">
+        <table id="logsTable" class="table table-bordered table-hover mb-0">
+            <thead>
+                <tr>
+                    <th scope="col" style="width: 40px;" class="text-center">
+                        <input type="checkbox" class="form-check-input" id="selectAll">
+                    </th>
+                    <th scope="col" style="width: 50px;" class="sortable" data-column="1"># <i class="fas fa-sort"></i>
+                    </th>
+                    <th scope="col" class="col-header-text sortable" data-column="2">Date & Time <i
+                            class="fas fa-sort"></i></th>
+                    <th scope="col" class="col-header-text sortable" data-column="3">Item Name <i
+                            class="fas fa-sort"></i></th>
+                    <th scope="col" class="col-header-text sortable" data-column="4">SKU <i class="fas fa-sort"></i>
+                    </th>
+                    <th scope="col" class="col-header-text sortable" data-column="5">Item Type <i
+                            class="fas fa-sort"></i></th>
+                    <th scope="col" class="col-header-text sortable" data-column="6">User <i class="fas fa-sort"></i>
+                    </th>
+                    <th scope="col" class="col-header-text sortable" data-column="7">Transaction <i
+                            class="fas fa-sort"></i></th>
+                    <th scope="col" class="col-header-text sortable" data-column="8">Quantity <i
+                            class="fas fa-sort"></i></th>
+                    <th scope="col" class="col-header-text">Notes</th>
+                </tr>
+            </thead>
+            <tbody id="logsTableBody">
+                {% for log in logs %}
+                <tr class="log-row">
+                    <td class="text-center">
+                        <input type="checkbox" class="form-check-input log-checkbox" value="{{ forloop.counter }}">
+                    </td>
+                    <td>{{ forloop.counter }}</td>
+                    <td class="text-muted small">{{ log.timestamp|date:'Y-m-d H:i:s' }}</td>
+                    <td class="fw-bold text-dark">
+                        {% if log.inventory_item %}
+                        <a href="#" onclick="showItemLogs({{ log.inventory_item.id }}, '{{ log.inventory_item.name }}'); return false;"
+                            class="text-decoration-none" style="color: var(--primary-color);">{{ log.inventory_item.name }}</a>
+                        {% else %}
+                        <span class="text-muted">N/A</span>
+                        {% endif %}
+                    </td>
+                    <td class="text-muted small">{% if log.inventory_item %}{{ log.inventory_item.sku }}{% else %}N/A{% endif %}</td>
+                    <td class="small">{% if log.inventory_item %}{{ log.inventory_item.item_type }}{% else %}N/A{% endif %}</td>
+                    <td>
+                        <div class="d-flex align-items-center">
+                            <div class="avatar-sm bg-light rounded-circle text-center me-2"
+                                style="width: 24px; height: 24px; line-height: 24px;">
+                                <i class="fas fa-user-circle text-secondary"></i>
+                            </div>
+                            <span class="small">{{ log.user }}</span>
+                        </div>
+                    </td>
+                    <td>
+                        {% if log.transaction_type == 'purchase' %}
+                        <span class="badge bg-success">Purchase</span>
+                        {% elif log.transaction_type == 'withdrawal' %}
+                        <span class="badge bg-warning text-dark">Withdrawal</span>
+                        {% elif log.transaction_type == 'damage' %}
+                        <span class="badge bg-danger">Damage</span>
+                        {% elif log.transaction_type == 'returned' %}
+                        <span class="badge bg-info">Returned</span>
+                        {% elif log.transaction_type == 'create' %}
+                        <span class="badge bg-primary">Create</span>
+                        {% elif log.transaction_type == 'update' %}
+                        <span class="badge bg-secondary">Update</span>
+                        {% elif log.transaction_type == 'archive' %}
+                        <span class="badge bg-dark">Archive</span>
+                        {% elif log.transaction_type == 'restore' %}
+                        <span class="badge bg-success">Restore</span>
+                        {% else %}
+                        <span class="badge bg-secondary">{{ log.transaction_type|capfirst }}</span>
+                        {% endif %}
+                    </td>
+                    <td class="fw-bold font-monospace">{{ log.quantity|intcomma }}</td>
+                    <td class="text-muted small text-truncate" style="max-width: 200px;">{{ log.notes }}</td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="10" class="text-center py-5 text-muted">
+                        <i class="fas fa-clipboard-list fa-3x mb-3 text-secondary"></i>
+                        <p class="mb-0 fs-5">No logs found for the selected period.</p>
+                        <p class="text-muted small">Try adjusting your filters or selecting a different time period.</p>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Pagination -->
+    <div class="card-footer bg-light border-top">
+        <div class="d-flex justify-content-between align-items-center">
+            <div class="text-muted small">
+                Showing <span id="startRow">1</span> to <span id="endRow">{% if logs|length > 20 %}20{% else %}{{
+                    logs|length }}{% endif %}</span> of <span id="totalRows">{{ logs|length }}</span> entries
+            </div>
+            <nav aria-label="Logs pagination">
+                <ul class="pagination pagination-sm mb-0" id="paginationContainer">
+                    <li class="page-item" id="prevPage">
+                        <a class="page-link" href="#" aria-label="Previous">&laquo;</a>
+                    </li>
+                    <li class="page-item active"><a class="page-link" href="#">1</a></li>
+                    <li class="page-item" id="nextPage">
+                        <a class="page-link" href="#" aria-label="Next">&raquo;</a>
+                    </li>
+                </ul>
+            </nav>
+        </div>
+    </div>
+</div>
+
+<!-- Individual Item Logs Modal -->
+<div class="modal fade" id="itemLogsModal" tabindex="-1" aria-labelledby="itemLogsModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header"
+                style="background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-dark) 100%); color: white;">
+                <h5 class="modal-title text-white" id="itemLogsModalLabel">
+                    <i class="fas fa-clipboard-list me-2"></i>
+                    <span id="modalItemName">Item Logs</span>
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"
+                    aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <!-- Item Info Card -->
+                <div class="card mb-4 border-0 shadow-sm">
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <p class="mb-2"><strong>SKU:</strong> <span id="modalItemSku"
+                                        class="text-muted">-</span></p>
+                                <p class="mb-2"><strong>Type:</strong> <span id="modalItemType"
+                                        class="text-muted">-</span></p>
+                                <p class="mb-0"><strong>Current Balance:</strong> <span id="modalItemBalance"
+                                        class="fw-bold">-</span></p>
+                            </div>
+                            <div class="col-md-6">
+                                <p class="mb-2"><strong>Stock Status:</strong> <span id="modalItemStatus">-</span></p>
+                                <p class="mb-2"><strong>Total Transactions:</strong> <span id="modalTotalTransactions"
+                                        class="badge bg-primary">0</span></p>
+                                <p class="mb-0"><strong>Total Qty Moved:</strong> <span id="modalTotalQty"
+                                        class="fw-bold">0</span></p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Item Statistics -->
+                <div class="row g-3 mb-4">
+                    <div class="col-md-3">
+                        <div class="card bg-success bg-opacity-10 border-0">
+                            <div class="card-body text-center py-3">
+                                <div class="text-success fw-bold fs-4" id="modalPurchases">0</div>
+                                <div class="text-muted small">Purchases</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="card bg-warning bg-opacity-10 border-0">
+                            <div class="card-body text-center py-3">
+                                <div class="text-warning fw-bold fs-4" id="modalWithdrawals">0</div>
+                                <div class="text-muted small">Withdrawals</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="card bg-danger bg-opacity-10 border-0">
+                            <div class="card-body text-center py-3">
+                                <div class="text-danger fw-bold fs-4" id="modalDamage">0</div>
+                                <div class="text-muted small">Damage</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="card bg-info bg-opacity-10 border-0">
+                            <div class="card-body text-center py-3">
+                                <div class="text-info fw-bold fs-4" id="modalReturned">0</div>
+                                <div class="text-muted small">Returned</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Item Logs Chart -->
+                <div class="card mb-4 border-0 shadow-sm">
+                    <div class="card-header bg-light">
+                        <i class="fas fa-chart-line me-2"></i> Transaction History
+                    </div>
+                    <div class="card-body">
+                        <div style="height: 200px;">
+                            <canvas id="itemLogsChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Full Logs Table -->
+                <div class="card border-0 shadow-sm">
+                    <div class="card-header bg-light d-flex justify-content-between align-items-center">
+                        <span><i class="fas fa-list me-2"></i> All Transactions</span>
+                        <span class="badge bg-secondary" id="modalLogsCount">0 records</span>
+                    </div>
+                    <div class="table-responsive" style="max-height: 400px;">
+                        <table class="table table-sm table-hover mb-0">
+                            <thead class="bg-light sticky-top">
+                                <tr>
+                                    <th>#</th>
+                                    <th>Date & Time</th>
+                                    <th>User</th>
+                                    <th>Transaction</th>
+                                    <th>Quantity</th>
+                                    <th>Notes</th>
+                                </tr>
+                            </thead>
+                            <tbody id="itemLogsTableBody">
+                                <tr>
+                                    <td colspan="6" class="text-center py-4 text-muted">
+                                        <i class="fas fa-spinner fa-spin fa-2x"></i>
+                                        <p class="mb-0 mt-2">Loading logs...</p>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">
+                    <i class="fas fa-times me-1"></i> Close
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        // Chart.js configuration
+        const chartDistribution = {{ chart_distribution|safe }};
+        const chartTrends = {{ chart_trends|safe }};
+
+    // Doughnut Chart - Transaction Distribution
+    const ctxDistribution = document.getElementById('distributionChart').getContext('2d');
+    new Chart(ctxDistribution, {
+        type: 'doughnut',
+        data: {
+            labels: chartDistribution.labels,
+            datasets: [{
+                data: chartDistribution.data,
+                backgroundColor: chartDistribution.colors,
+                borderWidth: 2,
+                borderColor: '#fff',
+                hoverOffset: 8
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'bottom',
+                    labels: {
+                        padding: 15,
+                        usePointStyle: true,
+                        font: { size: 11 }
+                    }
+                },
+                tooltip: {
+                    backgroundColor: 'rgba(0,0,0,0.8)',
+                    titleFont: { size: 12 },
+                    bodyFont: { size: 11 },
+                    padding: 12,
+                    cornerRadius: 8
+                }
+            },
+            cutout: '60%'
+        }
+    });
+
+    // Bar Chart - Trends Over Time
+    const ctxTrends = document.getElementById('trendsChart').getContext('2d');
+    new Chart(ctxTrends, {
+        type: 'bar',
+        data: {
+            labels: chartTrends.labels,
+            datasets: [
+                {
+                    label: 'Purchases',
+                    data: chartTrends.purchases,
+                    backgroundColor: 'rgba(16, 185, 129, 0.7)',
+                    borderColor: '#10b981',
+                    borderWidth: 1,
+                    borderRadius: 4
+                },
+                {
+                    label: 'Withdrawals',
+                    data: chartTrends.withdrawals,
+                    backgroundColor: 'rgba(245, 158, 11, 0.7)',
+                    borderColor: '#f59e0b',
+                    borderWidth: 1,
+                    borderRadius: 4
+                },
+                {
+                    label: 'Damage',
+                    data: chartTrends.damage,
+                    backgroundColor: 'rgba(239, 68, 68, 0.7)',
+                    borderColor: '#ef4444',
+                    borderWidth: 1,
+                    borderRadius: 4
+                },
+                {
+                    label: 'Returned',
+                    data: chartTrends.returned,
+                    backgroundColor: 'rgba(6, 182, 212, 0.7)',
+                    borderColor: '#06b6d4',
+                    borderWidth: 1,
+                    borderRadius: 4
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            interaction: {
+                mode: 'index',
+                intersect: false
+            },
+            plugins: {
+                legend: {
+                    position: 'top',
+                    labels: {
+                        padding: 15,
+                        usePointStyle: true,
+                        font: { size: 11 }
+                    }
+                },
+                tooltip: {
+                    backgroundColor: 'rgba(0,0,0,0.8)',
+                    titleFont: { size: 12 },
+                    bodyFont: { size: 11 },
+                    padding: 12,
+                    cornerRadius: 8
+                }
+            },
+            scales: {
+                x: {
+                    grid: { display: false },
+                    ticks: { font: { size: 10 } }
+                },
+                y: {
+                    beginAtZero: true,
+                    grid: { color: 'rgba(0,0,0,0.05)' },
+                    ticks: { font: { size: 10 } }
+                }
+            }
+        }
+    });
+
+    // Year Selector
+    document.getElementById('yearSelector').addEventListener('change', function () {
+        const year = this.value;
+        let period = '{{ period }}';
+
+        // If we change year, we almost certainly want to see that year's data
+        // If current period is 'all' or 'weekly', force it to 'yearly'
+        if (period === 'all' || period === 'weekly') {
+            period = 'yearly';
+        }
+
+        // Preserve existing filter params
+        let url = `{% url 'inventory_logs' %}?period=${period}&year=${year}`;
+        const transactionType = '{{ transaction_filter }}';
+        const itemType = '{{ item_type_filter }}';
+        if (transactionType) url += `&transaction_type=${transactionType}`;
+        if (itemType) url += `&item_type=${itemType}`;
+        window.location.href = url;
+    });
+
+    // Client-side Search/Filter
+    const tableRows = document.querySelectorAll('#logsTableBody .log-row');
+
+    // Pagination
+    const rowsPerPage = 20;
+    let currentPage = 1;
+    const allRows = Array.from(tableRows);
+    const totalPages = Math.ceil(allRows.length / rowsPerPage);
+
+    function updatePagination() {
+        // Get all rows from the DOM (respecting current sort order)
+        const currentRows = Array.from(document.querySelectorAll('#logsTableBody .log-row'));
+        
+        // Get only rows that pass the filter
+        const filteredRows = currentRows.filter(row => row.dataset.filtered !== 'false');
+        const filteredTotalPages = Math.ceil(filteredRows.length / rowsPerPage);
+
+        // Clamp currentPage
+        if (currentPage > filteredTotalPages) currentPage = Math.max(1, filteredTotalPages);
+
+        const start = (currentPage - 1) * rowsPerPage;
+        const end = start + rowsPerPage;
+
+        // Hide all rows first, then show only the right page of filtered results
+        currentRows.forEach(row => row.style.display = 'none');
+        filteredRows.forEach((row, index) => {
+            if (index >= start && index < end) {
+                row.style.display = '';
+            }
+        });
+
+        document.getElementById('startRow').textContent = filteredRows.length > 0 ? start + 1 : 0;
+        document.getElementById('endRow').textContent = Math.min(end, filteredRows.length);
+        document.getElementById('totalRows').textContent = filteredRows.length;
+        document.getElementById('showingCount').textContent = filteredRows.length;
+
+        // Update pagination buttons
+        const container = document.getElementById('paginationContainer');
+        container.innerHTML = '';
+
+        // Prev button
+        const prevLi = document.createElement('li');
+        prevLi.className = `page-item ${currentPage === 1 ? 'disabled' : ''}`;
+        prevLi.innerHTML = '<a class="page-link" href="#" aria-label="Previous">&laquo;</a>';
+        prevLi.addEventListener('click', (e) => {
+            e.preventDefault();
+            if (currentPage > 1) { currentPage--; updatePagination(); }
+        });
+        container.appendChild(prevLi);
+
+        // Page numbers
+        for (let i = 1; i <= filteredTotalPages; i++) {
+            if (filteredTotalPages <= 7 || i === 1 || i === filteredTotalPages || (i >= currentPage - 1 && i <= currentPage + 1)) {
+                const li = document.createElement('li');
+                li.className = `page-item ${i === currentPage ? 'active' : ''}`;
+                li.innerHTML = `<a class="page-link" href="#">${i}</a>`;
+                li.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    currentPage = i;
+                    updatePagination();
+                });
+                container.appendChild(li);
+            } else if (i === currentPage - 2 || i === currentPage + 2) {
+                const li = document.createElement('li');
+                li.className = 'page-item disabled';
+                li.innerHTML = '<a class="page-link" href="#">...</a>';
+                container.appendChild(li);
+            }
+        }
+
+        // Next button
+        const nextLi = document.createElement('li');
+        nextLi.className = `page-item ${currentPage === filteredTotalPages || filteredTotalPages === 0 ? 'disabled' : ''}`;
+        nextLi.innerHTML = '<a class="page-link" href="#" aria-label="Next">&raquo;</a>';
+        nextLi.addEventListener('click', (e) => {
+            e.preventDefault();
+            if (currentPage < filteredTotalPages) { currentPage++; updatePagination(); }
+        });
+        container.appendChild(nextLi);
+    }
+
+    // Initialize all rows with filtered=true, then run filterLogs
+    allRows.forEach(row => row.dataset.filtered = 'true');
+    if (allRows.length > 0) {
+        updatePagination();
+    }
+
+    // Column Sorting
+    document.querySelectorAll('.sortable').forEach(header => {
+        header.addEventListener('click', function () {
+            const column = parseInt(this.dataset.column);
+            const tbody = document.getElementById('logsTableBody');
+            const rows = Array.from(tbody.querySelectorAll('.log-row'));
+
+            // Toggle sort direction
+            const isAsc = this.classList.contains('sort-asc');
+            document.querySelectorAll('.sortable').forEach(h => {
+                h.classList.remove('sort-asc', 'sort-desc');
+                h.querySelector('i').className = 'fas fa-sort';
+            });
+
+            if (isAsc) {
+                this.classList.add('sort-desc');
+                this.querySelector('i').className = 'fas fa-sort-down';
+            } else {
+                this.classList.add('sort-asc');
+                this.querySelector('i').className = 'fas fa-sort-up';
+            }
+
+            rows.sort((a, b) => {
+                const aVal = a.cells[column].textContent.trim();
+                const bVal = b.cells[column].textContent.trim();
+
+                // Try numeric sort
+                const aNum = parseFloat(aVal);
+                const bNum = parseFloat(bVal);
+                if (!isNaN(aNum) && !isNaN(bNum)) {
+                    return isAsc ? bNum - aNum : aNum - bNum;
+                }
+
+                // String sort
+                return isAsc ? bVal.localeCompare(aVal) : aVal.localeCompare(bVal);
+            });
+
+            rows.forEach(row => tbody.appendChild(row));
+            currentPage = 1;
+            updatePagination();
+        });
+    });
+
+    // Select All Checkbox Logic
+    const selectAllCheckbox = document.getElementById('selectAll');
+    const logCheckboxes = document.querySelectorAll('.log-checkbox');
+
+    if (selectAllCheckbox) {
+        selectAllCheckbox.addEventListener('change', function () {
+            const isChecked = this.checked;
+            const visibleCheckboxes = Array.from(logCheckboxes).filter(cb => {
+                return cb.closest('tr').style.display !== 'none';
+            });
+            visibleCheckboxes.forEach(cb => {
+                cb.checked = isChecked;
+            });
+        });
+    }
+
+    logCheckboxes.forEach(cb => {
+        cb.addEventListener('change', function () {
+            if (!this.checked) {
+                selectAllCheckbox.checked = false;
+            } else {
+                const visibleCheckboxes = Array.from(logCheckboxes).filter(cb => {
+                    return cb.closest('tr').style.display !== 'none';
+                });
+                const allChecked = visibleCheckboxes.every(cb => cb.checked);
+                if (allChecked) selectAllCheckbox.checked = true;
+            }
+        });
+    });
+
+    // Individual Item Logs Modal
+    let itemLogsChart = null;
+
+    window.showItemLogs = function (itemId, itemName) {
+        // Show modal
+        const modal = new bootstrap.Modal(document.getElementById('itemLogsModal'));
+        modal.show();
+
+        // Update modal title
+        document.getElementById('modalItemName').textContent = itemName + ' - Full Log History';
+
+        // Reset modal content
+        document.getElementById('itemLogsTableBody').innerHTML = `
+            <tr>
+                <td colspan="6" class="text-center py-4 text-muted">
+                    <i class="fas fa-spinner fa-spin fa-2x"></i>
+                    <p class="mb-0 mt-2">Loading logs...</p>
+                </td>
+            </tr>
+        `;
+
+        // Fetch item logs
+        fetch(`/inventory/logs/${itemId}`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    populateItemModal(data.logs, data.item);
+                } else {
+                    document.getElementById('itemLogsTableBody').innerHTML = `
+                        <tr><td colspan="6" class="text-center py-4 text-danger">Error loading logs</td></tr>
+                    `;
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                document.getElementById('itemLogsTableBody').innerHTML = `
+                    <tr><td colspan="6" class="text-center py-4 text-danger">Error loading logs</td></tr>
+                `;
+            });
+    };
+
+    function populateItemModal(logs, item) {
+        // Populate item info
+        document.getElementById('modalItemSku').textContent = item ? item.sku : '-';
+        document.getElementById('modalItemType').textContent = item ? item.item_type : '-';
+        document.getElementById('modalItemBalance').textContent = item ? item.total_balance : '-';
+
+        // Stock status badge
+        let statusBadge = '<span class="badge bg-secondary">Unknown</span>';
+        if (item) {
+            if (item.stock_status === 'In Stock') {
+                statusBadge = '<span class="badge bg-success">In Stock</span>';
+            } else if (item.stock_status === 'Low Stock') {
+                statusBadge = '<span class="badge bg-warning text-dark">Low Stock</span>';
+            } else {
+                statusBadge = '<span class="badge bg-danger">Out of Stock</span>';
+            }
+        }
+        document.getElementById('modalItemStatus').innerHTML = statusBadge;
+
+        // Calculate statistics
+        let purchases = 0, withdrawals = 0, damage = 0, returned = 0, totalQty = 0;
+        logs.forEach(log => {
+            const qty = parseFloat(log.quantity) || 0;
+            totalQty += Math.abs(qty);
+            if (log.transaction_type === 'purchase') purchases += qty;
+            else if (log.transaction_type === 'withdrawal') withdrawals += qty;
+            else if (log.transaction_type === 'damage') damage += qty;
+            else if (log.transaction_type === 'returned') returned += qty;
+        });
+
+        document.getElementById('modalTotalTransactions').textContent = logs.length;
+        document.getElementById('modalTotalQty').textContent = totalQty.toFixed(0);
+        document.getElementById('modalPurchases').textContent = purchases.toFixed(0);
+        document.getElementById('modalWithdrawals').textContent = withdrawals.toFixed(0);
+        document.getElementById('modalDamage').textContent = damage.toFixed(0);
+        document.getElementById('modalReturned').textContent = returned.toFixed(0);
+        document.getElementById('modalLogsCount').textContent = logs.length + ' records';
+
+        // Populate table
+        const tbody = document.getElementById('itemLogsTableBody');
+        if (logs.length === 0) {
+            tbody.innerHTML = `
+                <tr><td colspan="6" class="text-center py-4 text-muted">
+                    <i class="fas fa-inbox fa-2x mb-2"></i>
+                    <p class="mb-0">No logs found for this item.</p>
+                </td></tr>
+            `;
+        } else {
+            tbody.innerHTML = logs.map((log, index) => {
+                let badge = '<span class="badge bg-secondary">' + log.transaction_type + '</span>';
+                if (log.transaction_type === 'purchase') badge = '<span class="badge bg-success">Purchase</span>';
+                else if (log.transaction_type === 'withdrawal') badge = '<span class="badge bg-warning text-dark">Withdrawal</span>';
+                else if (log.transaction_type === 'damage') badge = '<span class="badge bg-danger">Damage</span>';
+                else if (log.transaction_type === 'returned') badge = '<span class="badge bg-info">Returned</span>';
+                else if (log.transaction_type === 'create') badge = '<span class="badge bg-primary">Create</span>';
+                else if (log.transaction_type === 'update') badge = '<span class="badge bg-secondary">Update</span>';
+                else if (log.transaction_type === 'archive') badge = '<span class="badge bg-dark">Archive</span>';
+                else if (log.transaction_type === 'restore') badge = '<span class="badge bg-success">Restore</span>';
+
+                return `
+                    <tr>
+                        <td>${index + 1}</td>
+                        <td class="text-muted small">${log.timestamp}</td>
+                        <td>${log.user}</td>
+                        <td>${badge}</td>
+                        <td class="fw-bold font-monospace">${log.quantity}</td>
+                        <td class="text-muted small">${log.notes || '-'}</td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        // Create chart
+        createItemLogsChart(logs);
+    }
+
+    function createItemLogsChart(logs) {
+        const ctx = document.getElementById('itemLogsChart').getContext('2d');
+
+        // Destroy existing chart
+        if (itemLogsChart) {
+            itemLogsChart.destroy();
+        }
+
+        // Group logs by date
+        const dateGroups = {};
+        logs.forEach(log => {
+            const date = log.timestamp.split(' ')[0];
+            if (!dateGroups[date]) {
+                dateGroups[date] = { purchases: 0, withdrawals: 0, damage: 0, returned: 0 };
+            }
+            const qty = parseFloat(log.quantity) || 0;
+            if (log.transaction_type === 'purchase') dateGroups[date].purchases += qty;
+            else if (log.transaction_type === 'withdrawal') dateGroups[date].withdrawals += qty;
+            else if (log.transaction_type === 'damage') dateGroups[date].damage += qty;
+            else if (log.transaction_type === 'returned') dateGroups[date].returned += qty;
+        });
+
+        const labels = Object.keys(dateGroups).sort();
+
+        itemLogsChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: labels,
+                datasets: [
+                    {
+                        label: 'Purchases',
+                        data: labels.map(d => dateGroups[d].purchases),
+                        borderColor: '#10b981',
+                        backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                        fill: true,
+                        tension: 0.3
+                    },
+                    {
+                        label: 'Withdrawals',
+                        data: labels.map(d => dateGroups[d].withdrawals),
+                        borderColor: '#f59e0b',
+                        backgroundColor: 'rgba(245, 158, 11, 0.1)',
+                        fill: true,
+                        tension: 0.3
+                    },
+                    {
+                        label: 'Damage',
+                        data: labels.map(d => dateGroups[d].damage),
+                        borderColor: '#ef4444',
+                        backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                        fill: true,
+                        tension: 0.3
+                    },
+                    {
+                        label: 'Returned',
+                        data: labels.map(d => dateGroups[d].returned),
+                        borderColor: '#06b6d4',
+                        backgroundColor: 'rgba(6, 182, 212, 0.1)',
+                        fill: true,
+                        tension: 0.3
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'top',
+                        labels: { usePointStyle: true, font: { size: 10 } }
+                    }
+                },
+                scales: {
+                    x: { grid: { display: false }, ticks: { font: { size: 9 } } },
+                    y: { beginAtZero: true, grid: { color: 'rgba(0,0,0,0.05)' } }
+                }
+            }
+        });
+    }
+    // Populate User Filter
+    const userFilter = document.getElementById('filterUser');
+    const uniqueUsers = new Set();
+    // Use allRows if available (from pagination logic), otherwise collect from DOM
+    // Assuming allRows is defined in the pagination section below, but we need it here.
+    // Let's grab all rows from the DOM initially.
+    const initialRows = document.querySelectorAll('#logsTableBody .log-row');
+    initialRows.forEach(row => {
+        const user = row.cells[5].textContent.trim(); // Checkbox(0), #(1), Date(2), Item(3), SKU(4), Type(5), User(6)... Wait.
+        // Let's verify column index. 
+        // Headers: Checkbox, #, Date, Item Name, SKU, Item Type, User, Transaction ...
+        // Index: 0, 1, 2, 3, 4, 5, 6
+        // So User is index 6. 
+        const userCell = row.cells[6];
+        if (userCell) uniqueUsers.add(userCell.textContent.trim());
+    });
+
+    // Sort users and populate dropdown
+    Array.from(uniqueUsers).sort().forEach(user => {
+        const option = document.createElement('option');
+        option.value = user;
+        option.textContent = user;
+        userFilter.appendChild(option);
+    });
+
+    // Enhanced Filtering
+    function filterLogs() {
+        const searchTerm = document.getElementById('globalSearch').value.toLowerCase();
+        const selectedUser = document.getElementById('filterUser').value.toLowerCase();
+        const fromDateVal = document.getElementById('filterFromDate').value;
+        const toDateVal = document.getElementById('filterToDate').value;
+
+        const fromDate = fromDateVal ? new Date(fromDateVal) : null;
+        const toDate = toDateVal ? new Date(toDateVal) : null;
+        // set to end of day for proper comparison
+        if (toDate) toDate.setHours(23, 59, 59, 999);
+
+        let visibleCount = 0;
+
+        // We need to access 'allRows' which is defined in the pagintion section. 
+        // Ideally we should move 'allRows' definition up or use document.querySelectorAll again if pagination didn't ruin it.
+        // The pagination logic hides rows, but doesn't remove them.
+
+        // Let's target the rows in the DOM.
+        const rows = document.querySelectorAll('#logsTableBody .log-row');
+
+        rows.forEach(row => {
+            const text = row.textContent.toLowerCase();
+            const user = row.cells[6].textContent.trim().toLowerCase();
+            const dateText = row.cells[2].textContent.trim();
+            const rowDate = new Date(dateText);
+
+            let matchesSearch = text.includes(searchTerm);
+            let matchesUser = selectedUser === '' || user === selectedUser;
+            let matchesDate = true;
+
+            if (fromDate && rowDate < fromDate) matchesDate = false;
+            if (toDate && rowDate > toDate) matchesDate = false;
+
+            if (matchesSearch && matchesUser && matchesDate) {
+                row.dataset.filtered = "true"; // Mark as visible for pagination
+                visibleCount++;
+            } else {
+                row.dataset.filtered = "false";
+            }
+        });
+
+        document.getElementById('showingCount').textContent = visibleCount;
+
+        // Trigger pagination update to show correct page of filtered results
+        if (typeof updatePagination === 'function') {
+            currentPage = 1; // Reset to page 1
+            updatePagination();
+        }
+    }
+
+    // Attach listeners
+    document.getElementById('globalSearch').addEventListener('input', filterLogs);
+    document.getElementById('filterUser').addEventListener('change', filterLogs);
+    document.getElementById('filterFromDate').addEventListener('change', filterLogs);
+    document.getElementById('filterToDate').addEventListener('change', filterLogs);
+
+    // Initial Filter pass to set dataset attributes
+    filterLogs();
+
+    // Export Functions
+    window.exportLogs = function (format) {
+        // Check if any specific rows are selected
+        const selectedCheckboxes = Array.from(document.querySelectorAll('.log-checkbox:checked'));
+        let targetRows = [];
+
+        if (selectedCheckboxes.length > 0) {
+            targetRows = selectedCheckboxes.map(cb => cb.closest('tr'));
+        } else {
+            // Export current visible rows (respecting filters)
+            // Or export ALL rows that match filter?
+            // Usually 'Export' means export what is currently valid. 
+            // 'visibleRows' in previous code referred to pagination-visible or filter-visible?
+            // Let's export all FILTERED rows (not just current page).
+            targetRows = Array.from(document.querySelectorAll('#logsTableBody .log-row')).filter(row => row.dataset.filtered === "true");
+        }
+
+        const headers = ['#', 'Date & Time', 'Item Name', 'SKU', 'Item Type', 'User', 'Transaction', 'Quantity', 'Notes'];
+
+        let data = targetRows.map(row => {
+            // Skip the first cell (checkbox)
+            return Array.from(row.cells).slice(1).map(cell => cell.textContent.trim());
+        });
+
+        const filename = `inventory_logs_${new Date().toISOString().split('T')[0]}`;
+
+        if (format === 'csv') {
+            let csv = headers.join(',') + '\n';
+            data.forEach(row => {
+                csv += row.map(cell => `"${cell.replace(/"/g, '""')}"`).join(',') + '\n';
+            });
+            downloadFile(csv, `${filename}.csv`, 'text/csv');
+        } else if (format === 'json') {
+            const jsonData = data.map(row => {
+                let obj = {};
+                headers.forEach((h, i) => obj[h] = row[i]);
+                return obj;
+            });
+            downloadFile(JSON.stringify(jsonData, null, 2), `${filename}.json`, 'application/json');
+        } else if (format === 'excel') {
+            // Create workbook and worksheet
+            const wb = XLSX.utils.book_new();
+            const wsData = [headers, ...data];
+            const ws = XLSX.utils.aoa_to_sheet(wsData);
+
+            // Add worksheet to workbook
+            XLSX.utils.book_append_sheet(wb, ws, "Inventory Logs");
+
+            // Write file
+            XLSX.writeFile(wb, `${filename}.xlsx`);
+        } else if (format === 'pdf') {
+            // Use jsPDF and AutoTable
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF('l', 'mm', 'a4'); // Landscape for better table fit
+
+            doc.setFontSize(18);
+            doc.text("Inventory Logs", 14, 22);
+            doc.setFontSize(11);
+            doc.text(`Generated on: ${new Date().toLocaleString()}`, 14, 30);
+
+            doc.autoTable({
+                head: [headers],
+                body: data,
+                startY: 40,
+                theme: 'grid',
+                styles: { fontSize: 8 },
+                headStyles: { fillColor: [41, 128, 185] }, // Blue header
+            });
+
+            doc.save(`${filename}.pdf`);
+        }
+    };
+
+    function downloadFile(content, filename, type) {
+        const blob = new Blob([content], { type: type });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        window.URL.revokeObjectURL(url);
+    }
+});
+</script>
+
+{% endblock %}

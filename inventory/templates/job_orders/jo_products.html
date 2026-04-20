@@ -1,0 +1,943 @@
+{% extends 'core/base.html' %}
+{% load static humanize %}
+
+{% block title %}Product Orders - The Potter's House{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+        <h4 class="mb-0">Product Orders</h4>
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb breadcrumb-custom mb-0">
+                <li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Home</a></li>
+                <li class="breadcrumb-item active" aria-current="page">Product Orders</li>
+            </ol>
+        </nav>
+    </div>
+</div>
+
+<!-- Statistics Cards -->
+<div class="row g-3 mb-4">
+    <div class="col-xl col-md-6">
+        <div onclick="switchFilter('all')" style="cursor: pointer;" class="text-decoration-none">
+            <div class="card stat-card border-0 shadow-sm {% if stats.current_filter == 'all' or not stats.current_filter %}stat-card-active{% endif %}">
+                <div class="card-body d-flex align-items-center">
+                    <div class="stat-icon bg-primary text-white rounded-circle me-3">
+                        <i class="fas fa-boxes"></i>
+                    </div>
+                    <div class="stat-details">
+                        <div class="stat-label text-muted small">TOTAL PRODUCTS</div>
+                        <div class="stat-value fw-bold">{{ stats.total }}</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-xl col-md-6">
+        <div onclick="switchFilter('pending')" style="cursor: pointer;" class="text-decoration-none">
+            <div class="card stat-card border-0 shadow-sm {% if stats.current_filter == 'pending' %}stat-card-active{% endif %}">
+                <div class="card-body d-flex align-items-center">
+                    <div class="stat-icon bg-secondary text-white rounded-circle me-3">
+                        <i class="fas fa-paper-plane"></i>
+                    </div>
+                    <div class="stat-details">
+                        <div class="stat-label text-muted small">PENDING</div>
+                        <div class="stat-value fw-bold text-secondary">{{ stats.pending }}</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-xl col-md-6">
+        <div onclick="switchFilter('production')" style="cursor: pointer;" class="text-decoration-none">
+            <div class="card stat-card border-0 shadow-sm {% if stats.current_filter == 'production' %}stat-card-active{% endif %}">
+                <div class="card-body d-flex align-items-center">
+                    <div class="stat-icon bg-warning text-white rounded-circle me-3">
+                        <i class="fas fa-tools"></i>
+                    </div>
+                    <div class="stat-details">
+                        <div class="stat-label text-muted small">IN PRODUCTION</div>
+                        <div class="stat-value fw-bold text-warning">{{ stats.production }}</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-xl col-md-6">
+        <div onclick="switchFilter('released')" style="cursor: pointer;" class="text-decoration-none">
+            <div class="card stat-card border-0 shadow-sm {% if stats.current_filter == 'released' %}stat-card-active{% endif %}">
+                <div class="card-body d-flex align-items-center">
+                    <div class="stat-icon bg-success text-white rounded-circle me-3">
+                        <i class="fas fa-check-circle"></i>
+                    </div>
+                    <div class="stat-details">
+                        <div class="stat-label text-muted small">RELEASED</div>
+                        <div class="stat-value fw-bold text-success">{{ stats.released }}</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="inventory-card">
+    <div class="inventory-card-header">
+        <div><i class="fas fa-boxes"></i> Product Orders {% if show_all %}<span class="badge bg-secondary ms-1">Showing All</span>{% endif %}</div>
+        <div class="text-muted small">
+            Showing <strong id="paginationInfo">1-20</strong> of <strong>{{ total_count|intcomma }}</strong> items.
+        </div>
+    </div>
+
+    <!-- Toolbar -->
+    <div class="p-3 bg-white border-bottom tool-bar">
+        <div class="d-flex justify-content-between align-items-center flex-wrap g-2">
+            <div class="d-flex align-items-center">
+                <div class="text-muted small me-4" id="selectionInfo">
+                    <span id="selectedCount">0</span> item(s) selected
+                </div>
+                <div class="d-flex align-items-center me-2">
+                    <label class="small text-muted me-2 mb-0">From:</label>
+                    <input type="date" id="dateStart" class="form-control form-control-sm" style="width: 140px;" value="{{ date_start }}">
+                </div>
+                <div class="d-flex align-items-center me-3">
+                    <label class="small text-muted me-2 mb-0">To:</label>
+                    <input type="date" id="dateEnd" class="form-control form-control-sm" style="width: 140px;" value="{{ date_end }}">
+                </div>
+                <div class="btn-group me-2">
+                    <button type="button" class="btn btn-sm btn-outline-secondary" onclick="applyDateFilter()" title="Filter by Date">
+                        <span class="icon-box" style="width: 20px; height: 20px; margin-right: 4px; border-radius: 4px;">
+                            <i class="fas fa-filter" style="font-size: 0.7rem;"></i>
+                        </span>
+                        Filter
+                    </button>
+                        <span class="icon-box" style="width: 20px; height: 20px; margin-right: 0; border-radius: 4px;">
+                            <i class="fas fa-times" style="font-size: 0.7rem;"></i>
+                        </span>
+                </div>
+            </div>
+            <div class="d-flex gap-2">
+                <div class="dropdown">
+                    <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" id="exportDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                        <i class="fas fa-file-export me-1"></i> Export
+                    </button>
+                    <ul class="dropdown-menu shadow" aria-labelledby="exportDropdown">
+                        <li><a class="dropdown-item py-2" href="#" onclick="exportData('csv')">
+                            <i class="fas fa-file-csv text-success me-2 fa-lg w-20 text-center"></i> CSV Format
+                        </a></li>
+                        <li><a class="dropdown-item py-2" href="#" onclick="exportData('json')">
+                            <i class="fas fa-file-code text-warning me-2 fa-lg w-20 text-center"></i> JSON Data
+                        </a></li>
+                        <li><a class="dropdown-item py-2" href="#" onclick="exportData('excel')">
+                            <i class="fas fa-file-excel text-success me-2 fa-lg w-20 text-center"></i> Excel
+                        </a></li>
+                        <li><a class="dropdown-item py-2" href="#" onclick="exportData('pdf')">
+                            <i class="fas fa-file-pdf text-danger me-2 fa-lg w-20 text-center"></i> PDF Document
+                        </a></li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="table-responsive">
+        <table class="table table-hover" id="joProductsTable">
+            <thead>
+                <tr>
+                    <th scope="col" style="width: 40px;">
+                        <input type="checkbox" id="selectAll" class="form-check-input" title="Select All">
+                    </th>
+                    <th width="40">#</th>
+                    <th class="sortable">Transaction Date <i class="fas fa-sort"></i></th>
+                    <th class="sortable">PID <i class="fas fa-sort-down"></i></th>
+                    <th class="sortable" style="min-width: 120px;">WIP <i class="fas fa-sort"></i></th>
+                    <th class="sortable">Client Name <i class="fas fa-sort"></i></th>
+                    <th class="sortable">Product Type <i class="fas fa-sort"></i></th>
+                    <th class="sortable">Product Name <i class="fas fa-sort"></i></th>
+                    <th class="text-center sortable">Quantity <i class="fas fa-sort"></i></th>
+                    <th class="text-end sortable">Unit Price <i class="fas fa-sort"></i></th>
+                    <th>Status</th>
+                </tr>
+                <tr class="bg-light filter-row">
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td><input type="text" class="form-control form-control-sm filter-input" placeholder="Product ID"></td>
+                    <td><input type="text" class="form-control form-control-sm filter-input" placeholder="WIP"></td>
+                    <td><input type="text" class="form-control form-control-sm filter-input" placeholder="Client Name"></td>
+                    <td>
+                        <select class="form-select form-select-sm filter-input">
+                            <option value="">Select type...</option>
+                            <option value="Prints">Prints</option>
+                            <option value="Invites">Invites</option>
+                            <option value="Packaging">Packaging</option>
+                            <option value="Souvenirs">Souvenirs</option>
+                            <option value="Combo">Combo</option>
+                        </select>
+                    </td>
+                    <td><input type="text" class="form-control form-control-sm filter-input" placeholder="Product name"></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in products %}
+                <tr>
+                    <td>
+                        <input type="checkbox" class="form-check-input row-checkbox" value="{{ item.id }}">
+                    </td>
+                    <td>{{ forloop.counter }}</td>
+                    <td>{{ item.transaction_date|date:"d M Y" }}</td>
+                    <td class="fw-bold">{{ item.pid }}</td>
+                    <td>
+                        <a href="{% url 'job_order_detail' item.job_order.id %}" class="text-primary-bold text-decoration-none">
+                            {{ item.job_order.wip }}
+                        </a>
+                    </td>
+                    <td>{{ item.name|default:item.job_order.client.full_name }}</td>
+                    <td>{{ item.product_type }}</td>
+                    <td class="fw-bold">{{ item.product_name }}</td>
+                    <td class="text-center">{{ item.quantity|floatformat:2 }}</td>
+                    <td class="text-end fw-bold">₱{{ item.unit_price|floatformat:2|intcomma }}</td>
+                    <td>
+                        {% if item.status == 'Pending' %}
+                        <span class="badge-pending">
+                            <i class="fas fa-paper-plane me-1"></i>Pending
+                        </span>
+                        {% elif item.status == 'Released' %}
+                        <span class="badge-released">
+                            <i class="fas fa-check-circle me-1"></i>Released
+                        </span>
+                        {% elif 'PH' in item.status %}
+                        <span class="badge-timestamped">
+                            <i class="fas fa-history me-1"></i>{{ item.status }}
+                        </span>
+                        {% else %}
+                        <span class="badge-blue">{{ item.status }}</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="11" class="text-center p-5 text-muted">No product orders found.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Pagination -->
+    <div class="card-footer bg-light border-top">
+        <nav aria-label="Product pagination">
+            <ul class="pagination pagination-sm mb-0 justify-content-end" id="paginationContainer">
+                <!-- Pagination injected by JS -->
+            </ul>
+        </nav>
+    </div>
+</div>
+
+<!-- Activity Logs Section -->
+<div class="inventory-card mt-4 mb-4">
+    <div class="inventory-card-header bg-light py-2 px-3 border-bottom">
+        <div class="d-flex justify-content-between align-items-center flex-wrap">
+            <div class="d-flex align-items-center my-1">
+                <div class="icon-box">
+                    <i class="fas fa-history"></i>
+                </div>
+                <h6 class="mb-0 fw-bold text-pink" style="font-size: 0.85rem;">Product Orders Activity Logs</h6>
+            </div>
+            <div class="d-flex align-items-center my-1">
+                <div class="d-flex align-items-center me-2">
+                    <label class="small text-muted me-2 mb-0">From:</label>
+                    <input type="date" id="logDateStart" class="form-control form-control-sm" style="width: 130px;" value="{{ log_date_start }}">
+                </div>
+                <div class="d-flex align-items-center me-2">
+                    <label class="small text-muted me-2 mb-0">To:</label>
+                    <input type="date" id="logDateEnd" class="form-control form-control-sm" style="width: 130px;" value="{{ log_date_end }}">
+                </div>
+                <div class="btn-group">
+                    <button type="button" class="btn btn-sm btn-outline-secondary" onclick="applyLogDateFilter()" title="Filter Logs">
+                       <span class="icon-box" style="width: 20px; height: 20px; margin-right: 4px; border-radius: 4px;">
+                            <i class="fas fa-filter" style="font-size: 0.7rem;"></i>
+                        </span>
+                        Filter
+                    </button>
+                        <span class="icon-box" style="width: 20px; height: 20px; margin-right: 0; border-radius: 4px;">
+                            <i class="fas fa-times" style="font-size: 0.7rem;"></i>
+                        </span>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="table-responsive">
+        <table class="table table-hover mb-0" id="joLogsTable">
+            <thead>
+                <tr>
+                    <th width="40">#</th>
+                    <th width="150">TIMESTAMP</th>
+                    <th width="100">ACTION</th>
+                    <th width="120">USER</th>
+                    <th>DESCRIPTION</th>
+                </tr>
+                <tr class="bg-light filter-row">
+                    <td></td>
+                    <td><input type="text" class="form-control form-control-sm column-filter-log" data-column="1" placeholder="Timestamp" style="font-size: 0.7rem; height: 24px;"></td>
+                    <td><input type="text" class="form-control form-control-sm column-filter-log" data-column="2" placeholder="Action" style="font-size: 0.7rem; height: 24px;"></td>
+                    <td><input type="text" class="form-control form-control-sm column-filter-log" data-column="3" placeholder="User" style="font-size: 0.7rem; height: 24px;"></td>
+                    <td><input type="text" class="form-control form-control-sm column-filter-log" data-column="4" placeholder="Description" style="font-size: 0.7rem; height: 24px;"></td>
+                </tr>
+            </thead>
+            <tbody id="joLogsBody">
+                {% for log in jo_products_logs %}
+                <tr>
+                    <td class="text-muted">{{ forloop.counter }}</td>
+                    <td>{{ log.timestamp|date:"Y-m-d H:i:s" }}</td>
+                    <td>
+                        {% with action=log.action|lower %}
+                        {% if action == 'created' %}
+                            <span class="log-badge log-badge-created">CREATED</span>
+                        {% elif action == 'updated' %}
+                            <span class="log-badge log-badge-updated">UPDATED</span>
+                        {% elif action == 'packed' or action == 'pack' %}
+                            <span class="log-badge log-badge-packed">PACKED</span>
+                        {% elif action == 'unpacked' %}
+                            <span class="log-badge log-badge-unpacked">UNPACKED</span>
+                        {% elif action == 'released' or action == 'release' %}
+                            <span class="log-badge log-badge-released">RELEASED</span>
+                        {% elif action == 'unreleased' %}
+                            <span class="log-badge log-badge-unreleased">UNRELEASED</span>
+                        {% elif action == 'sent_to_production' or action == 'sent to production' %}
+                            <span class="log-badge log-badge-production">PRODUCTION</span>
+                        {% elif action == 'acknowledged' %}
+                            <span class="log-badge log-badge-acknowledged">ACKNOWLEDGED</span>
+                        {% elif action == 'transferred' %}
+                            <span class="log-badge log-badge-transferred">TRANSFERRED</span>
+                        {% elif action == 'voided' or action == 'void' %}
+                            <span class="log-badge log-badge-voided">VOIDED</span>
+                        {% elif action == 'archived' or action == 'archive' %}
+                            <span class="log-badge log-badge-archived">ARCHIVED</span>
+                        {% else %}
+                            <span class="log-badge log-badge-default">{{ action|upper }}</span>
+                        {% endif %}
+                        {% endwith %}
+                    </td>
+                    <td><strong>{{ log.user }}</strong></td>
+                    <td class="small">{{ log.description }}</td>
+                </tr>
+                {% empty %}
+                <tr class="no-results-log">
+                    <td colspan="5" class="text-center py-4 text-muted">No activity logs found.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    <!-- Log Pagination -->
+    <div class="p-3 bg-white border-top d-flex justify-content-between align-items-center">
+        <div class="small text-muted">
+            Showing <span id="logPaginationInfo" class="fw-bold">0</span> of <span id="logPaginationTotal" class="fw-bold">{{ jo_products_logs|length }}</span> items
+        </div>
+        <ul class="pagination pagination-sm mb-0" id="logPaginationContainer"></ul>
+    </div>
+</div>
+
+<style>
+    .badge-pending {
+        background-color: #f8f9fa !important;
+        color: #6c757d !important;
+        border: 1px solid #dee2e6 !important;
+        padding: 4px 8px !important;
+        font-weight: 500 !important;
+        border-radius: 4px !important;
+        font-size: 0.65rem !important;
+    }
+    
+    .badge-timestamped {
+        background-color: #fff0f3 !important;
+        color: #e91e63 !important;
+        border: 1px solid #ffccd5 !important;
+        padding: 4px 8px !important;
+        font-weight: 500 !important;
+        border-radius: 4px !important;
+        font-size: 0.65rem !important;
+    }
+
+    .badge-blue {
+        background-color: #e7f1ff !important;
+        color: #0d6efd !important;
+        border: 1px solid #b6d4fe !important;
+        padding: 4px 8px !important;
+        font-weight: 500 !important;
+        border-radius: 4px !important;
+        font-size: 0.65rem !important;
+    }
+
+    .badge-released {
+        background-color: #dcfce7 !important;
+        color: #15803d !important;
+        border: 1px solid #bbf7d0 !important;
+        padding: 4px 8px !important;
+        font-weight: 500 !important;
+        border-radius: 4px !important;
+        font-size: 0.65rem !important;
+    }
+
+    .table th {
+        font-size: 0.7rem !important;
+        background-color: #fdf2f8 !important;
+        color: var(--primary-color) !important;
+        font-weight: 700 !important;
+        text-transform: uppercase;
+        border-bottom: 2px solid var(--primary-light) !important;
+        vertical-align: middle !important;
+    }
+
+    .table td {
+        font-size: 0.75rem !important;
+        vertical-align: middle !important;
+        padding: 10px 8px !important;
+    }
+
+    .text-primary-bold {
+        color: #0d6efd !important;
+        font-weight: 700 !important;
+    }
+
+    .filter-row td {
+        padding: 5px 8px !important;
+        background-color: #ffffff !important;
+    }
+
+    .filter-input {
+        height: 28px !important;
+        font-size: 0.7rem !important;
+        border-color: #fce7f3 !important;
+    }
+
+    .sortable i {
+        font-size: 0.6rem;
+        margin-left: 2px;
+        opacity: 0.5;
+    }
+
+    .sortable i.fa-sort-down, .sortable i.fa-sort-up {
+        opacity: 1;
+        color: #e91e63 !important;
+    }
+
+    .inventory-card-header i {
+        color: #e91e63;
+        margin-right: 8px;
+    }
+
+    .tool-bar {
+        background-color: #fff;
+    }
+    
+    th.active-sort {
+        color: #e91e63 !important;
+    }
+
+    /* Badge Styles for Logs */
+    .bg-success-light { background-color: #dcfce7 !important; }
+    .bg-primary-light { background-color: #e0f2fe !important; }
+    .bg-info-light { background-color: #e0f7fa !important; }
+    .bg-warning-light { background-color: #fef3c7 !important; }
+    .bg-secondary-light { background-color: #f3f4f6 !important; }
+</style>
+
+<script>
+    function applyDateFilter() {
+        const start = document.getElementById('dateStart').value;
+        const end = document.getElementById('dateEnd').value;
+        let url = new URL(window.location.href);
+        
+        // Clear conflicting log filters
+        url.searchParams.delete('log_date_start');
+        url.searchParams.delete('log_date_end');
+        
+        if (start) url.searchParams.set('date_start', start);
+        else url.searchParams.delete('date_start');
+        
+        if (end) url.searchParams.set('date_end', end);
+        else url.searchParams.delete('date_end');
+        
+        window.location.href = url.toString();
+    }
+
+    function clearDateFilter() {
+        let url = new URL(window.location.href);
+        url.searchParams.delete('date_start');
+        url.searchParams.delete('date_end');
+        window.location.href = url.toString();
+    }
+
+    function applyLogDateFilter() {
+        const start = document.getElementById('logDateStart').value;
+        const end = document.getElementById('logDateEnd').value;
+        let url = new URL(window.location.href);
+        
+        // Clear conflicting table filters
+        url.searchParams.delete('date_start');
+        url.searchParams.delete('date_end');
+        
+        if (start) url.searchParams.set('log_date_start', start);
+        else url.searchParams.delete('log_date_start');
+        
+        if (end) url.searchParams.set('log_date_end', end);
+        else url.searchParams.delete('log_date_end');
+        
+        window.location.href = url.toString();
+    }
+
+    // ========== LOG PAGINATION & FILTERING ==========
+    let currentLogPage = 1;
+    const logsPerPage = 10;
+    let allLogRows = [];
+    let filteredLogRows = [];
+
+    function updateLogPagination() {
+        const tbody = document.getElementById('joLogsBody');
+        if (!tbody) return;
+        
+        if (allLogRows.length === 0) {
+            allLogRows = Array.from(tbody.querySelectorAll('tr:not(.no-results-log)'));
+            filteredLogRows = [...allLogRows];
+        }
+
+        const totalLogs = filteredLogRows.length;
+        const totalPages = Math.ceil(totalLogs / logsPerPage);
+        
+        if (currentLogPage < 1) currentLogPage = 1;
+        if (currentLogPage > totalPages && totalPages > 0) currentLogPage = totalPages;
+
+        // Hide all rows
+        allLogRows.forEach(row => row.style.display = 'none');
+        
+        // Remove no results row if it exists
+        const existingNoResults = tbody.querySelector('.no-results-log');
+        if (existingNoResults) existingNoResults.remove();
+
+        if (totalLogs === 0) {
+            const noResults = document.createElement('tr');
+            noResults.className = 'no-results-log';
+            noResults.innerHTML = `<td colspan="5" class="text-center py-4 text-muted">No matching activity logs found.</td>`;
+            tbody.appendChild(noResults);
+            
+            if (document.getElementById('logPaginationInfo')) document.getElementById('logPaginationInfo').textContent = '0';
+            if (document.getElementById('logPaginationTotal')) document.getElementById('logPaginationTotal').textContent = '0';
+            if (document.getElementById('logPaginationContainer')) document.getElementById('logPaginationContainer').innerHTML = '';
+            return;
+        }
+
+        // Show/Hide rows
+        const start = (currentLogPage - 1) * logsPerPage;
+        const end = start + logsPerPage;
+        const pageRows = filteredLogRows.slice(start, end);
+        pageRows.forEach(row => row.style.display = '');
+
+        // Update Info
+        const info = document.getElementById('logPaginationInfo');
+        const total = document.getElementById('logPaginationTotal');
+        if (info && total) {
+            const rowStart = start + 1;
+            const rowEnd = Math.min(start + logsPerPage, totalLogs);
+            info.textContent = `${rowStart}-${rowEnd}`;
+            total.textContent = totalLogs;
+        }
+
+        // Update Pagination UI
+        const container = document.getElementById('logPaginationContainer');
+        if (container) {
+            
+            // container.innerHTML = ''; // This is already there a few lines up
+            
+            // if (totalPages <= 1) return; // Removed to show pagination even for 1 page
+
+            const createPageItem = (label, page, active = false, disabled = false) => {
+                const li = document.createElement('li');
+                li.className = `page-item ${active ? 'active' : ''} ${disabled ? 'disabled' : ''}`;
+                li.innerHTML = `<a class="page-link" href="javascript:void(0)">${label}</a>`;
+                if (!disabled && !active) {
+                    li.onclick = () => {
+                        currentLogPage = page;
+                        updateLogPagination();
+                        document.getElementById('joLogsTable').scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    };
+                }
+                return li;
+            };
+
+            container.appendChild(createPageItem('&laquo;', currentLogPage - 1, false, currentLogPage === 1));
+
+            for (let i = 1; i <= totalPages; i++) {
+                if (i === 1 || i === totalPages || (i >= currentLogPage - 1 && i <= currentLogPage + 1)) {
+                    container.appendChild(createPageItem(i, i, i === currentLogPage));
+                } else if (i === (currentLogPage - 2) || i === (currentLogPage + 2)) {
+                    const dots = document.createElement('li');
+                    dots.className = 'page-item disabled';
+                    dots.innerHTML = '<span class="page-link">...</span>';
+                    container.appendChild(dots);
+                }
+            }
+
+            container.appendChild(createPageItem('&raquo;', currentLogPage + 1, false, currentLogPage === totalPages));
+        }
+    }
+
+    function filterLogs() {
+        const filters = Array.from(document.querySelectorAll('.column-filter-log'));
+        
+        filteredLogRows = allLogRows.filter(row => {
+            const cells = row.cells;
+            let matches = true;
+            filters.forEach(input => {
+                const colIdx = parseInt(input.getAttribute('data-column'));
+                const filterVal = input.value.toLowerCase().trim();
+                if (filterVal) {
+                    const cellText = cells[colIdx] ? cells[colIdx].textContent.toLowerCase().trim() : '';
+                    if (cellText.indexOf(filterVal) === -1) {
+                        matches = false;
+                    }
+                }
+            });
+            return matches;
+        });
+
+        currentLogPage = 1;
+        updateLogPagination();
+    }
+
+    document.querySelectorAll('.column-filter-log').forEach(input => {
+        input.addEventListener('input', filterLogs);
+    });
+
+    function clearLogDateFilter() {
+        let url = new URL(window.location.href);
+        url.searchParams.delete('log_date_start');
+        url.searchParams.delete('log_date_end');
+        window.location.href = url.toString();
+    }
+
+    function switchFilter(filter) {
+        let url = new URL(window.location.href);
+        url.searchParams.set('filter', filter);
+        window.location.href = url.toString();
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+        const table = document.getElementById('joProductsTable');
+        const inputs = table.querySelectorAll('.filter-input');
+        const tbody = table.querySelector('tbody');
+        const selectAll = document.getElementById('selectAll');
+        const rowCheckboxes = table.querySelectorAll('.row-checkbox');
+        const selectedCountSpan = document.getElementById('selectedCount');
+        const paginationContainer = document.getElementById('paginationContainer');
+        const paginationInfo = document.getElementById('paginationInfo');
+        
+        let currentPage = 1;
+        const rowsPerPage = 20;
+        let filteredRows = [];
+
+        function updateFilteredRows() {
+            const allRows = Array.from(tbody.querySelectorAll('tr:not(.no-results)'));
+            filteredRows = allRows.filter(row => {
+                let show = true;
+                inputs.forEach((input, idx) => {
+                    const filterValue = input.value.toLowerCase().trim();
+                    if (filterValue) {
+                        // Offset by 2 because checkboxes are col 0 and # is col 1
+                        const cell = row.cells[idx + 2];
+                        if (cell) {
+                            const cellText = cell.textContent.toLowerCase().trim();
+                            if (!cellText.includes(filterValue)) {
+                                show = false;
+                            }
+                        }
+                    }
+                });
+                return show;
+            });
+
+            // Handle "No Results" row
+            const existingNoResults = tbody.querySelector('.no-results');
+            if (existingNoResults) existingNoResults.remove();
+            
+            if (filteredRows.length === 0) {
+                const noResults = document.createElement('tr');
+                noResults.className = 'no-results';
+                noResults.innerHTML = `<td colspan="11" class="text-center p-5 text-muted">No matching results found.</td>`;
+                tbody.appendChild(noResults);
+            }
+        }
+
+        function renderTable() {
+            const allRows = Array.from(tbody.querySelectorAll('tr:not(.no-results)'));
+            allRows.forEach(row => row.style.display = 'none');
+
+            const start = (currentPage - 1) * rowsPerPage;
+            const end = start + rowsPerPage;
+            const pageRows = filteredRows.slice(start, end);
+
+            pageRows.forEach(row => row.style.display = '');
+
+            // Update Pagination Info "Showing X-Y of Z"
+            if (filteredRows.length > 0) {
+                const rowStart = start + 1;
+                const rowEnd = Math.min(end, filteredRows.length);
+                paginationInfo.textContent = `${rowStart}-${rowEnd}`;
+            } else {
+                paginationInfo.textContent = '0';
+            }
+        }
+
+        function buildPagination() {
+            paginationContainer.innerHTML = '';
+            const totalPages = Math.ceil(filteredRows.length / rowsPerPage);
+
+            // if (totalPages <= 1) return; // Removed to show pagination even for 1 page
+
+            // Previous Button
+            const prevLi = document.createElement('li');
+            prevLi.className = `page-item ${currentPage === 1 ? 'disabled' : ''}`;
+            prevLi.innerHTML = `<a class="page-link" href="#" aria-label="Previous">&laquo;</a>`;
+            prevLi.addEventListener('click', (e) => {
+                e.preventDefault();
+                if (currentPage > 1) {
+                    currentPage--;
+                    updateView();
+                }
+            });
+            paginationContainer.appendChild(prevLi);
+
+            // Page Buttons
+            for (let i = 1; i <= totalPages; i++) {
+                const li = document.createElement('li');
+                li.className = `page-item ${i === currentPage ? 'active' : ''}`;
+                li.innerHTML = `<a class="page-link" href="#">${i}</a>`;
+                li.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    if (currentPage !== i) {
+                        currentPage = i;
+                        updateView();
+                    }
+                });
+                paginationContainer.appendChild(li);
+            }
+
+            // Next Button
+            const nextLi = document.createElement('li');
+            nextLi.className = `page-item ${currentPage === totalPages ? 'disabled' : ''}`;
+            nextLi.innerHTML = `<a class="page-link" href="#" aria-label="Next">&raquo;</a>`;
+            nextLi.addEventListener('click', (e) => {
+                e.preventDefault();
+                if (currentPage < totalPages) {
+                    currentPage++;
+                    updateView();
+                }
+            });
+            paginationContainer.appendChild(nextLi);
+        }
+
+        function updateView() {
+            renderTable();
+            buildPagination();
+        }
+
+        function handleFilter() {
+            currentPage = 1;
+            updateFilteredRows();
+            updateView();
+        }
+
+        inputs.forEach(input => {
+            input.addEventListener('input', handleFilter);
+            input.addEventListener('change', handleFilter);
+        });
+
+        // --- Selection Logic ---
+        function updateSelectedCount() {
+            const checkedCount = tbody.querySelectorAll('.row-checkbox:checked').length;
+            selectedCountSpan.textContent = checkedCount;
+            selectAll.checked = checkedCount > 0 && checkedCount === tbody.querySelectorAll('.row-checkbox').length;
+            selectAll.indeterminate = checkedCount > 0 && checkedCount < tbody.querySelectorAll('.row-checkbox').length;
+        }
+
+        selectAll.addEventListener('change', function() {
+            const isChecked = this.checked;
+            tbody.querySelectorAll('.row-checkbox').forEach(cb => {
+                if (cb.closest('tr').style.display !== 'none') {
+                    cb.checked = isChecked;
+                }
+            });
+            updateSelectedCount();
+        });
+
+        tbody.addEventListener('change', function(e) {
+            if (e.target.classList.contains('row-checkbox')) {
+                updateSelectedCount();
+            }
+        });
+
+        // --- Sorting Logic ---
+        let currentSortCol = -1;
+        let currentSortDir = 'asc';
+
+        document.querySelectorAll('.sortable').forEach(th => {
+            th.addEventListener('click', function () {
+                const column = Array.from(th.parentElement.children).indexOf(th);
+                
+                if (currentSortCol === column) {
+                    currentSortDir = currentSortDir === 'asc' ? 'desc' : 'asc';
+                } else {
+                    currentSortCol = column;
+                    currentSortDir = 'asc';
+                }
+
+                // Update UI
+                document.querySelectorAll('.sortable').forEach(header => {
+                    header.classList.remove('active-sort');
+                    const icon = header.querySelector('i');
+                    if (icon) icon.className = 'fas fa-sort';
+                });
+                this.classList.add('active-sort');
+                this.querySelector('i').className = currentSortDir === 'asc' ? 'fas fa-sort-up' : 'fas fa-sort-down';
+
+                // Sort the underlying rows array
+                const allRows = Array.from(tbody.querySelectorAll('tr:not(.no-results)'));
+                allRows.sort((a, b) => {
+                    let aVal = a.cells[column]?.textContent.trim() || '';
+                    let bVal = b.cells[column]?.textContent.trim() || '';
+
+                    // Try numeric comparison for Quantity and Unit Price
+                    if (column === 8 || column === 9) {
+                        const aNum = parseFloat(aVal.replace(/[^0-9.-]+/g, ""));
+                        const bNum = parseFloat(bVal.replace(/[^0-9.-]+/g, ""));
+                        if (!isNaN(aNum) && !isNaN(bNum)) {
+                            return currentSortDir === 'asc' ? aNum - bNum : bNum - aNum;
+                        }
+                    }
+
+                    return currentSortDir === 'asc' 
+                        ? aVal.localeCompare(bVal, undefined, {numeric: true, sensitivity: 'base'})
+                        : bVal.localeCompare(aVal, undefined, {numeric: true, sensitivity: 'base'});
+                });
+
+                // Re-append to tbody and update filtered array
+                allRows.forEach(row => tbody.appendChild(row));
+                updateFilteredRows();
+                updateView();
+            });
+        });
+
+        // Initial setup
+        updateFilteredRows();
+        updateView();
+        updateLogPagination();
+    });
+
+        // Export functionality
+        window.exportData = function(format) {
+            const table = document.getElementById('joProductsTable');
+            const checkedBoxes = Array.from(table.querySelectorAll('.row-checkbox:checked'));
+            let rows;
+            
+            if (checkedBoxes.length > 0) {
+                rows = checkedBoxes.map(cb => cb.closest('tr'));
+            } else {
+                rows = Array.from(table.querySelectorAll('tbody tr')).filter(row => row.style.display !== 'none' && !row.classList.contains('no-results'));
+            }
+
+            if (rows.length === 0) {
+                alert('No data to export.');
+                return;
+            }
+
+            // Columns to skip: Checkbox (0)
+            const skipCols = [0];
+            
+            // Get headers
+            const headers = [];
+            table.querySelectorAll('thead tr:first-child th').forEach((th, i) => {
+                if (!skipCols.includes(i)) {
+                    headers.push(th.textContent.replace(/\s+/g, ' ').trim());
+                }
+            });
+
+            // Get data
+            const data = rows.map(row => {
+                const rowData = [];
+                row.querySelectorAll('td').forEach((td, i) => {
+                    if (skipCols.includes(i)) return;
+                    rowData.push(td.textContent.replace(/\s+/g, ' ').trim());
+                });
+                return rowData;
+            });
+
+            const filename = 'product_orders_export_' + new Date().toISOString().slice(0, 10);
+
+            if (format === 'csv') {
+                let content = headers.join(',') + '\n';
+                data.forEach(row => {
+                    content += row.map(cell => '"' + cell.replace(/"/g, '""') + '"').join(',') + '\n';
+                });
+                downloadFile(content, filename + '.csv', 'text/csv');
+
+            } else if (format === 'json') {
+                const jsonData = data.map(row => {
+                    const obj = {};
+                    headers.forEach((header, i) => {
+                        obj[header] = row[i] || '';
+                    });
+                    return obj;
+                });
+                downloadFile(JSON.stringify(jsonData, null, 2), filename + '.json', 'application/json');
+
+            } else if (format === 'excel') {
+                if (typeof XLSX === 'undefined') {
+                    alert('Excel library not loaded. Please refresh the page.');
+                    return;
+                }
+                const wb = XLSX.utils.book_new();
+                const wsData = [headers, ...data];
+                const ws = XLSX.utils.aoa_to_sheet(wsData);
+                XLSX.utils.book_append_sheet(wb, ws, "Product Orders");
+                XLSX.writeFile(wb, `${filename}.xlsx`);
+
+            } else if (format === 'pdf') {
+                if (typeof window.jspdf === 'undefined') {
+                    alert('PDF library not loaded. Please refresh the page.');
+                    return;
+                }
+                const { jsPDF } = window.jspdf;
+                const doc = new jsPDF('l', 'mm', 'a4');
+
+                doc.setFontSize(18);
+                doc.text("Product Orders", 14, 20);
+                doc.setFontSize(11);
+                doc.text(`Generated on: ${new Date().toLocaleString()}`, 14, 28);
+
+                doc.autoTable({
+                    head: [headers],
+                    body: data,
+                    startY: 35,
+                    theme: 'grid',
+                    styles: { fontSize: 7, cellPadding: 2 },
+                    headStyles: { fillColor: [233, 30, 99] } // Pink theme: #e91e63
+                });
+                doc.save(`${filename}.pdf`);
+            }
+        };
+
+        function downloadFile(content, filename, mimeType) {
+            const blob = new Blob([content], { type: mimeType + ';charset=utf-8' });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = filename;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(link.href);
+        }
+</script>
+{% endblock %}

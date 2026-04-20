@@ -1,0 +1,404 @@
+{% extends 'core/base.html' %}
+{% load static %}
+{% load inventory_extras %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <!-- Header/Tabs -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h4 class="fw-bold text-pink mb-0">User Management</h4>
+            <p class="text-muted small">Manage system users, login credentials, and account statuses.</p>
+        </div>
+        {% if user|has_auth_perm:"create-user" %}
+        <div>
+            <button class="btn btn-pink text-white shadow-sm" data-bs-toggle="modal" data-bs-target="#signupModal">
+                <i class="fas fa-user-plus me-2 text-white"></i>Create New User
+            </button>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Navigation Tabs -->
+    <div class="user-management-nav mb-4 bg-white p-2 rounded-3 shadow-sm d-flex gap-2 text-nowrap overflow-auto">
+        {% if user|has_auth_perm:"access-user-management" %}
+        <a href="{% url 'user_index' %}" class="btn {% if active_page == 'user_management' %}btn-pink text-white{% else %}btn-light text-muted{% endif %} px-4">
+            <i class="fas fa-users me-2"></i>Users
+        </a>
+        {% endif %}
+        {% if user|has_auth_perm:"access-assignments" %}
+        <a href="{% url 'auth_assignment' %}" class="btn {% if active_page == 'user_management_assignment' %}btn-pink text-white{% else %}btn-light text-muted{% endif %} px-4">
+            <i class="fas fa-user-shield me-2"></i>Assignments
+        </a>
+        {% endif %}
+        {% if user|has_auth_perm:"access-roles-permissions" %}
+        <a href="{% url 'auth_item' %}" class="btn {% if active_page == 'user_management_items' %}btn-pink text-white{% else %}btn-light text-muted{% endif %} px-4">
+            <i class="fas fa-list-ul me-2"></i>Roles & Permissions
+        </a>
+        {% endif %}
+        {% if user|has_auth_perm:"access-user-matrix" %}
+        <a href="{% url 'user_matrix' %}" class="btn {% if active_page == 'user_management_matrix' %}btn-pink text-white{% else %}btn-light text-muted{% endif %} px-4">
+            <i class="fas fa-th me-2"></i>Matrix
+        </a>
+        {% endif %}
+    </div>
+
+    <!-- Users Table Card -->
+    <div class="inventory-card shadow-sm border-0">
+        <div class="inventory-card-header bg-white py-3 px-4 border-bottom d-flex justify-content-between align-items-center">
+            <h6 class="mb-0 fw-bold"><i class="fas fa-list me-2 text-pink"></i>System Users</h6>
+            <div class="small text-muted"><i class="fas fa-filter me-1"></i>Use headers to filter list</div>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0" id="usersTable">
+                <thead class="bg-light text-muted small text-uppercase">
+                    <tr>
+                        <th class="ps-4" style="width: 50px;">#</th>
+                        <th style="width: 80px;" class="text-center">Status</th>
+                        <th>Lastname</th>
+                        <th>Firstname</th>
+                        <th>Username</th>
+                        <th>Dashboard</th>
+                        <th>Email</th>
+                        <th>Linked Employee</th>
+                        <th class="text-end pe-4">Actions</th>
+                    </tr>
+                    <tr class="filter-row bg-white">
+                        <th class="ps-4"></th>
+                        <th></th>
+                        <th><input type="text" class="form-control form-control-sm column-filter" placeholder="Filter Lastname" data-col="2"></th>
+                        <th><input type="text" class="form-control form-control-sm column-filter" placeholder="Filter Firstname" data-col="3"></th>
+                        <th><input type="text" class="form-control form-control-sm column-filter" placeholder="Filter Username" data-col="4"></th>
+                        <th>
+                            <select class="form-select form-select-sm column-filter" data-col="5">
+                                <option value="">All</option>
+                                <option value="superadmin">Superadmin</option>
+                                <option value="admin">Admin</option>
+                                <option value="manager">Manager</option>
+                                <option value="staff">Staff</option>
+                            </select>
+                        </th>
+                        <th><input type="text" class="form-control form-control-sm column-filter" placeholder="Filter Email" data-col="6"></th>
+                        <th></th>
+                        <th class="pe-4"></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for u in users %}
+                    <tr class="user-row">
+                        <td class="ps-4 text-muted small">{{ forloop.counter }}</td>
+                        <td class="text-center">
+                            {% if user|has_auth_perm:"toggle-user-status" %}
+                            <div class="form-check form-switch d-inline-block">
+                                <input class="form-check-input status-toggle" type="checkbox" role="switch" 
+                                       data-user-id="{{ u.id }}" {% if u.is_active %}checked{% endif %}>
+                            </div>
+                            {% else %}
+                            <span class="badge {% if u.is_active %}bg-success{% else %}bg-secondary{% endif %} rounded-circle" style="width: 12px; height: 12px; display: inline-block;"></span>
+                            {% endif %}
+                        </td>
+                        <td class="fw-bold">{{ u.last_name|default:"-" }}</td>
+                        <td class="fw-bold">{{ u.first_name|default:"-" }}</td>
+                        <td>
+                            <a href="javascript:void(0)" class="text-pink fw-bold text-decoration-none edit-user-btn" 
+                               data-user-id="{{ u.id }}" 
+                               data-username="{{ u.username }}"
+                               data-first-name="{{ u.first_name }}"
+                               data-last-name="{{ u.last_name }}"
+                               data-dashboard="{{ u.profile.dashboard_type }}">
+                                {{ u.username }}
+                            </a>
+                        </td>
+                        <td>
+                            <span class="badge {% if u.profile.dashboard_type == 'superadmin' or u.profile.dashboard_type == 'admin' %}bg-pink-light text-pink border-pink-subtle{% else %}bg-light text-muted{% endif %} text-uppercase small px-2 py-1">
+                                {{ u.profile.dashboard_type|default:"staff" }}
+                            </span>
+                        </td>
+                        <td class="small text-muted">{{ u.email|default:"-" }}</td>
+                        <td>
+                            {% if u.profile.employee %}
+                            <span class="badge bg-info-light text-info border border-info-subtle">
+                                <i class="fas fa-id-badge me-1"></i>{{ u.profile.employee.full_name }}
+                            </span>
+                            {% else %}
+                            <span class="text-muted small">Not Linked</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-end pe-4">
+                            <div class="btn-group">
+                                {% if user|has_auth_perm:"manage-assignments" %}
+                                <a href="{% url 'auth_assignment' %}?user_id={{ u.id }}" class="btn btn-sm btn-light text-pink" title="Permissions">
+                                    <i class="fas fa-user-shield"></i>
+                                </a>
+                                {% endif %}
+                                {% if user|has_auth_perm:"update-user" %}
+                                <button class="btn btn-sm btn-light text-muted edit-user-btn" 
+                                        data-user-id="{{ u.id }}" 
+                                        data-username="{{ u.username }}"
+                                        data-first-name="{{ u.first_name }}"
+                                        data-last-name="{{ u.last_name }}"
+                                        data-dashboard="{{ u.profile.dashboard_type }}">
+                                    <i class="fas fa-edit"></i>
+                                </button>
+                                {% endif %}
+                            </div>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="9" class="text-center py-5">No users found.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Signup Modal -->
+<div class="modal fade" id="signupModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg">
+            <div class="modal-header bg-pink text-white border-0 py-3">
+                <h5 class="modal-title fw-bold text-white"><i class="fas fa-user-plus me-2"></i>Create New User</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST">
+                {% csrf_token %}
+                <div class="modal-body p-4">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label small fw-bold">Username</label>
+                            <input type="text" name="username" class="form-control" required placeholder="jdoe">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small fw-bold">Email</label>
+                            <input type="email" name="email" class="form-control" placeholder="jdoe@example.com">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small fw-bold">First Name</label>
+                            <input type="text" name="first_name" class="form-control" placeholder="John">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small fw-bold">Last Name</label>
+                            <input type="text" name="last_name" class="form-control" placeholder="Doe">
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label small fw-bold">Password</label>
+                            <input type="password" name="password" class="form-control" required placeholder="••••••••">
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label small fw-bold">Link to Employee Profile</label>
+                            <select name="employee_id" class="form-select select2-modal shadow-none">
+                                <option value="">Select employee (optional)...</option>
+                                {% for emp in employees %}
+                                <option value="{{ emp.id }}">{{ emp.full_name }} ({{ emp.employee_id }})</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label small fw-bold">Dashboard Level</label>
+                            <select name="dashboard" class="form-select shadow-none">
+                                <option value="superadmin">Superadmin</option>
+                                <option value="admin">Admin</option>
+                                <option value="manager">Manager</option>
+                                <option value="staff" selected>Staff</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer border-0 p-4 pt-2">
+                    <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-pink text-white px-4">Create Account</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Update User Modal -->
+<div class="modal fade" id="updateUserModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg">
+            <div class="modal-header text-white border-0 py-3" style="background-color: #d13698ff;" >
+                <h5 class="modal-title fw-bold text-white"><i class="fas fa-user-edit me-2"></i>Update User Account</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body p-4">
+                <input type="hidden" id="editUserId">
+                <div class="row g-3">
+                    <div class="col-12">
+                        <label class="form-label small fw-bold">Username</label>
+                        <input type="text" id="editUsername" class="form-control" required>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label small fw-bold">First Name</label>
+                        <input type="text" id="editFirstName" class="form-control">
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label small fw-bold">Last Name</label>
+                        <input type="text" id="editLastName" class="form-control">
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label small fw-bold">Dashboard Level</label>
+                        <select id="editDashboard" class="form-select shadow-none">
+                            <option value="superadmin">Superadmin</option>
+                            <option value="admin">Admin</option>
+                            <option value="manager">Manager</option>
+                            <option value="staff">Staff</option>
+                        </select>
+                    </div>
+                    <!-- Password Update Fields -->
+                    <div class="col-md-6">
+                        <label class="form-label small fw-bold">New Password</label>
+                        <input type="password" id="editPassword" class="form-control" placeholder="Leave blank to keep current">
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label small fw-bold">Confirm New Password</label>
+                        <input type="password" id="editConfirmPassword" class="form-control" placeholder="Confirm new password">
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer border-0 p-4 pt-2">
+                <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" id="saveUserChanges" class="btn btn-pink text-white px-4">Save Changes</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    .text-pink { color: #D63384 !important; }
+    .bg-pink { background-color: #D63384 !important; }
+    .btn-pink { background-color: #D63384; border-color: #D63384; }
+    .btn-pink:hover { background-color: #c82c77; border-color: #c82c77; color: white !important; }
+    .bg-pink-light { background-color: rgba(214, 51, 132, 0.05); }
+    .border-pink-subtle { border: 1px solid rgba(214, 51, 132, 0.2) !important; }
+    
+    .bg-info-light { background-color: rgba(13, 202, 240, 0.1); }
+    
+    .form-check-input:checked {
+        background-color: #D63384;
+        border-color: #D63384;
+    }
+    
+    .filter-row .form-control, .filter-row .form-select {
+        font-size: 0.75rem;
+        padding: 0.25rem 0.5rem;
+        border-color: #eee;
+    }
+
+    .user-management-nav { overflow-x: auto; }
+</style>
+<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/select2-bootstrap-5-theme@1.3.0/dist/select2-bootstrap-5-theme.min.css" />
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const updateModal = new bootstrap.Modal(document.getElementById('updateUserModal'));
+
+        // Init Select2
+        $('.select2-modal').select2({
+            theme: 'bootstrap-5',
+            dropdownParent: $('#signupModal'),
+            width: '100%'
+        });
+
+        // Column Filtering
+        document.querySelectorAll('.column-filter').forEach(filter => {
+            filter.addEventListener('input', function() {
+                const colIdx = parseInt(this.getAttribute('data-col'));
+                const val = this.value.toLowerCase();
+                const rows = document.querySelectorAll('.user-row');
+                
+                rows.forEach(row => {
+                    const cellVal = row.cells[colIdx].textContent.toLowerCase();
+                    let show = true;
+                    
+                    // Check all filters
+                    document.querySelectorAll('.column-filter').forEach(f => {
+                        const fIdx = parseInt(f.getAttribute('data-col'));
+                        const fVal = f.value.toLowerCase();
+                        if (fVal && !row.cells[fIdx].textContent.toLowerCase().includes(fVal)) {
+                            show = false;
+                        }
+                    });
+                    
+                    row.style.display = show ? '' : 'none';
+                });
+            });
+        });
+
+        // Status Toggle AJAX
+        document.querySelectorAll('.status-toggle').forEach(toggle => {
+            toggle.addEventListener('change', function() {
+                const userId = this.getAttribute('data-user-id');
+                fetch('{% url "api_toggle_user_status" %}', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token }}'},
+                    body: JSON.stringify({ user_id: userId })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status !== 'success') {
+                        alert('Error updating status: ' + data.message);
+                        this.checked = !this.checked;
+                    }
+                });
+            });
+        });
+
+        // Edit User Modal Pre-fill
+        document.querySelectorAll('.edit-user-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                document.getElementById('editUserId').value = this.getAttribute('data-user-id');
+                document.getElementById('editUsername').value = this.getAttribute('data-username');
+                document.getElementById('editFirstName').value = this.getAttribute('data-first-name');
+                document.getElementById('editLastName').value = this.getAttribute('data-last-name');
+                document.getElementById('editDashboard').value = this.getAttribute('data-dashboard') || 'staff';
+                updateModal.show();
+            });
+        });
+
+        // Save User Changes
+        document.getElementById('saveUserChanges').addEventListener('click', function() {
+            const password = document.getElementById('editPassword').value;
+            const confirmPassword = document.getElementById('editConfirmPassword').value;
+
+            if (password && password !== confirmPassword) {
+                alert('Passwords do not match!');
+                return;
+            }
+
+            const data = {
+                user_id: document.getElementById('editUserId').value,
+                username: document.getElementById('editUsername').value,
+                first_name: document.getElementById('editFirstName').value,
+                last_name: document.getElementById('editLastName').value,
+                dashboard: document.getElementById('editDashboard').value,
+                password: password,
+            };
+
+            fetch('{% url "api_update_user" %}', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token }}'},
+                body: JSON.stringify(data)
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    location.reload();
+                } else {
+                    alert('Error updating user: ' + data.message);
+                }
+            });
+        });
+    });
+</script>
+{% endblock %}

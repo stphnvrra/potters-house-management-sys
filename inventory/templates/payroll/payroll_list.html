@@ -1,0 +1,302 @@
+{% extends 'core/base.html' %}
+{% load static %}
+
+{% block title %}Payrolls - The Potter's House{% endblock %}
+
+{% block content %}
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h4 class="fw-bold text-dark mb-1">Personnel Payroll</h4>
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb breadcrumb-custom mb-0">
+                    <li class="breadcrumb-item"><a href="/">Home</a></li>
+                    <li class="breadcrumb-item active" aria-current="page">Payrolls</li>
+                </ol>
+            </nav>
+        </div>
+        <button type="button" class="btn btn-primary shadow-sm px-4" data-bs-toggle="modal" data-bs-target="#newPayrollModal" style="background-color: #D63384; border-color: #D63384;">
+            <i class="fas fa-plus-circle me-2"></i> New Payroll Period
+        </button>
+    </div>
+
+    <div class="inventory-card shadow-sm border-0">
+        <div class="inventory-card-header bg-white py-3 px-4 border-bottom d-flex justify-content-between align-items-center">
+            <div class="d-flex align-items-center">
+                <div class="stat-icon bg-pink-light text-pink me-3" style="width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; border-radius: 10px;">
+                    <i class="fas fa-file-invoice-dollar mt-0"></i>
+                </div>
+                <div>
+                    <h6 class="mb-0 fw-bold">Payroll History</h6>
+                    <small class="text-muted">Manage and track salary distributions</small>
+                </div>
+            </div>
+            <div class="text-end">
+                <span class="badge bg-pink-light text-pink rounded-pill px-3 py-2">
+                    {{ items|length }} Total Periods
+                </span>
+            </div>
+        </div>
+
+        <!-- Table -->
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="bg-light text-muted small text-uppercase fw-bold">
+                    <tr>
+                        <th class="ps-4" style="width: 60px;">#</th>
+                        <th class="text-center" style="width: 120px;">Action</th>
+                        <th>Period Dates</th>
+                        <th>Created By</th>
+                        <th>Status</th>
+                        <th class="pe-4">Datetime Updated</th>
+                    </tr>
+                </thead>
+                <tbody class="border-top-0">
+                    {% for item in items %}
+                    <tr>
+                        <td class="ps-4 text-muted small">{{ forloop.counter }}</td>
+                        <td class="text-center">
+                            <a href="{% url 'payroll_detail' item.id %}" class="btn btn-pink-outline btn-xs px-3 fw-bold">
+                                <i class="fas fa-eye me-1"></i> VIEW
+                            </a>
+                        </td>
+                        <td>
+                            <div class="d-flex align-items-center">
+                                <div class="calendar-icon me-3 text-pink">
+                                    <i class="fas fa-calendar-alt fa-lg"></i>
+                                </div>
+                                <div>
+                                    <div class="fw-bold">{{ item.start_date|date:"M d, Y" }} — {{ item.end_date|date:"M d, Y" }}</div>
+                                    <small class="text-muted">Total Records: {{ item.records.count }}</small>
+                                </div>
+                            </div>
+                        </td>
+                        <td class="small">{{ item.created_by }}</td>
+                        <td>
+                            <span class="badge rounded-pill {% if item.status == 'Draft' %}bg-warning-light text-warning{% elif item.status == 'Processed' %}bg-info-light text-info{% else %}bg-success-light text-success{% endif %} px-3">
+                                {{ item.status }}
+                            </span>
+                        </td>
+                        <td class="pe-4 small text-muted">{{ item.datetime_updated|date:"Y-m-d H:i:s" }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="6" class="text-center py-5">
+                            <div class="py-4">
+                                <i class="fas fa-receipt fa-4x mb-3 text-pink opacity-25"></i>
+                                <h5 class="text-muted">No payroll periods recorded</h5>
+                                <p class="small text-muted mb-0">Start by creating a new payroll period using the button above.</p>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- New Payroll Modal -->
+    <div class="modal fade" id="newPayrollModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content border-0 shadow">
+                <div class="modal-header bg-pink text-white border-0 py-3">
+                    <h5 class="modal-title text-white fw-bold"><i class="fas fa-plus-circle me-2"></i>New Payroll Period</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <form method="POST">
+                    {% csrf_token %}
+                    <div class="modal-body p-4">
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label class="filter-label mb-2">Start Date</label>
+                                <input type="date" name="start_date" class="form-control" required>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="filter-label mb-2">End Date</label>
+                                <input type="date" name="end_date" class="form-control" required>
+                            </div>
+                        </div>
+                        <div class="alert alert-pink-light mt-4 mb-0 border-0">
+                            <div class="d-flex">
+                                <i class="fas fa-info-circle me-2 mt-1"></i>
+                                <small>The system will automatically generate records for all active employees, including their current base salary and approved labor outputs for this date range.</small>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-footer border-0 p-4 pt-0">
+                        <button type="button" class="btn btn-light px-4" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn btn-primary px-4 shadow-sm" style="background-color: #D63384; border-color: #D63384;">Create Payroll</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="inventory-card shadow-sm border-0 mt-4">
+        <div class="inventory-card-header bg-white py-3 px-4 border-bottom d-flex justify-content-between align-items-center">
+            <div class="d-flex align-items-center">
+                <div class="stat-icon bg-pink-light text-pink me-3" style="width: 40px; height: 40px; border-radius: 10px; display: flex; align-items: center; justify-content: center;">
+                    <i class="fas fa-history"></i>
+                </div>
+                <div>
+                    <h6 class="mb-0 fw-bold">Payroll Activity Logs</h6>
+                    <small class="text-muted">Audit trail for payroll creations and updates</small>
+                </div>
+            </div>
+            <div class="d-flex align-items-center gap-2">
+                <div class="input-group input-group-sm" style="width: 320px;">
+                    <input type="date" id="logDateStart" class="form-control" value="{{ log_date_start|default:'' }}">
+                    <span class="input-group-text bg-light border-start-0 border-end-0">to</span>
+                    <input type="date" id="logDateEnd" class="form-control" value="{{ log_date_end|default:'' }}">
+                    <button class="btn btn-pink text-white" type="button" onclick="applyLogDateFilter()" style="background-color: #D63384; border-color: #D63384;">
+                        <i class="fas fa-filter text-white"></i>
+                    </button>
+                    <button class="btn btn-outline-secondary" type="button" onclick="clearLogDateFilter()">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0" id="payrollLogsTable" style="font-size: 0.8rem;">
+                <thead class="bg-light text-muted small text-uppercase">
+                    <tr>
+                        <th class="ps-4" style="width: 50px;">#</th>
+                        <th style="width: 180px;">Timestamp</th>
+                        <th style="width: 120px;">Action</th>
+                        <th style="width: 150px;">User</th>
+                        <th class="pe-4">Description</th>
+                    </tr>
+                </thead>
+                <tbody id="payrollLogsBody">
+                    {% for log in payroll_logs %}
+                    <tr class="log-row">
+                        <td class="ps-4 text-muted">{{ forloop.counter }}</td>
+                        <td class="text-muted">{{ log.timestamp|date:"Y-m-d H:i:s" }}</td>
+                        <td>
+                            {% if log.action == 'created' %}
+                            <span class="badge bg-success-light text-success extra-small">CREATED</span>
+                            {% elif log.action == 'updated' %}
+                            <span class="badge bg-info-light text-info extra-small">UPDATED</span>
+                            {% elif log.action == 'deleted' %}
+                            <span class="badge bg-danger-light text-danger extra-small">DELETED</span>
+                            {% else %}
+                            <span class="badge bg-secondary-light text-secondary extra-small">{{ log.action|upper }}</span>
+                            {% endif %}
+                        </td>
+                        <td class="fw-bold">{{ log.user }}</td>
+                        <td class="pe-4 small">{{ log.description|linebreaksbr }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr class="no-results-log">
+                        <td colspan="5" class="text-center py-5">
+                            <i class="fas fa-history fa-2x mb-2 text-pink opacity-25"></i>
+                            <p class="text-muted mb-0">No payroll activity logs found.</p>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        <!-- Pagination -->
+        <div class="p-3 bg-white border-top d-flex justify-content-between align-items-center">
+            <div class="small text-muted">
+                Showing <span id="logPaginationInfo" class="fw-bold">0-0</span> of <span id="logPaginationTotal" class="fw-bold">{{ payroll_logs|length }}</span> activities
+            </div>
+            <ul class="pagination pagination-sm mb-0" id="logPaginationContainer"></ul>
+        </div>
+    </div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    .bg-pink-light { background-color: rgba(214, 51, 132, 0.05) !important; }
+    .text-pink { color: #D63384 !important; }
+    .bg-pink { background-color: #D63384 !important; }
+    .btn-pink-outline { color: #D63384; border-color: #D63384; background: transparent; }
+    .btn-pink-outline:hover { background-color: #D63384; color: white !important; }
+    .btn-xs { padding: 0.15rem 0.4rem; font-size: 0.72rem; }
+    .extra-small { font-size: 0.65rem; padding: 0.35em 0.65em; }
+    .bg-warning-light { background-color: rgba(255, 193, 7, 0.1) !important; color: #856404 !important; }
+    .bg-info-light { background-color: rgba(13, 202, 240, 0.1) !important; color: #087990 !important; }
+    .bg-success-light { background-color: rgba(25, 135, 84, 0.1) !important; color: #198754 !important; }
+    .bg-danger-light { background-color: rgba(220, 53, 69, 0.1) !important; color: #dc3545 !important; }
+    .bg-secondary-light { background-color: rgba(108, 117, 125, 0.1) !important; color: #6c757d !important; }
+    .alert-pink-light { background-color: rgba(214, 51, 132, 0.08); color: #D63384; }
+    .calendar-icon { width: 40px; height: 40px; background: rgba(214, 51, 132, 0.05); border-radius: 8px; display: flex; align-items: center; justify-content: center; }
+</style>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    window.applyLogDateFilter = function() {
+        const start = document.getElementById('logDateStart').value;
+        const end = document.getElementById('logDateEnd').value;
+        let url = new URL(window.location.href);
+        if (start) url.searchParams.set('log_date_start', start);
+        else url.searchParams.delete('log_date_start');
+        if (end) url.searchParams.set('log_date_end', end);
+        else url.searchParams.delete('log_date_end');
+        window.location.href = url.toString();
+    };
+
+    window.clearLogDateFilter = function() {
+        let url = new URL(window.location.href);
+        url.searchParams.delete('log_date_start');
+        url.searchParams.delete('log_date_end');
+        window.location.href = url.toString();
+    };
+
+    document.addEventListener('DOMContentLoaded', function() {
+        const logsPerPage = 10;
+        let currentLogPage = 1;
+        const logTbody = document.getElementById('payrollLogsBody');
+        const allLogRows = Array.from(logTbody.querySelectorAll('tr.log-row'));
+        const logPaginationContainer = document.getElementById('logPaginationContainer');
+        const logPaginationInfo = document.getElementById('logPaginationInfo');
+        const logPaginationTotal = document.getElementById('logPaginationTotal');
+
+        function updateLogsView() {
+            if (allLogRows.length === 0) return;
+
+            allLogRows.forEach(row => row.style.display = 'none');
+            const start = (currentLogPage - 1) * logsPerPage;
+            const end = start + logsPerPage;
+            const pageRows = allLogRows.slice(start, end);
+            pageRows.forEach(row => row.style.display = '');
+
+            logPaginationInfo.textContent = `${start + 1}-${Math.min(end, allLogRows.length)}`;
+            buildLogPagination();
+        }
+
+        function buildLogPagination() {
+            logPaginationContainer.innerHTML = '';
+            const totalPages = Math.ceil(allLogRows.length / logsPerPage);
+            if (totalPages <= 1) return;
+
+            const createPageItem = (label, page, active = false, disabled = false) => {
+                const li = document.createElement('li');
+                li.className = `page-item ${active ? 'active' : ''} ${disabled ? 'disabled' : ''}`;
+                li.innerHTML = `<a class="page-link shadow-none" href="#">${label}</a>`;
+                li.onclick = (e) => {
+                    e.preventDefault();
+                    if (!disabled && currentLogPage !== page) {
+                        currentLogPage = page;
+                        updateLogsView();
+                    }
+                };
+                return li;
+            };
+
+            logPaginationContainer.appendChild(createPageItem('&laquo;', currentLogPage - 1, false, currentLogPage === 1));
+            for (let i = 1; i <= totalPages; i++) {
+                if (i === 1 || i === totalPages || (i >= currentLogPage - 2 && i <= currentLogPage + 2)) {
+                    logPaginationContainer.appendChild(createPageItem(i, i, i === currentLogPage));
+                }
+            }
+            logPaginationContainer.appendChild(createPageItem('&raquo;', currentLogPage + 1, false, currentLogPage === totalPages));
+        }
+
+        updateLogsView();
+    });
+</script>
+{% endblock %}

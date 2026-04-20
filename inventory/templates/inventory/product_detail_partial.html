@@ -1,0 +1,92 @@
+{% load inventory_extras humanize %}
+<div class="row g-3">
+    <!-- Product Info -->
+    <div class="col-md-6">
+        <div class="card border shadow-sm">
+            <div class="card-header bg-light py-2">
+                <h6 class="card-title mb-0" style="font-size: 0.85rem;"><i class="fas fa-info-circle me-1"></i> Product Info</h6>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-sm table-hover mb-0" style="font-size: 0.75rem;">
+                    <tbody>
+                        <tr><th class="bg-light w-50">Type</th><td>{{ product.product_type|default:"—" }}</td></tr>
+                        <tr><th class="bg-light">Product Name</th><td>{{ product.name|default:"—" }}</td></tr>
+                        <tr><th class="bg-light">Description</th><td>{{ product.description|default:"—" }}</td></tr>
+                        <tr><th class="bg-light">Quantity</th><td>{{ product.quantity|floatformat:2|intcomma }}</td></tr>
+                        <tr><th class="bg-light">Unit</th><td>{{ product.unit|default:"—" }}</td></tr>
+                        <tr><th class="bg-light">Mark Up</th><td>₱{{ product.markup|floatformat:2|intcomma }}</td></tr>
+                        <tr><th class="bg-light">Overhead</th><td>₱{{ product.overhead|floatformat:2|intcomma }}</td></tr>
+                        <tr><th class="bg-light">Registered</th><td class="text-muted">{{ product.created_at|date:"Y-m-d H:i:s" }}</td></tr>
+                        <tr><th class="bg-light">Costing Updated</th><td class="text-muted">{{ product.updated_at|date:"Y-m-d H:i:s" }}</td></tr>
+                        <tr><th class="bg-light">Updated By</th><td>{{ product.created_by|default:"—" }}</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Pricing / Costing -->
+    <div class="col-md-6">
+        <div class="card border shadow-sm h-100">
+            <div class="card-header bg-light py-2">
+                <h6 class="card-title mb-0" style="font-size: 0.85rem;"><i class="fas fa-dollar-sign me-1"></i> Pricing & Costing</h6>
+            </div>
+            <div class="table-responsive h-100">
+                <table class="table table-sm table-hover mb-0" style="font-size: 0.75rem;">
+                    <tbody>
+                        <tr><th class="bg-light w-50">SRP</th><td>₱{{ product.srp|floatformat:2|intcomma }}</td></tr>
+                        <tr><th class="bg-light">MP</th><td>₱{{ product.mp|floatformat:2|intcomma }}</td></tr>
+                        <tr><th class="bg-light">LP</th><td>₱{{ product.lp|floatformat:2|intcomma }}</td></tr>
+                        <tr><th class="bg-light">Total Materials</th><td>₱{{ total_materials|floatformat:2|intcomma }}</td></tr>
+                        <tr><th class="bg-light">Total Labor</th><td>₱{{ total_labor|floatformat:2|intcomma }}</td></tr>
+                        <tr><th class="bg-light">M + L + O</th><td class="fw-bold">₱{{ total_ml_overhead|floatformat:2|intcomma }}</td></tr>
+                        <tr><th class="bg-light">Mark Up</th><td>₱{{ product.markup|floatformat:2|intcomma }}</td></tr>
+                        <tr><th class="bg-light">Total Product Cost</th><td>₱{{ total_product_cost|floatformat:2|intcomma }}</td></tr>
+                        <tr><th class="bg-light">Total Pc With Tax</th><td class="fw-bold text-primary">₱{{ total_pc_tax|floatformat:2|intcomma }}</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Materials Grid -->
+<div class="row g-4 mt-2">
+    {% for category in material_categories %}
+    <div class="col-12 col-md-6">
+        <div class="card border shadow-sm h-100">
+            <div class="card-header bg-light py-2 px-3 d-flex justify-content-between align-items-center">
+                <strong style="font-size: 0.8rem; letter-spacing: 0.5px;">{{ category|upper }}</strong>
+                <div class="text-muted fw-bold" style="font-size: 0.65rem; opacity: 0.7;">Q / C / TC</div>
+            </div>
+            <div class="table-responsive">
+                {% with items=materials_by_category|get_item:category %}
+                {% if items %}
+                <table class="table table-sm table-hover mb-0" style="font-size: 0.75rem;">
+                    <tbody class="border-top-0">
+                        {% for mat in items %}
+                        <tr>
+                            <td class="px-3 py-2">
+                                <span class="d-block text-truncate" title="{% if mat.inventory_item %}{{ mat.inventory_item.name }}{% else %}{{ mat.item_name }}{% endif %}" style="max-width: 150px;">
+                                    {% if mat.inventory_item %}{{ mat.inventory_item.name }}{% else %}{{ mat.item_name|default:"—" }}{% endif %}
+                                </span>
+                            </td>
+                            <td class="text-end text-muted py-2">{{ mat.quantity|floatformat:2|intcomma }}</td>
+                            <td class="text-end text-muted py-2">₱{{ mat.cost|floatformat:2|intcomma }}</td>
+                            <td class="text-end fw-bold py-2 pe-3" style="color: #2c3e50;">₱{{ mat.total_cost|floatformat:2|intcomma }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                {% else %}
+                <div class="p-4 text-center text-muted fst-italic" style="font-size: 0.8rem;">
+                    <i class="fas fa-box-open d-block mb-1 opacity-50"></i>
+                    No items found
+                </div>
+                {% endif %}
+                {% endwith %}
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>

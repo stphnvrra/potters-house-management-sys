@@ -1,0 +1,559 @@
+{% extends 'core/base.html' %}
+{% load static humanize %}
+
+{% block title %}Cost of Goods Sold - The Potter's House{% endblock %}
+
+{% block content %}
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb breadcrumb-custom mb-0">
+                <li class="breadcrumb-item"><a href="/">Home</a></li>
+                <li class="breadcrumb-item"><a href="{% url 'jo_products' %}">JO Products</a></li>
+                <li class="breadcrumb-item active" aria-current="page">CGS Report</li>
+            </ol>
+        </nav>
+    </div>
+
+    <!-- Filters -->
+    <div class="filter-card mb-4">
+        <div class="filter-card-header">
+            <i class="fas fa-filter"></i> Search & Filter Report
+        </div>
+        <div class="filter-card-body">
+            <form method="GET" class="row g-3">
+                <div class="col-md-2">
+                    <label class="filter-label">Start Date</label>
+                    <input type="date" name="start_date" class="form-control filter-input" value="{{ request.GET.start_date }}">
+                </div>
+                <div class="col-md-2">
+                    <label class="filter-label">End Date</label>
+                    <input type="date" name="end_date" class="form-control filter-input" value="{{ request.GET.end_date }}">
+                </div>
+                <div class="col-md-1">
+                    <label class="filter-label">PID</label>
+                    <input type="text" name="pid" class="form-control filter-input" placeholder="PID..." value="{{ request.GET.pid }}">
+                </div>
+                <div class="col-md-1">
+                    <label class="filter-label">WIP</label>
+                    <input type="text" name="wip" class="form-control filter-input" placeholder="WIP..." value="{{ request.GET.wip }}">
+                </div>
+                <div class="col-md-2">
+                    <label class="filter-label">Client Name</label>
+                    <input type="text" name="name" class="form-control filter-input" placeholder="Client Name..." value="{{ request.GET.name }}">
+                </div>
+                <div class="col-md-2">
+                    <label class="filter-label">Product Name</label>
+                    <input type="text" name="product_name" class="form-control filter-input" placeholder="Product..." value="{{ request.GET.product_name }}">
+                </div>
+                <div class="col-md-2">
+                    <label class="filter-label">Paid</label>
+                    <select name="is_fully_paid" class="form-select filter-input">
+                        <option value="">All</option>
+                        <option value="Yes" {% if request.GET.is_fully_paid == 'Yes' %}selected{% endif %}>Yes</option>
+                        <option value="No" {% if request.GET.is_fully_paid == 'No' %}selected{% endif %}>No</option>
+                    </select>
+                </div>
+                <div class="col-12 text-end">
+                    <button type="submit" class="btn btn-primary btn-sm px-4" style="background-color: #D63384; border-color: #D63384;">
+                        <i class="fas fa-search me-1"></i> Apply Filter
+                    </button>
+                    <a href="{% url 'jo_products_cgs' %}" class="btn btn-outline-secondary btn-sm px-3">
+                        <i class="fas fa-sync-alt me-1"></i> Reset
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="inventory-card">
+        <div class="inventory-card-header d-flex justify-content-between align-items-center">
+            <div>
+                <i class="fas fa-chart-line me-2"></i> Cost of Goods Sold Report
+            </div>
+            <div class="d-flex align-items-center gap-2">
+                {% if show_all %}
+                    <span class="badge bg-pink">Full Report (All Records)</span>
+                    <a href="?{% for key, value in request.GET.items %}{% if key != 'all' %}{{ key }}={{ value }}&{% endif %}{% endfor %}" class="btn btn-xs btn-outline-pink">
+                        <i class="fas fa-columns me-1"></i> Switch to Paginated
+                    </a>
+                {% else %}
+                    <span class="badge bg-light text-dark">Paginated View</span>
+                    <a href="?{% for key, value in request.GET.items %}{% if key != 'all' %}{{ key }}={{ value }}&{% endif %}{% endfor %}all=true" class="btn btn-xs btn-outline-pink">
+                        <i class="fas fa-list me-1"></i> Show All Records
+                    </a>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="p-3 bg-white border-bottom tool-bar">
+            <div class="d-flex justify-content-between align-items-center">
+                <div class="d-flex align-items-center">
+                    <div class="text-muted small me-3" id="selectionInfo">
+                        <span id="selectedCount" class="fw-bold">0</span> item(s) selected
+                    </div>
+                    <div class="text-muted small">
+                        Showing <strong>{% if show_all %}{{ items|length }}{% else %}{{ items.start_index }}-{{ items.end_index }} of {{ items.paginator.count }}{% endif %}</strong> records
+                    </div>
+                </div>
+                <div class="btn-group">
+                    <button type="button" class="btn btn-outline-secondary btn-sm dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
+                        <i class="fas fa-download me-1"></i> Export Data
+                    </button>
+                    <ul class="dropdown-menu dropdown-menu-end shadow-sm border-0">
+                        <li><a class="dropdown-item py-2" href="#" onclick="exportData('csv')"><i class="fas fa-file-csv me-2 text-success"></i> Export CSV</a></li>
+                        <li><a class="dropdown-item py-2" href="#" onclick="exportData('excel')"><i class="fas fa-file-excel me-2 text-primary"></i> Export Excel</a></li>
+                        <li><a class="dropdown-item py-2" href="#" onclick="exportData('pdf')"><i class="fas fa-file-pdf me-2 text-danger"></i> Export PDF</a></li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <!-- Table -->
+        <div class="table-responsive">
+            <table class="table table-bordered table-hover mb-0" id="cgsTable" style="font-size: 0.85rem;">
+                <thead class="bg-light sticky-top">
+                    <tr>
+                        <th style="width: 40px;">
+                            <input type="checkbox" id="selectAll" class="form-check-input">
+                        </th>
+                        <th style="width: 40px;" class="sortable"># <i class="fas fa-sort"></i></th>
+                        <th class="sortable">Transaction Date <i class="fas fa-sort"></i></th>
+                        <th class="sortable">PID <i class="fas fa-sort"></i></th>
+                        <th class="sortable">WIP <i class="fas fa-sort"></i></th>
+                        <th class="sortable">Client Name <i class="fas fa-sort"></i></th>
+                        <th class="sortable">Product Name <i class="fas fa-sort"></i></th>
+                        <th class="text-center sortable">Paid <i class="fas fa-sort"></i></th>
+                        <th class="text-center sortable">Qty <i class="fas fa-sort"></i></th>
+                        <th class="text-end sortable">Unit Price <i class="fas fa-sort"></i></th>
+                        <th class="text-end bg-light-pink sortable">Materials <i class="fas fa-sort"></i></th>
+                        <th class="text-end bg-light-pink sortable">Labor <i class="fas fa-sort"></i></th>
+                        <th class="text-end bg-light-pink sortable">Overhead <i class="fas fa-sort"></i></th>
+                        <th class="text-end bg-light-pink sortable">Markup <i class="fas fa-sort"></i></th>
+                    </tr>
+                    <tr class="bg-light filter-row">
+                        <td></td>
+                        <td></td>
+                        <td><input type="text" class="form-control filter-input" placeholder="Date..."></td>
+                        <td><input type="text" class="form-control filter-input" placeholder="PID..."></td>
+                        <td><input type="text" class="form-control filter-input" placeholder="WIP..."></td>
+                        <td><input type="text" class="form-control filter-input" placeholder="Client..."></td>
+                        <td><input type="text" class="form-control filter-input" placeholder="Product..."></td>
+                        <td><input type="text" class="form-control filter-input" placeholder="Paid..."></td>
+                        <td><input type="text" class="form-control filter-input" placeholder="Qty..."></td>
+                        <td><input type="text" class="form-control filter-input" placeholder="Price..."></td>
+                        <td><input type="text" class="form-control filter-input" placeholder="Mat..."></td>
+                        <td><input type="text" class="form-control filter-input" placeholder="Labor..."></td>
+                        <td><input type="text" class="form-control filter-input" placeholder="Overrd..."></td>
+                        <td><input type="text" class="form-control filter-input" placeholder="Mark..."></td>
+                    </tr>
+                </thead>
+                <tbody id="cgsTableBody">
+                    {% for item in items %}
+                    <tr class="report-row">
+                        <td>
+                            <input type="checkbox" class="form-check-input row-checkbox" value="{{ item.id }}">
+                        </td>
+                        <td class="text-muted small">{% if show_all %}{{ forloop.counter }}{% else %}{{ items.start_index|add:forloop.counter0 }}{% endif %}</td>
+                        <td>{{ item.transaction_date|date:"d M Y" }}</td>
+                        <td><span class="text-pink fw-bold">{{ item.pid }}</span></td>
+                        <td><a href="{% url 'job_order_detail' item.job_order.id %}" class="text-pink fw-bold">{{ item.job_order.wip }}</a></td>
+                        <td>{{ item.name }}</td>
+                        <td class="text-truncate" style="max-width: 150px;" title="{{ item.product_name }}">{{ item.product_name }}</td>
+                        <td class="text-center">
+                            {% if item.job_order.is_fully_paid %}
+                                <span class="badge bg-success-soft text-success px-2 border border-success">Yes</span>
+                            {% else %}
+                                <span class="badge bg-danger-soft text-danger px-2 border border-danger">No</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-center fw-bold">{{ item.quantity|floatformat:0|intcomma }}</td>
+                        <td class="text-end">₱{{ item.unit_price|floatformat:2|intcomma }}</td>
+                        <td class="text-end text-danger fw-bold">₱{{ item.materials_cost|floatformat:2|intcomma }}</td>
+                        <td class="text-end text-danger fw-bold">₱{{ item.labor_cost|floatformat:2|intcomma }}</td>
+                        <td class="text-end text-danger fw-bold">₱{{ item.overhead_cost|floatformat:2|intcomma }}</td>
+                        <td class="text-end text-success fw-bold">₱{{ item.markup_cost|floatformat:2|intcomma }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="13" class="text-center py-5 text-muted">
+                            <i class="fas fa-folder-open fa-3x mb-3 opacity-25 text-pink"></i>
+                            <p>No report data found.</p>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+                {% if items %}
+                <tfoot class="bg-light fw-bold shadow-sm">
+                    <tr>
+                        <td colspan="9" class="text-end py-3">GRAND TOTAL (Filtered):</td>
+                        <td class="text-end text-danger py-3">₱{{ totals.total_materials|default:0|floatformat:2|intcomma }}</td>
+                        <td class="text-end text-danger py-3">₱{{ totals.total_labor|default:0|floatformat:2|intcomma }}</td>
+                        <td class="text-end text-danger py-3">₱{{ totals.total_overhead|default:0|floatformat:2|intcomma }}</td>
+                        <td class="text-end text-success py-3">₱{{ totals.total_markup|default:0|floatformat:2|intcomma }}</td>
+                    </tr>
+                </tfoot>
+                {% endif %}
+            </table>
+        </div>
+
+        {% if not show_all and items.has_other_pages %}
+        <div class="p-3 bg-white border-top d-flex justify-content-between align-items-center">
+            <div class="small text-muted">
+                Showing <span class="fw-bold">{{ items.start_index }}-{{ items.end_index }}</span> of <span class="fw-bold">{{ items.paginator.count }}</span> entries
+            </div>
+            <nav aria-label="Page navigation">
+                <ul class="pagination pagination-sm pagination-custom mb-0">
+                    {% if items.has_previous %}
+                        <li class="page-item">
+                            <a class="page-link" href="?{% for key, value in request.GET.items %}{% if key != 'page' %}{{ key }}={{ value }}&{% endif %}{% endfor %}page=1" aria-label="First">&laquo;</a>
+                        </li>
+                    {% endif %}
+
+                    {% for num in items.paginator.page_range %}
+                        {% if num > items.number|add:'-3' and num < items.number|add:'3' %}
+                            <li class="page-item {% if items.number == num %}active{% endif %}">
+                                <a class="page-link" href="?{% for key, value in request.GET.items %}{% if key != 'page' %}{{ key }}={{ value }}&{% endif %}{% endfor %}page={{ num }}">{{ num }}</a>
+                            </li>
+                        {% endif %}
+                    {% endfor %}
+
+                    {% if items.has_next %}
+                        <li class="page-item">
+                            <a class="page-link" href="?{% for key, value in request.GET.items %}{% if key != 'page' %}{{ key }}={{ value }}&{% endif %}{% endfor %}page={{ items.paginator.num_pages }}" aria-label="Last">&raquo;</a>
+                        </li>
+                    {% endif %}
+                </ul>
+            </nav>
+        </div>
+        {% endif %}
+    </div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    .bg-light-pink {
+        background-color: rgba(233, 30, 99, 0.05) !important;
+    }
+    .bg-success-soft {
+        background-color: rgba(40, 167, 69, 0.1) !important;
+    }
+    .bg-danger-soft {
+        background-color: rgba(220, 53, 69, 0.1) !important;
+    }
+    .badge-soft {
+        font-weight: 600;
+        font-size: 0.75rem;
+    }
+    .text-pink {
+        color: #D63384 !important;
+    }
+    .bg-pink {
+        background-color: #D63384 !important;
+        color: white !important;
+    }
+    .btn-outline-pink {
+        color: #D63384;
+        border-color: #D63384;
+    }
+    .btn-outline-pink:hover {
+        background-color: #D63384;
+        color: white;
+    }
+    .btn-xs {
+        padding: 0.2rem 0.4rem;
+        font-size: 0.7rem;
+    }
+
+    /* Table Header & Filtering Styling */
+    .table th {
+        font-size: 0.7rem !important;
+        background-color: #fdf2f8 !important;
+        color: #D63384 !important;
+        font-weight: 700 !important;
+        text-transform: uppercase;
+        border-bottom: 2px solid #fce7f3 !important;
+        vertical-align: middle !important;
+        white-space: nowrap;
+    }
+
+    .filter-row td {
+        padding: 5px 8px !important;
+        background-color: #ffffff !important;
+    }
+
+    .filter-input {
+        height: 28px !important;
+        font-size: 0.7rem !important;
+        border-color: #fce7f3 !important;
+    }
+
+    .sortable { cursor: pointer; }
+    .sortable i {
+        font-size: 0.6rem;
+        margin-left: 2px;
+        opacity: 0.5;
+    }
+    .sortable i.fa-sort-down, .sortable i.fa-sort-up {
+        opacity: 1;
+        color: #e91e63 !important;
+    }
+
+    /* Custom Pagination Styling */
+    .pagination-custom .page-item {
+        margin: 0 3px;
+    }
+    .pagination-custom .page-link {
+        border-radius: 8px !important;
+        border: none;
+        background-color: #f8f9fa;
+        color: #a0aec0;
+        padding: 0.5rem 0.85rem;
+        font-weight: 600;
+        font-size: 0.85rem;
+        transition: all 0.2s;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 38px;
+    }
+    .pagination-custom .page-item.active .page-link {
+        background-color: #e91e63 !important;
+        color: white !important;
+        box-shadow: 0 4px 10px rgba(233, 30, 99, 0.25);
+    }
+    .pagination-custom .page-link:hover:not(.active) {
+        background-color: #edf2f7;
+        color: #4a5568;
+    }
+    .pagination-custom .page-link:focus {
+        box-shadow: none;
+    }
+</style>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const table = document.getElementById('cgsTable');
+        const inputs = table.querySelectorAll('.filter-input');
+        const tbody = document.getElementById('cgsTableBody');
+        const allOriginalRows = Array.from(tbody.querySelectorAll('tr.report-row'));
+
+        // Selection Handling
+        const selectAll = document.getElementById('selectAll');
+        const selectedCountSpan = document.getElementById('selectedCount');
+
+        function updateSelectedCount() {
+            const checkedCount = tbody.querySelectorAll('.row-checkbox:checked').length;
+            selectedCountSpan.textContent = checkedCount;
+        }
+
+        if (selectAll) {
+            selectAll.addEventListener('change', function() {
+                const isChecked = this.checked;
+                const visibleRows = allOriginalRows.filter(row => row.style.display !== 'none');
+                visibleRows.forEach(row => {
+                    const cb = row.querySelector('.row-checkbox');
+                    if (cb) cb.checked = isChecked;
+                });
+                updateSelectedCount();
+            });
+        }
+
+        tbody.addEventListener('change', function(e) {
+            if (e.target.classList.contains('row-checkbox')) {
+                updateSelectedCount();
+                // Update selectAll state
+                const visibleRows = allOriginalRows.filter(row => row.style.display !== 'none');
+                const checkedVisible = visibleRows.filter(row => row.querySelector('.row-checkbox').checked);
+                if (selectAll) {
+                    selectAll.checked = visibleRows.length > 0 && checkedVisible.length === visibleRows.length;
+                    selectAll.indeterminate = checkedVisible.length > 0 && checkedVisible.length < visibleRows.length;
+                }
+            }
+        });
+
+        // Client-side Filtering
+        function handleFilter() {
+            const filters = Array.from(inputs).map(input => input.value.toLowerCase().trim());
+            
+            allOriginalRows.forEach(row => {
+                let matches = true;
+                filters.forEach((filter, idx) => {
+                    if (filter) {
+                        // idx + 2 because column 0 is checkbox, column 1 is '#'
+                        const cell = row.cells[idx + 2];
+                        if (cell) {
+                            const text = cell.textContent.toLowerCase().trim();
+                            if (!text.includes(filter)) {
+                                matches = false;
+                            }
+                        }
+                    }
+                });
+                row.style.display = matches ? '' : 'none';
+            });
+
+            // Update no results message
+            const visibleRows = allOriginalRows.filter(row => row.style.display !== 'none');
+            const existingNoResults = tbody.querySelector('.no-results-row');
+            if (existingNoResults) existingNoResults.remove();
+
+            if (visibleRows.length === 0) {
+                const tr = document.createElement('tr');
+                tr.className = 'no-results-row';
+                tr.innerHTML = `<td colspan="14" class="text-center py-5 text-muted">No matching results found.</td>`;
+                tbody.appendChild(tr);
+            }
+            
+            // Reset Select All
+            if (selectAll) {
+                selectAll.checked = false;
+                selectAll.indeterminate = false;
+            }
+            updateSelectedCount();
+        }
+
+        inputs.forEach(input => {
+            input.addEventListener('input', handleFilter);
+        });
+
+        // Client-side Sorting
+        let currentSortCol = -1;
+        let currentSortDir = 'asc';
+
+        document.querySelectorAll('.sortable').forEach((th, idx) => {
+            th.addEventListener('click', () => {
+                // column index in the DOM matches th index + 1 (since 0 is checkbox)
+                // Actually the .sortable headers start from index 1 (the '#' col)
+                const column = idx + 1; 
+                currentSortDir = (currentSortCol === column && currentSortDir === 'asc') ? 'desc' : 'asc';
+                currentSortCol = column;
+
+                // Update Icons
+                document.querySelectorAll('.sortable i').forEach(i => i.className = 'fas fa-sort');
+                th.querySelector('i').className = currentSortDir === 'asc' ? 'fas fa-sort-up' : 'fas fa-sort-down';
+
+                const rows = Array.from(tbody.querySelectorAll('tr.report-row'));
+                rows.sort((a, b) => {
+                    let aVal = a.cells[column]?.textContent.trim() || '';
+                    let bVal = b.cells[column]?.textContent.trim() || '';
+
+                    // Date Sort for column 2
+                    if (column === 2) {
+                        return currentSortDir === 'asc' ? new Date(aVal) - new Date(bVal) : new Date(bVal) - new Date(aVal);
+                    }
+                    
+                    // Numeric Sort for Qty, Unit Price, and Cost columns (8 to 13)
+                    if (column >= 8 && column <= 13) {
+                        const aNum = parseFloat(aVal.replace(/[^0-9.-]+/g, "")) || 0;
+                        const bNum = parseFloat(bVal.replace(/[^0-9.-]+/g, "")) || 0;
+                        return currentSortDir === 'asc' ? aNum - bNum : bNum - aNum;
+                    }
+
+                    return currentSortDir === 'asc' ? aVal.localeCompare(bVal, undefined, {numeric: true}) : bVal.localeCompare(aVal, undefined, {numeric: true});
+                });
+
+                rows.forEach(row => tbody.appendChild(row));
+            });
+        });
+
+        // Export Function
+        window.exportData = function(format) {
+            const checkedBoxes = Array.from(tbody.querySelectorAll('.row-checkbox:checked'));
+            const visibleRows = allOriginalRows.filter(row => row.style.display !== 'none');
+            
+            let rowsToExport = (checkedBoxes.length > 0 ? checkedBoxes.map(cb => cb.closest('tr')) : visibleRows);
+            
+            if (rowsToExport.length === 0) {
+                alert('No data to export.');
+                return;
+            }
+
+            const cleanCell = (text) => text.trim().replace(/₱/g, '').replace(/\s+/g, ' ');
+            const formatCurrency = (val) => `PHP ${val.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+            
+            const headers = [
+                '#', 'Transaction Date', 'PID', 'WIP', 'Client Name', 'Product Name', 
+                'Paid', 'Qty', 'Unit Price', 'Materials', 'Labor', 'Overhead', 'Markup'
+            ];
+
+            const data = rowsToExport.map((tr, idx) => {
+                const cells = Array.from(tr.cells).slice(1); // skip checkbox column
+                return cells.map(td => cleanCell(td.textContent));
+            });
+
+            // Calculate Totals
+            let totalMat = 0, totalLabor = 0, totalOverhead = 0, totalMarkup = 0;
+            data.forEach(row => {
+                totalMat += parseFloat(row[9].replace(/,/g, '')) || 0;
+                totalLabor += parseFloat(row[10].replace(/,/g, '')) || 0;
+                totalOverhead += parseFloat(row[11].replace(/,/g, '')) || 0;
+                totalMarkup += parseFloat(row[12].replace(/,/g, '')) || 0;
+            });
+
+            const totalRow = Array(13).fill('');
+            totalRow[4] = "GRAND TOTAL:";
+            totalRow[9] = formatCurrency(totalMat);
+            totalRow[10] = formatCurrency(totalLabor);
+            totalRow[11] = formatCurrency(totalOverhead);
+            totalRow[12] = formatCurrency(totalMarkup);
+            
+            // For CSV/Excel, we append the total row. 
+            // For PDF, we'll handle it separately in autoTable's foot.
+            const dataWithTotal = [...data, totalRow];
+
+            const filename = `CGS_Report_${new Date().toISOString().slice(0, 10)}`;
+
+            if (format === 'csv') {
+                let csvContent = headers.join(',') + '\n' + dataWithTotal.map(row => row.map(c => `"${c.replace(/"/g, '""')}"`).join(',')).join('\n');
+                downloadFile(csvContent, filename + '.csv', 'text/csv');
+            } else if (format === 'excel') {
+                if (typeof XLSX === 'undefined') return alert('Excel discovery library not loaded.');
+                const ws = XLSX.utils.aoa_to_sheet([headers, ...dataWithTotal]);
+                const wb = XLSX.utils.book_new();
+                XLSX.utils.book_append_sheet(wb, ws, "CGS Report");
+                XLSX.writeFile(wb, `${filename}.xlsx`);
+            } else if (format === 'pdf') {
+                if (typeof window.jspdf === 'undefined') return alert('PDF library not loaded.');
+                const { jsPDF } = window.jspdf;
+                const doc = new jsPDF('l', 'mm', 'a4');
+                doc.setFontSize(18);
+                doc.text("Cost of Goods Sold Report", 14, 15);
+                doc.setFontSize(10);
+                doc.text(`Generated on: ${new Date().toLocaleString()}`, 14, 22);
+                
+                // Format numeric strings in data with "PHP" prefix for consistency
+                const formattedData = data.map(row => {
+                    const newRow = [...row];
+                    [8, 9, 10, 11, 12].forEach(idx => {
+                        const val = parseFloat(row[idx].replace(/,/g, '')) || 0;
+                        newRow[idx] = `PHP ${val.toLocaleString(undefined, {minimumFractionDigits: 2})}`;
+                    });
+                    return newRow;
+                });
+
+                doc.autoTable({
+                    head: [headers],
+                    body: formattedData,
+                    foot: [[...Array(4).fill(''), "GRAND TOTAL:", ...Array(4).fill(''), formatCurrency(totalMat), formatCurrency(totalLabor), formatCurrency(totalOverhead), formatCurrency(totalMarkup)]],
+                    startY: 28,
+                    theme: 'grid',
+                    styles: { fontSize: 7, cellPadding: 2 },
+                    headStyles: { fillColor: [214, 51, 132] }, // Pink theme
+                    footStyles: { fillColor: [248, 249, 250], textColor: [214, 51, 132], fontStyle: 'bold' }
+                });
+                doc.save(`${filename}.pdf`);
+            }
+        };
+
+        const downloadFile = (content, fileName, contentType) => {
+            const a = document.createElement("a");
+            const file = new Blob([content], { type: contentType });
+            a.href = URL.createObjectURL(file);
+            a.download = fileName;
+            a.click();
+        };
+    });
+</script>
+{% endblock %}

@@ -1,0 +1,928 @@
+{% extends 'core/base.html' %}
+{% load static humanize %}
+
+{% block title %}Job Orders - The Potter's House{% endblock %}
+
+{% block extra_css %}
+<style>
+    .sortable i { font-size: 0.75rem; margin-left: 5px; color: #ccc; }
+    th.active-sort { color: #e91e63 !important; }
+    th.active-sort i { color: #e91e63 !important; }
+    .column-filter { border-radius: 4px; border: 1px solid #fce7f3; }
+    .column-filter:focus { border-color: #f472b6; box-shadow: 0 0 0 0.2rem rgba(244, 114, 182, 0.25); }
+    .filter-row { background-color: #ffffff !important; }
+    .filter-row td { background-color: #ffffff !important; padding: 5px 8px !important; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="row align-items-center mb-4">
+    <div class="col">
+        <h4 class="mb-0">Job Orders Dashboard</h4>
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb breadcrumb-custom mb-0">
+                <li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Home</a></li>
+                <li class="breadcrumb-item active" aria-current="page">Job Orders</li>
+            </ol>
+        </nav>
+    </div>
+</div>
+
+<div class="row g-3 mb-4 px-3">
+    <div class="col-xl col-md-4">
+        <div class="card stat-card border-0 shadow-sm {% if current_tab == 'all' %}stat-card-active{% endif %}" onclick="switchTab('all')" style="cursor: pointer; border-left: 4px solid #ff85a1 !important;">
+            <div class="card-body d-flex align-items-center">
+                <div class="stat-icon rounded-circle me-3" style="background: #fff0f3; color: #ff85a1;">
+                    <i class="fas fa-list"></i>
+                </div>
+                <div class="stat-details">
+                    <div class="stat-label text-muted small">TOTAL JO</div>
+                    <div class="stat-value fw-bold">{{ stats.total }}</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-xl col-md-4">
+        <div class="card stat-card border-0 shadow-sm {% if current_tab == 'active' %}stat-card-active{% endif %}" onclick="switchTab('active')" style="cursor: pointer; border-left: 4px solid #f59e0b !important;">
+            <div class="card-body d-flex align-items-center">
+                <div class="stat-icon rounded-circle me-3" style="background: #fffbeb; color: #f59e0b;">
+                    <i class="fas fa-clock"></i>
+                </div>
+                <div class="stat-details">
+                    <div class="stat-label text-muted small">ACTIVE</div>
+                    <div class="stat-value fw-bold text-warning">{{ stats.active }}</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-xl col-md-4">
+        <div class="card stat-card border-0 shadow-sm {% if current_tab == 'completed' %}stat-card-active{% endif %}" onclick="switchTab('completed')" style="cursor: pointer; border-left: 4px solid #10b981 !important;">
+            <div class="card-body d-flex align-items-center">
+                <div class="stat-icon rounded-circle me-3" style="background: #ecfdf5; color: #10b981;">
+                    <i class="fas fa-check-circle"></i>
+                </div>
+                <div class="stat-details">
+                    <div class="stat-label text-muted small">DONE</div>
+                    <div class="stat-value fw-bold text-success">{{ stats.completed }}</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-xl col-md-4">
+        <div class="card stat-card border-0 shadow-sm {% if current_tab == 'void' %}stat-card-active{% endif %}" onclick="switchTab('void')" style="cursor: pointer; border-left: 4px solid #ef4444 !important;">
+            <div class="card-body d-flex align-items-center">
+                <div class="stat-icon rounded-circle me-3" style="background: #fef2f2; color: #ef4444;">
+                    <i class="fas fa-times-circle"></i>
+                </div>
+                <div class="stat-details">
+                    <div class="stat-label text-muted small">VOIDED</div>
+                    <div class="stat-value fw-bold text-danger">{{ stats.void }}</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-xl col-md-4">
+        <div class="card stat-card border-0 shadow-sm {% if current_tab == 'archived' %}stat-card-active{% endif %}" onclick="switchTab('archived')" style="cursor: pointer; border-left: 4px solid #6b7280 !important;">
+            <div class="card-body d-flex align-items-center">
+                <div class="stat-icon rounded-circle me-3" style="background: #f3f4f6; color: #6b7280;">
+                    <i class="fas fa-archive"></i>
+                </div>
+                <div class="stat-details">
+                    <div class="stat-label text-muted small">ARCHIVED</div>
+                    <div class="stat-value fw-bold text-secondary">{{ stats.archived }}</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+<div class="inventory-card">
+    <div class="p-3 bg-white border-bottom tool-bar">
+        <div class="d-flex justify-content-between align-items-center flex-wrap g-2">
+            <div class="d-flex align-items-center">
+                <div class="text-muted small me-4" id="selectionInfo">
+                    <span id="selectedCount">0</span> item(s) selected
+                </div>
+                <div class="d-flex align-items-center me-2">
+                    <label class="small text-muted me-2 mb-0">From:</label>
+                    <input type="date" id="dateStart" class="form-control form-control-sm" style="width: 140px;" value="{{ date_start }}">
+                </div>
+                <div class="d-flex align-items-center me-3">
+                    <label class="small text-muted me-2 mb-0">To:</label>
+                    <input type="date" id="dateEnd" class="form-control form-control-sm" style="width: 140px;" value="{{ date_end }}">
+                </div>
+                <div class="btn-group me-2">
+                    <button type="button" class="btn btn-sm btn-outline-secondary" onclick="applyDateFilter()" title="Filter by Date">
+                        <span class="icon-box" style="width: 20px; height: 20px; margin-right: 4px; border-radius: 4px;">
+                            <i class="fas fa-filter" style="font-size: 0.7rem;"></i>
+                        </span>
+                        Filter
+                    </button>
+                    <button type="button" class="btn btn-sm btn-outline-secondary" onclick="clearDateFilter()" title="Clear Date Filter" style="padding-left: 6px; padding-right: 6px;">
+                        <span class="icon-box" style="width: 20px; height: 20px; margin-right: 0; border-radius: 4px;">
+                            <i class="fas fa-times" style="font-size: 0.7rem;"></i>
+                        </span>
+                    </button>
+                </div>
+            </div>
+            <div class="btn-group">
+                <button type="button" class="btn btn-outline-success btn-sm" onclick="exportData('excel')">
+                    <i class="fas fa-file-excel me-1"></i> Export Excel
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div class="table-responsive">
+        <table class="table table-hover" id="joTable">
+            <thead>
+                <tr>
+                    <th scope="col" style="width: 40px;">
+                        <input type="checkbox" id="selectAll" class="form-check-input" title="Select All">
+                    </th>
+                    <th class="sortable" data-column="1"># <i class="fas fa-sort"></i></th>
+                    <th class="sortable" data-column="2">Transaction Date <i class="fas fa-sort"></i></th>
+                    <th class="sortable" data-column="3">Due Date <i class="fas fa-sort"></i></th>
+                    <th class="sortable" data-column="4">Qty <i class="fas fa-sort"></i></th>
+                    <th class="sortable" data-column="5">WIP <i class="fas fa-sort"></i></th>
+                    <th class="sortable" data-column="6">Name <i class="fas fa-sort"></i></th>
+                    <th class="sortable" data-column="7">Remarks <i class="fas fa-sort"></i></th>
+                    <th class="sortable" data-column="8">Type <i class="fas fa-sort"></i></th>
+                    <th class="sortable" data-column="9">Datetime Updated <i class="fas fa-sort"></i></th>
+                    <th class="text-end sortable" data-column="10">Amount Due <i class="fas fa-sort"></i></th>
+                    <th class="text-end sortable" data-column="11">Amount Paid <i class="fas fa-sort"></i></th>
+                    <th class="text-end sortable fw-bold" data-column="12">Balance <i class="fas fa-sort"></i></th>
+                    <th class="sortable" data-column="13">Is Fully Paid <i class="fas fa-sort"></i></th>
+                    <th class="sortable" data-column="14">Product Release Status <i class="fas fa-sort"></i></th>
+                    <th class="sortable" data-column="15">Status <i class="fas fa-sort"></i></th>
+                    <th class="text-center">Action</th>
+                </tr>
+                <tr class="bg-light filter-row">
+                    <td></td>
+                    <td></td>
+                    <td><input type="text" class="form-control form-control-sm column-filter" data-column="2" placeholder="Date"></td>
+                    <td><input type="text" class="form-control form-control-sm column-filter" data-column="3" placeholder="Due"></td>
+                    <td><input type="text" class="form-control form-control-sm column-filter" data-column="4" placeholder="Qty"></td>
+                    <td><input type="text" class="form-control form-control-sm column-filter" data-column="5" placeholder="WIP"></td>
+                    <td><input type="text" class="form-control form-control-sm column-filter" data-column="6" placeholder="Client Name"></td>
+                    <td><input type="text" class="form-control form-control-sm column-filter" data-column="7" placeholder="Remarks"></td>
+                    <td style="min-width: 120px;">
+                        <select class="form-select form-select-sm column-filter" data-column="8">
+                            <option value="">Type</option>
+                            <option value="Gov">Gov</option>
+                            <option value="Events">Events</option>
+                        </select>
+                    </td>
+                    <td><input type="text" class="form-control form-control-sm column-filter" data-column="9" placeholder="Updated"></td>
+                    <td><input type="text" class="form-control form-control-sm column-filter" data-column="10" placeholder="Due"></td>
+                    <td><input type="text" class="form-control form-control-sm column-filter" data-column="11" placeholder="Paid"></td>
+                    <td><input type="text" class="form-control form-control-sm column-filter" data-column="12" placeholder="Bal"></td>
+                    <td>
+                        <select class="form-select form-select-sm column-filter" data-column="13">
+                            <option value="">Is Fully Paid</option>
+                            <option value="Yes">Yes</option>
+                            <option value="No">No</option>
+                        </select>
+                    </td>
+                    <td>
+                        <select class="form-select form-select-sm column-filter" data-column="14">
+                            <option value="">Is Released</option>
+                            <option value="Pending">Pending</option>
+                            <option value="Partial">Partial</option>
+                            <option value="Complete">Complete</option>
+                        </select>
+                    </td>
+                    <td>
+                        <select class="form-select form-select-sm column-filter" data-column="15">
+                            <option value="">Status</option>
+                            <option value="ACTIVE">ACTIVE</option>
+                            <option value="DONE">DONE</option>
+                            <option value="VOID">VOID</option>
+                        </select>
+                    </td>
+                    <td></td>
+                </tr>
+            </thead>
+            <tbody>
+                {% for jo in job_orders %}
+                {% with status=jo.status|upper %}
+                <tr class="{% if status == 'COMPLETED' or status == 'DONE' %}table-success{% elif status == 'VOID' or status == 'VOIDED' %}table-danger{% endif %}">
+                {% endwith %}
+                    <td>
+                        <input type="checkbox" class="form-check-input row-checkbox" value="{{ jo.id }}">
+                    </td>
+                    <td>{{ forloop.counter }}</td>
+                    <td>{{ jo.transaction_date|date:"d M Y" }}</td>
+                    <td>{{ jo.due_date|date:"d M Y"|default:"" }}</td>
+                    <td>{{ jo.quantity|floatformat:0 }}</td>
+                    <td class="fw-bold">
+                        <a href="{% url 'job_order_detail' jo.id %}" class="text-decoration-none" style="color: #ff85a1;">{{ jo.wip }}</a>
+                    </td>
+                    <td>{{ jo.client.full_name }}</td>
+                    <td><small class="text-muted">{{ jo.remarks|truncatechars:30 }}</small></td>
+                    <td><span class="badge bg-light border text-dark">{{ jo.order_type }}</span></td>
+                    <td>{{ jo.datetime_updated|date:"Y-m-d H:i:s" }}</td>
+                    <td class="text-end">₱{{ jo.amount_due|floatformat:2|intcomma }}</td>
+                    <td class="text-end text-success">₱{{ jo.amount_paid|floatformat:2|intcomma }}</td>
+                <td class="text-end fw-bold {% if jo.balance > 0 %}text-danger{% else %}text-success{% endif %}">₱{{ jo.balance|floatformat:2|intcomma }}</td>
+                    <td>
+                        {% if jo.is_fully_paid %}
+                        <span class="badge bg-success-subtle text-success border border-success px-3">Yes</span>
+                        {% else %}
+                        <span class="badge bg-danger-subtle text-danger border border-danger px-3">No</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <a href="{% url 'jo_releasing' %}?wip={{ jo.wip }}" class="text-decoration-none" title="View in Releasing">
+                            <span class="badge {% if jo.product_release_status == 'Complete' %}bg-success{% elif jo.product_release_status == 'Partial' %}bg-info{% else %}bg-secondary{% endif %}">
+                                {{ jo.product_release_status }}
+                            </span>
+                        </a>
+                    </td>
+                    <td>
+                        {% if jo.status == 'DONE' %}
+                            <span class="text-success fw-bold">DONE</span>
+                        {% elif jo.status == 'ACTIVE' %}
+                            <span class="text-warning fw-bold">ACTIVE</span>
+                        {% elif jo.status|upper == 'VOID' or jo.status|upper == 'VOIDED' %}
+                            <span class="text-danger fw-bold">VOIDED</span>
+                        {% else %}
+                            <span class="fw-bold text-muted">{{ jo.status|upper }}</span>
+                        {% endif %}
+                    </td>
+                    <td class="text-center">
+                        <div class="btn-group">
+                            <a href="{% url 'jo_products' %}?wip={{ jo.wip }}" class="btn btn-sm btn-outline-primary" title="View Products">
+                                <i class="fas fa-boxes"></i>
+                            </a>
+                            <button type="button" class="btn btn-sm btn-outline-danger archive-jo-btn" 
+                                    data-jo-id="{{ jo.id }}" data-wip="{{ jo.wip }}" 
+                                    title="{% if jo.is_archived %}Restore{% else %}Archive{% endif %}">
+                                <i class="fas {% if jo.is_archived %}fa-undo{% else %}fa-archive{% endif %}"></i>
+                            </button>
+                        </div>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="17" class="text-center p-5 text-muted">No Job Orders found matching current filters.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Pagination -->
+    <div class="p-3 bg-white border-top d-flex justify-content-between align-items-center">
+        <div class="small text-muted">
+            Showing <span id="paginationInfo" class="fw-bold">0</span> of <span id="paginationTotal" class="fw-bold">{{ total_count }}</span> items
+        </div>
+        <ul class="pagination pagination-sm mb-0" id="paginationContainer"></ul>
+    </div>
+</div>
+
+<!-- Job Order Activity Logs Table -->
+<div class="inventory-card mt-4">
+    <div class="inventory-card-header bg-light py-2 px-3 border-bottom">
+        <div class="d-flex justify-content-between align-items-center flex-wrap">
+            <div class="d-flex align-items-center my-1">
+                <div class="icon-box">
+                    <i class="fas fa-filter"></i>
+                </div>
+                <h6 class="mb-0 fw-bold text-pink" style="font-size: 0.85rem;">Job Order Activity Logs</h6>
+            </div>
+            <div class="d-flex align-items-center my-1">
+                <div class="d-flex align-items-center me-2">
+                    <label class="small text-muted me-2 mb-0">From:</label>
+                    <input type="date" id="logDateStart" class="form-control form-control-sm" style="width: 130px;" value="{{ log_date_start }}">
+                </div>
+                <div class="d-flex align-items-center me-2">
+                    <label class="small text-muted me-2 mb-0">To:</label>
+                    <input type="date" id="logDateEnd" class="form-control form-control-sm" style="width: 130px;" value="{{ log_date_end }}">
+                </div>
+                <div class="btn-group">
+                    <button type="button" class="btn btn-sm btn-outline-secondary" onclick="applyLogDateFilter()" title="Filter Logs">
+                         <span class="icon-box" style="width: 20px; height: 20px; margin-right: 4px; border-radius: 4px;">
+                            <i class="fas fa-filter" style="font-size: 0.7rem;"></i>
+                        </span>
+                        Filter
+                    </button>
+                    <button type="button" class="btn btn-sm btn-outline-secondary" onclick="clearLogDateFilter()" title="Clear Filters" style="padding-left: 6px; padding-right: 6px;">
+                        <span class="icon-box" style="width: 20px; height: 20px; margin-right: 0; border-radius: 4px;">
+                            <i class="fas fa-times" style="font-size: 0.7rem;"></i>
+                        </span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="table-responsive">
+        <table class="table table-hover mb-0" id="joLogsTable">
+            <thead>
+                <tr>
+                    <th style="width: 40px;">#</th>
+                    <th style="width: 180px;">Timestamp</th>
+                    <th style="width: 100px;">Action</th>
+                    <th style="width: 120px;">User</th>
+                    <th>Description</th>
+                </tr>
+                <tr class="bg-light filter-row">
+                    <td></td>
+                    <td><input type="text" class="form-control form-control-sm column-filter-log" data-column="1" placeholder="Timestamp" style="font-size: 0.7rem; height: 24px;"></td>
+                    <td><input type="text" class="form-control form-control-sm column-filter-log" data-column="2" placeholder="Action" style="font-size: 0.7rem; height: 24px;"></td>
+                    <td><input type="text" class="form-control form-control-sm column-filter-log" data-column="3" placeholder="User" style="font-size: 0.7rem; height: 24px;"></td>
+                    <td><input type="text" class="form-control form-control-sm column-filter-log" data-column="4" placeholder="Description" style="font-size: 0.7rem; height: 24px;"></td>
+                </tr>
+            </thead>
+            <tbody id="joLogsBody">
+                {% for log in jo_logs %}
+                <tr>
+                    <td>{{ forloop.counter }}</td>
+                    <td class="text-muted small">{{ log.timestamp|date:"Y-m-d H:i:s" }}</td>
+                    <td>
+                        {% with action=log.action|lower %}
+                        {% if action == 'created' %}
+                        <span class="log-badge log-badge-created">CREATED</span>
+                        {% elif action == 'updated' %}
+                        <span class="log-badge log-badge-updated">UPDATED</span>
+                        {% elif action == 'voided' or action == 'void' %}
+                        <span class="log-badge log-badge-voided">VOIDED</span>
+                        {% elif action == 'archived' or action == 'archive' %}
+                        <span class="log-badge log-badge-archived">ARCHIVED</span>
+                        {% elif action == 'restored' or action == 'restore' %}
+                        <span class="log-badge log-badge-default">RESTORED</span>
+                        {% else %}
+                        <span class="log-badge log-badge-default">{{ action|upper }}</span>
+                        {% endif %}
+                        {% endwith %}
+                    </td>
+                    <td class="fw-bold">{{ log.user }}</td>
+                    <td class="small">{{ log.description|linebreaksbr }}</td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="5" class="text-center p-4 text-muted small">No job order activity logs found.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    <!-- Log Pagination -->
+    <div class="p-3 bg-white border-top d-flex justify-content-between align-items-center">
+        <div class="small text-muted">
+            Showing <span id="logPaginationInfo" class="fw-bold">0</span> of <span id="logPaginationTotal" class="fw-bold">{{ jo_logs|length }}</span> items
+        </div>
+        <ul class="pagination pagination-sm mb-0" id="logPaginationContainer"></ul>
+    </div>
+</div>
+
+<!-- Archive Confirmation Modal -->
+<div class="modal fade" id="archiveJOModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-sm">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header border-0 pb-0 justify-content-center pt-4">
+                <div class="rounded-circle bg-light d-flex align-items-center justify-content-center" id="archiveJOModalIconContainer" style="width: 60px; height: 60px; background-color: #fff1f2 !important;">
+                    <i class="fas fa-archive fa-2x text-danger" id="archiveJOModalIcon"></i>
+                </div>
+            </div>
+            <div class="modal-body py-4 text-center px-4">
+                <h6 class="fw-bold mb-2" id="archiveJOModalTitle">Archive Job Order?</h6>
+                <p class="mb-0 text-muted" >Are you sure you want to <span id="archiveJOActionText">archive</span> <br><strong id="archiveJOWip" class="text-dark"></strong>?</p>
+            </div>
+            <div class="modal-footer border-0 d-flex gap-2 p-3 pt-0">
+                <button type="button" class="btn btn-light border flex-grow-1 fw-bold py-1.5 shadow-sm small" data-bs-dismiss="modal" style="font-size: 0.85rem;">Cancel</button>
+                <button type="button" class="btn btn-danger flex-grow-1 fw-bold py-1.5 shadow-sm small" id="confirmArchiveJOBtn" style="background: #ef4444; border: none; font-size: 0.85rem;">Archive</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    function applyDateFilter() {
+        const start = document.getElementById('dateStart').value;
+        const end = document.getElementById('dateEnd').value;
+        let url = new URL(window.location.href);
+        
+        // Set table filters
+        if (start) url.searchParams.set('date_start', start);
+        else url.searchParams.delete('date_start');
+        if (end) url.searchParams.set('date_end', end);
+        else url.searchParams.delete('date_end');
+        
+        // CRITICAL: Always clear log filters when applying main table filters to keep them separate
+        url.searchParams.delete('log_date_start');
+        url.searchParams.delete('log_date_end');
+        
+        window.location.href = url.toString();
+    }
+
+    function clearDateFilter() {
+        document.getElementById('dateStart').value = '';
+        document.getElementById('dateEnd').value = '';
+        applyDateFilter();
+    }
+
+    function applyLogDateFilter() {
+        const start = document.getElementById('logDateStart').value;
+        const end = document.getElementById('logDateEnd').value;
+        let url = new URL(window.location.href);
+        
+        // Set log filters
+        if (start) url.searchParams.set('log_date_start', start);
+        else url.searchParams.delete('log_date_start');
+        if (end) url.searchParams.set('log_date_end', end);
+        else url.searchParams.delete('log_date_end');
+        
+        // CRITICAL: Always clear table filters when applying log filters to keep them separate
+        url.searchParams.delete('date_start');
+        url.searchParams.delete('date_end');
+        
+        window.location.href = url.toString();
+    }
+
+    function clearLogDateFilter() {
+        document.getElementById('logDateStart').value = '';
+        document.getElementById('logDateEnd').value = '';
+        applyLogDateFilter();
+    }
+
+    function switchTab(tab) {
+        let url = new URL(window.location.href);
+        url.searchParams.set('status_tab', tab);
+        window.location.href = url.toString();
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+        // Table elements
+        const table = document.getElementById('joTable');
+        const tbody = table.querySelector('tbody');
+        const allRows = Array.from(tbody.querySelectorAll('tr'));
+        let filteredRows = allRows.slice();
+
+        // Pagination settings
+        const rowsPerPage = 15;
+        let currentPage = 1;
+
+        // Log Pagination Variables
+        let currentLogPage = 1;
+        const logsPerPage = 10;
+        const logTbody = document.getElementById('joLogsBody');
+        const logPaginationContainer = document.getElementById('logPaginationContainer');
+        const logPaginationInfo = document.getElementById('logPaginationInfo');
+        const logPaginationTotal = document.getElementById('logPaginationTotal');
+        let allLogRows = Array.from(logTbody.querySelectorAll('tr'));
+        let filteredLogRows = [...allLogRows];
+
+        // Select All functionality
+        const selectAllCheckbox = document.getElementById('selectAll');
+        const selectedCountSpan = document.getElementById('selectedCount');
+
+        function updateSelectedCount() {
+            const count = document.querySelectorAll('.row-checkbox:checked').length;
+            selectedCountSpan.textContent = count;
+        }
+
+        selectAllCheckbox.addEventListener('change', function() {
+            const visibleCheckboxes = Array.from(document.querySelectorAll('.row-checkbox')).filter(cb => {
+                return cb.closest('tr').style.display !== 'none';
+            });
+            visibleCheckboxes.forEach(cb => cb.checked = selectAllCheckbox.checked);
+            updateSelectedCount();
+        });
+
+        tbody.addEventListener('change', function(e) {
+            if (e.target.classList.contains('row-checkbox')) {
+                updateSelectedCount();
+                const visibleCheckboxes = Array.from(document.querySelectorAll('.row-checkbox')).filter(cb => {
+                    return cb.closest('tr').style.display !== 'none';
+                });
+                const checkedCount = visibleCheckboxes.filter(cb => cb.checked).length;
+                selectAllCheckbox.checked = checkedCount === visibleCheckboxes.length && visibleCheckboxes.length > 0;
+                selectAllCheckbox.indeterminate = checkedCount > 0 && checkedCount < visibleCheckboxes.length;
+            }
+        });
+        // ========== SORTING ==========
+        let currentSortCol = 2; // Default to Transaction Date
+        let currentSortDir = 'desc'; // Default to Descending (Newest on top)
+
+        function performSort(colIdx, dir) {
+            allRows.sort((a, b) => {
+                const aCell = a.cells[colIdx];
+                const bCell = b.cells[colIdx];
+                const aVal = aCell ? aCell.textContent.trim() : '';
+                const bVal = bCell ? bCell.textContent.trim() : '';
+
+                let comparison = 0;
+                // Datetime/Date comparison (Transaction Date: 2, Due Date: 3, Datetime Updated: 9)
+                if ([2, 3, 9].includes(colIdx)) {
+                    const aDate = new Date(aVal);
+                    const bDate = new Date(bVal);
+                    if (!isNaN(aDate) && !isNaN(bDate)) {
+                        comparison = aDate - bDate;
+                    }
+                }
+                // Numeric/Currency comparison (ID: 1, Qty: 4, Amount Due: 10, Amount Paid: 11, Balance: 12)
+                else if ([1, 4, 10, 11, 12].includes(colIdx)) {
+                    const aNum = parseFloat(aVal.replace(/[₱,]/g, '')) || 0;
+                    const bNum = parseFloat(bVal.replace(/[₱,]/g, '')) || 0;
+                    comparison = aNum - bNum;
+                } else {
+                    comparison = aVal.localeCompare(bVal);
+                }
+
+                return dir === 'asc' ? comparison : -comparison;
+            });
+            
+            // Re-append sorted rows to DOM
+            allRows.forEach(row => tbody.appendChild(row));
+
+            // Update icons
+            document.querySelectorAll('th.sortable i').forEach(i => {
+                const th = i.closest('th');
+                const thCol = parseInt(th.getAttribute('data-column'));
+                if (thCol === colIdx) {
+                    i.className = dir === 'asc' ? 'fas fa-sort-up' : 'fas fa-sort-down';
+                    th.classList.add('active-sort');
+                } else {
+                    i.className = 'fas fa-sort';
+                    th.classList.remove('active-sort');
+                }
+            });
+        }
+
+        document.querySelectorAll('th.sortable').forEach(header => {
+            header.style.cursor = 'pointer';
+            header.addEventListener('click', function() {
+                const colIdx = parseInt(this.getAttribute('data-column'));
+                if (currentSortCol === colIdx) {
+                    currentSortDir = currentSortDir === 'asc' ? 'desc' : 'asc';
+                } else {
+                    currentSortCol = colIdx;
+                    currentSortDir = 'asc';
+                }
+                
+                performSort(currentSortCol, currentSortDir);
+                filterAll(); // Re-apply current filters to the now-sorted allRows
+            });
+        });
+
+        // ========== UNIFIED SEARCH & FILTER ==========
+        function filterAll() {
+            const columnFilters = table.querySelectorAll('.column-filter');
+            
+            filteredRows = allRows.filter(row => {
+                const cells = row.cells;
+                if (cells.length < 2) return false; 
+
+                let matches = true;
+                columnFilters.forEach(input => {
+                    const colIdx = parseInt(input.getAttribute('data-column'));
+                    const filterVal = input.value.toLowerCase().trim();
+                    
+                    if (filterVal) {
+                        const cellText = cells[colIdx] ? cells[colIdx].textContent.toLowerCase().trim() : '';
+                        const cleanCellText = cellText.replace(/[₱,]/g, '');
+                        const cleanFilterVal = filterVal.replace(/[₱,]/g, '');
+
+                        if (cleanCellText.indexOf(cleanFilterVal) === -1) {
+                            matches = false;
+                        }
+                    }
+                });
+
+                return matches;
+            });
+
+             // Handle "No Results" row
+             const existingNoResults = tbody.querySelector('.no-results');
+             if (existingNoResults) existingNoResults.remove();
+ 
+             if (filteredRows.length === 0) {
+                 const noResults = document.createElement('tr');
+                 noResults.className = 'no-results';
+                 noResults.innerHTML = `<td colspan="17" class="text-center p-5 text-muted">No matching Job Orders found.</td>`;
+                 tbody.appendChild(noResults);
+             }
+ 
+             currentPage = 1;
+             showPage(1);
+         }
+
+        table.querySelectorAll('.column-filter').forEach(input => {
+            input.addEventListener('input', filterAll);
+            input.addEventListener('change', filterAll);
+        });
+
+        // ========== PAGINATION ==========
+        function showPage(page) {
+            allRows.forEach(row => row.style.display = 'none');
+
+            const totalFiltered = filteredRows.length;
+            const totalPages = Math.ceil(totalFiltered / rowsPerPage);
+
+            if (page < 1) page = 1;
+            if (page > totalPages && totalPages > 0) page = totalPages;
+            currentPage = page;
+
+            const start = (page - 1) * rowsPerPage;
+            const end = Math.min(start + rowsPerPage, totalFiltered);
+
+            for (let i = start; i < end; i++) {
+                filteredRows[i].style.display = '';
+            }
+
+            // Update Info
+            const paginationInfo = document.getElementById('paginationInfo');
+            const paginationTotal = document.getElementById('paginationTotal');
+            if (totalFiltered > 0) {
+                if (paginationInfo) paginationInfo.textContent = `${start + 1}-${end}`;
+                if (paginationTotal) paginationTotal.textContent = totalFiltered;
+            } else {
+                if (paginationInfo) paginationInfo.textContent = '0';
+                if (paginationTotal) paginationTotal.textContent = '0';
+            }
+
+            updatePaginationButtons(totalPages);
+        }
+
+        function updatePaginationButtons(totalPages) {
+            const container = document.getElementById('paginationContainer');
+            container.innerHTML = '';
+
+            // Prev
+            const prevLi = document.createElement('li');
+            prevLi.className = `page-item ${currentPage === 1 ? 'disabled' : ''}`;
+            prevLi.innerHTML = '<a class="page-link" href="#">&laquo;</a>';
+            prevLi.onclick = (e) => { e.preventDefault(); if (currentPage > 1) showPage(currentPage - 1); };
+            container.appendChild(prevLi);
+
+            // Pages
+            const maxVisible = 5;
+            let startPage = Math.max(1, currentPage - 2);
+            let endPage = Math.min(totalPages, startPage + maxVisible - 1);
+            if (endPage - startPage < maxVisible - 1) startPage = Math.max(1, endPage - maxVisible + 1);
+
+            for (let i = startPage; i <= endPage; i++) {
+                const li = document.createElement('li');
+                li.className = `page-item ${i === currentPage ? 'active' : ''}`;
+                li.innerHTML = `<a class="page-link" href="#">${i}</a>`;
+                li.onclick = (e) => { e.preventDefault(); showPage(i); };
+                container.appendChild(li);
+            }
+
+            // Next
+            const nextLi = document.createElement('li');
+            nextLi.className = `page-item ${currentPage === totalPages || totalPages === 0 ? 'disabled' : ''}`;
+            nextLi.innerHTML = '<a class="page-link" href="#">&raquo;</a>';
+            nextLi.onclick = (e) => { e.preventDefault(); if (currentPage < totalPages) showPage(currentPage + 1); };
+            container.appendChild(nextLi);
+        }
+
+        // ========== EXPORT ==========
+        window.exportData = function(format) {
+            if (format === 'excel') {
+                if (typeof XLSX === 'undefined') {
+                    alert('Excel library not loaded.');
+                    return;
+                }
+                const selectedCheckboxes = document.querySelectorAll('.row-checkbox:checked');
+                let exportRows;
+                if (selectedCheckboxes.length > 0) {
+                    exportRows = Array.from(selectedCheckboxes).map(cb => cb.closest('tr'));
+                } else {
+                    exportRows = filteredRows;
+                }
+
+                const headers = [];
+                table.querySelectorAll('thead tr:first-child th').forEach((th, i) => {
+                    if (i > 0) headers.push(th.textContent.trim());
+                });
+
+                const data = exportRows.map(row => {
+                    const cells = row.querySelectorAll('td');
+                    const rowData = [];
+                    cells.forEach((td, i) => {
+                        if (i > 0) rowData.push(td.textContent.trim());
+                    });
+                    return rowData;
+                });
+
+                const wb = XLSX.utils.book_new();
+                const ws = XLSX.utils.aoa_to_sheet([headers, ...data]);
+                XLSX.utils.book_append_sheet(wb, ws, "Job Orders");
+                XLSX.writeFile(wb, `Job_Orders_Export_${new Date().toISOString().slice(0, 10)}.xlsx`);
+            }
+        };
+
+        // ========== STATUS UPDATES ==========
+        tbody.addEventListener('change', function(e) {
+            if (e.target.classList.contains('status-update-select')) {
+                const select = e.target;
+                const field = select.getAttribute('data-field');
+                const joId = select.getAttribute('data-jo-id');
+                const value = select.value;
+
+                const formData = new FormData();
+                formData.append(field, value);
+
+                fetch(`/api/job-order/update/${joId}/`, {
+                    method: 'POST',
+                    body: formData,
+                    headers: {
+                        'X-CSRFToken': '{{ csrf_token }}'
+                    }
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        // Update visual state if needed
+                        if (field === 'status') {
+                            select.classList.remove('text-success', 'text-warning', 'text-danger');
+                            if (value === 'Completed') select.classList.add('text-success');
+                            else if (value === 'Pending') select.classList.add('text-warning');
+                            else if (value === 'Void') select.classList.add('text-danger');
+                        }
+                    } else {
+                        alert('Error: ' + data.message);
+                    }
+                })
+                .catch(err => console.error('Error updating status:', err));
+            }
+        });
+
+        // ========== ARCHIVING ==========
+        let currentJoId = null;
+        const archiveJOModal = new bootstrap.Modal(document.getElementById('archiveJOModal'));
+        const confirmArchiveJOBtn = document.getElementById('confirmArchiveJOBtn');
+
+        tbody.addEventListener('click', function(e) {
+            const btn = e.target.closest('.archive-jo-btn');
+            if (btn) {
+                currentJoId = btn.getAttribute('data-jo-id');
+                const wip = btn.getAttribute('data-wip');
+                const isArchived = btn.querySelector('i').classList.contains('fa-undo');
+                const actionText = isArchived ? 'restore' : 'archive';
+
+                // Update modal UI
+                document.getElementById('archiveJOWip').textContent = wip;
+                document.getElementById('archiveJOActionText').textContent = actionText;
+                document.getElementById('archiveJOModalTitle').textContent = isArchived ? 'Restore Job Order?' : 'Archive Job Order?';
+                
+                const icon = document.getElementById('archiveJOModalIcon');
+                const iconContainer = document.getElementById('archiveJOModalIconContainer');
+                
+                if (isArchived) {
+                    icon.className = 'fas fa-undo fa-2x text-primary';
+                    iconContainer.style.setProperty('background-color', '#e0f2fe', 'important');
+                    confirmArchiveJOBtn.className = 'btn btn-primary flex-grow-1 fw-bold py-1.5 shadow-sm small';
+                    confirmArchiveJOBtn.textContent = 'Restore';
+                    confirmArchiveJOBtn.style.backgroundColor = '';
+                } else {
+                    icon.className = 'fas fa-archive fa-2x text-danger';
+                    iconContainer.style.setProperty('background-color', '#fff1f2', 'important');
+                    confirmArchiveJOBtn.className = 'btn btn-danger flex-grow-1 fw-bold py-1.5 shadow-sm small';
+                    confirmArchiveJOBtn.textContent = 'Archive';
+                    confirmArchiveJOBtn.style.backgroundColor = '#ef4444';
+                }
+
+                archiveJOModal.show();
+            }
+        });
+
+        confirmArchiveJOBtn.addEventListener('click', function() {
+            if (!currentJoId) return;
+
+            // Change button state to loading
+            const originalText = confirmArchiveJOBtn.innerHTML;
+            confirmArchiveJOBtn.disabled = true;
+            confirmArchiveJOBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Processing...';
+
+            fetch(`/api/job-order/archive/${currentJoId}/`, {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': '{{ csrf_token }}'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    window.location.reload();
+                } else {
+                    alert('Error: ' + data.message);
+                    confirmArchiveJOBtn.disabled = false;
+                    confirmArchiveJOBtn.innerHTML = originalText;
+                }
+            })
+            .catch(err => {
+                console.error('Error archiving:', err);
+                confirmArchiveJOBtn.disabled = false;
+                confirmArchiveJOBtn.innerHTML = originalText;
+            });
+        });
+
+        function filterLogs() {
+            filteredLogRows = allLogRows.filter(row => {
+                const cells = row.cells;
+                if (cells.length < 5) return false;
+
+                let matches = true;
+                const filterInputs = document.querySelectorAll('.column-filter-log');
+                filterInputs.forEach(input => {
+                    const colIdx = parseInt(input.getAttribute('data-column'));
+                    const filterVal = input.value.toLowerCase().trim();
+                    if (filterVal) {
+                        const cellText = cells[colIdx] ? cells[colIdx].textContent.toLowerCase().trim() : '';
+                        if (cellText.indexOf(filterVal) === -1) {
+                            matches = false;
+                        }
+                    }
+                });
+                return matches;
+            });
+
+            currentLogPage = 1;
+            updateLogsView();
+        }
+
+        document.querySelectorAll('.column-filter-log').forEach(input => {
+            input.addEventListener('input', filterLogs);
+        });
+
+        function updateLogsView() {
+            if (filteredLogRows.length === 0) {
+                logTbody.querySelectorAll('tr').forEach(row => row.style.display = 'none');
+                const existingNoResults = logTbody.querySelector('.no-results-log');
+                if (existingNoResults) existingNoResults.remove();
+
+                const noResults = document.createElement('tr');
+                noResults.className = 'no-results-log';
+                noResults.innerHTML = `<td colspan="5" class="text-center p-4 text-muted small">No matching activity logs found.</td>`;
+                logTbody.appendChild(noResults);
+
+                if (logPaginationInfo) logPaginationInfo.textContent = '0';
+                if (logPaginationContainer) logPaginationContainer.innerHTML = '';
+                return;
+            }
+
+            // Remove no results row if it exists
+            const existingNoResults = logTbody.querySelector('.no-results-log');
+            if (existingNoResults) existingNoResults.remove();
+
+            // Hide all
+            allLogRows.forEach(row => row.style.display = 'none');
+
+            // Paginate
+            const start = (currentLogPage - 1) * logsPerPage;
+            const end = start + logsPerPage;
+            const pageRows = filteredLogRows.slice(start, end);
+            pageRows.forEach(row => row.style.display = '');
+
+            // Update Info
+            const rowStart = start + 1;
+            const rowEnd = Math.min(end, filteredLogRows.length);
+            if (logPaginationInfo) logPaginationInfo.textContent = `${rowStart}-${rowEnd}`;
+            if (logPaginationTotal) logPaginationTotal.textContent = filteredLogRows.length;
+
+            // Build Pagination
+            logPaginationContainer.innerHTML = '';
+            const totalPages = Math.ceil(filteredLogRows.length / logsPerPage);
+            if (totalPages < 1) return;
+
+            const createPageItem = (label, page, active = false, disabled = false) => {
+                const li = document.createElement('li');
+                li.className = `page-item ${active ? 'active' : ''} ${disabled ? 'disabled' : ''}`;
+                li.innerHTML = `<a class="page-link" href="#">${label}</a>`;
+                li.onclick = (e) => {
+                    e.preventDefault();
+                    if (!disabled && currentLogPage !== page) {
+                        currentLogPage = page;
+                        updateLogsView();
+                    }
+                };
+                return li;
+            };
+
+            logPaginationContainer.appendChild(createPageItem('&laquo;', currentLogPage - 1, false, currentLogPage === 1));
+            for (let i = 1; i <= totalPages; i++) {
+                if (i === 1 || i === totalPages || (i >= currentLogPage - 2 && i <= currentLogPage + 2)) {
+                    logPaginationContainer.appendChild(createPageItem(i, i, i === currentLogPage));
+                } else if (i === currentLogPage - 3 || i === currentLogPage + 3) {
+                    const dots = document.createElement('li');
+                    dots.className = 'page-item disabled';
+                    dots.innerHTML = '<span class="page-link">...</span>';
+                    logPaginationContainer.appendChild(dots);
+                }
+            }
+            logPaginationContainer.appendChild(createPageItem('&raquo;', currentLogPage + 1, false, currentLogPage === totalPages));
+        }
+
+        // Initialize
+        performSort(currentSortCol, currentSortDir);
+        filterAll();
+        updateLogsView();
+    });
+</script>
+{% endblock %}

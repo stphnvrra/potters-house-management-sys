@@ -1,0 +1,297 @@
+{% extends "core/base.html" %}
+{% block title %}Dashboard{% endblock %}
+{% load static humanize %}
+
+{% block content %}
+<!-- Page Header -->
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+        <h4 class="mb-0"><i class="fas fa-tachometer-alt me-2" style="color: var(--primary-color);"></i>Dashboard</h4>
+        <nav class="breadcrumb-custom mt-1">
+            <ol class="breadcrumb mb-0">
+                <li class="breadcrumb-item active">Overview</li>
+            </ol>
+        </nav>
+    </div>
+    <div class="d-flex gap-2 align-items-center">
+        <!-- Dark Mode Toggle -->
+        <button class="btn btn-sm dark-mode-toggle" id="darkModeToggle" title="Toggle Dark Mode">
+            <i class="fas fa-moon" id="darkModeIcon"></i>
+        </button>
+        <!-- Filter Dropdown -->
+        <select class="form-select form-select-sm filter-input" id="dashboardPeriod" style="width: auto;">
+            <option value="today">Today</option>
+            <option value="week">This Week</option>
+            <option value="month" selected>This Month</option>
+        </select>
+        <button class="btn btn-sm btn-outline-secondary" id="refreshDashboard" title="Refresh">
+            <i class="fas fa-sync-alt"></i>
+        </button>
+    </div>
+</div>
+
+<!-- Summary Stat Cards -->
+<div class="row g-3 mb-4">
+    <div class="col-lg-3 col-md-6">
+        <div class="dashboard-stat-card stat-items">
+            <div class="stat-icon"><i class="fas fa-boxes"></i></div>
+            <div class="stat-info">
+                <div class="stat-value">{{ stats.total_items }}</div>
+                <div class="stat-label">Total Items</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-3 col-md-6">
+        <div class="dashboard-stat-card stat-lowstock">
+            <div class="stat-icon"><i class="fas fa-exclamation-triangle"></i></div>
+            <div class="stat-info">
+                <div class="stat-value">{{ stats.low_stock }}</div>
+                <div class="stat-label">Low Stock</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-3 col-md-6">
+        <div class="dashboard-stat-card stat-employees">
+            <div class="stat-icon"><i class="fas fa-users"></i></div>
+            <div class="stat-info">
+                <div class="stat-value">{{ stats.active_employees }}</div>
+                <div class="stat-label">Active Employees</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-3 col-md-6">
+        <div class="dashboard-stat-card stat-value-card">
+            <div class="stat-icon"><i class="fas fa-coins"></i></div>
+            <div class="stat-info">
+                <div class="stat-value" style="font-size: 1.1rem;">{{ stats.total_value }}</div>
+                <div class="stat-label">Inventory Value</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Main Content Row -->
+<div class="row g-3 mb-4">
+    <!-- Charts Section -->
+    <div class="col-lg-8">
+        <div class="inventory-card mb-3">
+            <div class="inventory-card-header">
+                <div><i class="fas fa-chart-bar"></i> Inventory Trends</div>
+                <span class="text-muted">Last 6 Months</span>
+            </div>
+            <div class="p-3">
+                <canvas id="trendChart" height="250"></canvas>
+            </div>
+        </div>
+        <div class="row g-3">
+            <div class="col-md-6">
+                <div class="inventory-card">
+                    <div class="inventory-card-header">
+                        <div><i class="fas fa-chart-pie"></i> Inventory by Category</div>
+                    </div>
+                    <div class="p-3 d-flex justify-content-center">
+                        <canvas id="pieChart" height="200" style="max-width: 280px;"></canvas>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <!-- Mini Inventory Table -->
+                <div class="inventory-card">
+                    <div class="inventory-card-header">
+                        <div><i class="fas fa-table"></i> Critical Stock Items</div>
+                    </div>
+                    <div class="table-responsive" style="min-height: auto;">
+                        <table class="table table-sm mb-0">
+                            <thead>
+                                <tr>
+                                    <th>Item</th>
+                                    <th>Stock</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for item in low_stock_items %}
+                                <tr>
+                                    <td>
+                                        <span class="fw-semibold">{{ item.name|truncatechars:25 }}</span>
+                                    </td>
+                                    <td>{{ item.balance }}</td>
+                                    <td>
+                                        <span class="badge {% if item.status == 'Out of Stock' %}bg-danger{% elif item.status == 'Low Stock' %}bg-warning text-dark{% else %}bg-success{% endif %}">
+                                            {{ item.status }}
+                                        </span>
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr><td colspan="3" class="text-center text-muted py-3">No items found</td></tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="p-2 text-center border-top">
+                        <a href="{% url 'all_inventory_items' %}" class="text-decoration-none" style="font-size: 0.8rem;">
+                            Go to Full Inventory <i class="fas fa-arrow-right ms-1"></i>
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Right Sidebar: Activity + Quick Actions -->
+    <div class="col-lg-4">
+        <!-- Quick Actions -->
+        <div class="inventory-card mb-3">
+            <div class="inventory-card-header">
+                <div><i class="fas fa-bolt"></i> Quick Actions</div>
+            </div>
+            <div class="p-3 d-grid gap-2">
+                <a href="{% url 'all_inventory_items' %}?add=true" class="btn quick-action-btn">
+                    <i class="fas fa-plus-circle me-2"></i>Add New Item
+                </a>
+                <a href="{% url 'purchase_orders' %}?create=true" class="btn quick-action-btn">
+                    <i class="fas fa-file-invoice me-2"></i>Create Purchase Order
+                </a>
+                <a href="{% url 'employee_list' %}" class="btn quick-action-btn">
+                    <i class="fas fa-user-plus me-2"></i>View Employees
+                </a>
+                <a href="{% url 'products' %}" class="btn quick-action-btn">
+                    <i class="fas fa-box-open me-2"></i>View Products
+                </a>
+            </div>
+        </div>
+
+        <!-- Recent Activity Feed -->
+        <div class="inventory-card">
+            <div class="inventory-card-header">
+                <div><i class="fas fa-history"></i> Recent Activity</div>
+                <span class="text-muted">Latest 20</span>
+            </div>
+            <div class="activity-feed" id="activityFeed">
+                {% for act in activities %}
+                <div class="activity-item">
+                    <div class="activity-icon">
+                        {% if act.action == 'purchase' or act.action == 'created' %}
+                            <i class="fas fa-plus-circle text-success"></i>
+                        {% elif act.action == 'withdrawal' or act.action == 'deleted' %}
+                            <i class="fas fa-minus-circle text-danger"></i>
+                        {% elif act.action == 'updated' %}
+                            <i class="fas fa-edit text-info"></i>
+                        {% elif act.action == 'archived' %}
+                            <i class="fas fa-archive text-warning"></i>
+                        {% else %}
+                            <i class="fas fa-circle text-muted"></i>
+                        {% endif %}
+                    </div>
+                    <div class="activity-content">
+                        <div class="activity-text">{{ act.description|truncatechars:80 }}</div>
+                        <div class="activity-meta">
+                            <span><i class="far fa-user me-1"></i>{{ act.user }}</span>
+                            <span><i class="far fa-clock me-1"></i>{{ act.timestamp }}</span>
+                        </div>
+                    </div>
+                </div>
+                {% empty %}
+                <div class="p-4 text-center text-muted">
+                    <i class="fas fa-inbox fa-2x mb-2 d-block" style="opacity: 0.3;"></i>
+                    No recent activity
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // ── Trend Chart (Bar) ──
+    const trendData = {{ chart_trend|safe }};
+    const trendCtx = document.getElementById('trendChart').getContext('2d');
+    new Chart(trendCtx, {
+        type: 'bar',
+        data: {
+            labels: trendData.labels,
+            datasets: [
+                {
+                    label: 'Purchases',
+                    data: trendData.purchases,
+                    backgroundColor: 'rgba(16, 185, 129, 0.7)',
+                    borderColor: '#10b981',
+                    borderWidth: 1,
+                    borderRadius: 6,
+                },
+                {
+                    label: 'Withdrawals',
+                    data: trendData.withdrawals,
+                    backgroundColor: 'rgba(245, 158, 11, 0.7)',
+                    borderColor: '#f59e0b',
+                    borderWidth: 1,
+                    borderRadius: 6,
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { position: 'top', labels: { font: { size: 11, family: "'Inter'" }, usePointStyle: true, pointStyle: 'rectRounded' } },
+            },
+            scales: {
+                y: { beginAtZero: true, grid: { color: 'rgba(0,0,0,0.05)' }, ticks: { font: { size: 10 } } },
+                x: { grid: { display: false }, ticks: { font: { size: 10 } } }
+            }
+        }
+    });
+
+    // ── Pie Chart ──
+    const pieData = {{ chart_pie|safe }};
+    const pieCtx = document.getElementById('pieChart').getContext('2d');
+    new Chart(pieCtx, {
+        type: 'doughnut',
+        data: {
+            labels: pieData.labels,
+            datasets: [{
+                data: pieData.data,
+                backgroundColor: pieData.colors,
+                borderWidth: 2,
+                borderColor: '#fff',
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { position: 'bottom', labels: { font: { size: 10, family: "'Inter'" }, padding: 12, usePointStyle: true, pointStyle: 'circle' } },
+            }
+        }
+    });
+
+    // ── Dark Mode ──
+    const darkToggle = document.getElementById('darkModeToggle');
+    const darkIcon = document.getElementById('darkModeIcon');
+    const isDark = localStorage.getItem('darkMode') === 'true';
+    if (isDark) {
+        document.body.classList.add('dark-theme');
+        darkIcon.classList.replace('fa-moon', 'fa-sun');
+    }
+    darkToggle.addEventListener('click', function() {
+        document.body.classList.toggle('dark-theme');
+        const nowDark = document.body.classList.contains('dark-theme');
+        localStorage.setItem('darkMode', nowDark);
+        if (nowDark) {
+            darkIcon.classList.replace('fa-moon', 'fa-sun');
+        } else {
+            darkIcon.classList.replace('fa-sun', 'fa-moon');
+        }
+    });
+
+    // ── Refresh ──
+    document.getElementById('refreshDashboard').addEventListener('click', function() {
+        showToast('Dashboard data refreshed', 'info');
+        setTimeout(() => location.reload(), 500);
+    });
+});
+</script>
+{% endblock %}

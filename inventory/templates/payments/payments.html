@@ -1,0 +1,908 @@
+{% extends 'core/base.html' %}
+{% load static humanize %}
+
+{% block title %}Payments Registry - The Potter's House{% endblock %}
+
+{% block content %}
+<div class="row align-items-center mb-4">
+    <div class="col">
+        <h4 class="mb-0">Payments Registry</h4>
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb mb-0" style="font-size: 0.85rem;">
+                <li class="breadcrumb-item"><a href="{% url 'dashboard' %}" class="text-decoration-none text-muted">Home</a></li>
+                <li class="breadcrumb-item active text-dark" aria-current="page">Payments</li>
+            </ol>
+        </nav>
+    </div>
+</div>
+
+<!-- Statistics Cards -->
+<div class="row g-3 mb-4">
+    <div class="col-xl col-md-6">
+        <a href="{% url 'payments' %}?filter=all" class="text-decoration-none">
+            <div class="card stat-card border-0 shadow-sm {% if stats.current_filter == 'all' %}stat-card-active{% endif %}">
+                <div class="card-body d-flex align-items-center">
+                    <div class="stat-icon bg-primary text-white rounded-circle me-3">
+                        <i class="fas fa-file-invoice-dollar"></i>
+                    </div>
+                    <div class="stat-details">
+                        <div class="stat-label text-muted small">TOTAL RECORDS</div>
+                        <div class="stat-value fw-bold">{{ stats.total_count }}</div>
+                    </div>
+                </div>
+            </div>
+        </a>
+    </div>
+    <div class="col-xl col-md-6">
+        <div class="card stat-card border-0 shadow-sm">
+            <div class="card-body d-flex align-items-center">
+                <div class="stat-icon bg-success text-white rounded-circle me-3">
+                    <i class="fas fa-coins"></i>
+                </div>
+                <div class="stat-details">
+                    <div class="stat-label text-muted small">TOTAL COLLECTIONS</div>
+                    <div class="stat-value fw-bold text-success">₱{{ stats.total_amount|floatformat:2|intcomma }}</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-xl col-md-6">
+        <a href="{% url 'payments' %}?filter=cash" class="text-decoration-none">
+            <div class="card stat-card border-0 shadow-sm {% if stats.current_filter == 'cash' %}stat-card-active{% endif %}">
+                <div class="card-body d-flex align-items-center">
+                    <div class="stat-icon bg-info text-white rounded-circle me-3">
+                        <i class="fas fa-money-bill-wave"></i>
+                    </div>
+                    <div class="stat-details">
+                        <div class="stat-label text-muted small">CASH PAYMENTS</div>
+                        <div class="stat-value fw-bold text-info">{{ stats.cash_count }}</div>
+                    </div>
+                </div>
+            </div>
+        </a>
+    </div>
+    <div class="col-xl col-md-6">
+        <a href="{% url 'payments' %}?filter=online" class="text-decoration-none">
+            <div class="card stat-card border-0 shadow-sm {% if stats.current_filter == 'online' %}stat-card-active{% endif %}">
+                <div class="card-body d-flex align-items-center">
+                    <div class="stat-icon bg-warning text-white rounded-circle me-3">
+                        <i class="fas fa-globe"></i>
+                    </div>
+                    <div class="stat-details">
+                        <div class="stat-label text-muted small">ONLINE/TRANSFER</div>
+                        <div class="stat-value fw-bold text-warning">{{ stats.online_count }}</div>
+                    </div>
+                </div>
+            </div>
+        </a>
+    </div>
+</div>
+
+<div class="inventory-card">
+    <div class="p-3 bg-white border-bottom tool-bar">
+        <div class="d-flex justify-content-between align-items-center">
+            <div class="d-flex align-items-center">
+                <div class="text-muted small me-3" id="selectionInfo">
+                    <span id="selectedCount" class="fw-bold">0</span> item(s) selected
+                </div>
+                <div class="d-flex align-items-center me-2">
+                    <label class="small text-muted me-2 mb-0">From:</label>
+                    <input type="date" id="dateStart" class="form-control form-control-sm" style="width: 140px;" value="{{ date_start }}">
+                </div>
+                <div class="d-flex align-items-center me-3">
+                    <label class="small text-muted me-2 mb-0">To:</label>
+                    <input type="date" id="dateEnd" class="form-control form-control-sm" style="width: 140px;" value="{{ date_end }}">
+                </div>
+                <div class="btn-group me-3">
+                    <button type="button" class="btn btn-sm btn-outline-secondary" onclick="applyDateFilter()">
+                        <span class="icon-box" style="width: 20px; height: 20px; margin-right: 4px; border-radius: 4px;">
+                            <i class="fas fa-filter" style="font-size: 0.7rem;"></i>
+                        </span>
+                        Filter
+                    </button>
+                    <button type="button" class="btn btn-sm btn-outline-secondary" onclick="clearDateFilter()" style="padding-left: 6px; padding-right: 6px;">
+                        <span class="icon-box" style="width: 20px; height: 20px; margin-right: 0; border-radius: 4px;">
+                            <i class="fas fa-times" style="font-size: 0.7rem;"></i>
+                        </span>
+                    </button>
+                </div>
+                <div class="text-muted small">
+                    Showing <span id="paginationInfoTop">0</span> of <span id="paginationTotalTop">0</span> items
+                </div>
+            </div>
+            <div class="d-flex gap-2">
+                <div class="dropdown">
+                    <button class="btn btn-outline-secondary btn-sm dropdown-toggle" type="button" id="exportDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                        <i class="fas fa-file-export me-1"></i> Export
+                    </button>
+                    <ul class="dropdown-menu dropdown-menu-end shadow" aria-labelledby="exportDropdown">
+                        <li><a class="dropdown-item py-2" href="#" onclick="exportData('csv')"><i class="fas fa-file-csv text-success me-2 fa-lg w-20 text-center"></i> CSV Format</a></li>
+                        <li><a class="dropdown-item py-2" href="#" onclick="exportData('json')"><i class="fas fa-file-code text-info me-2 fa-lg w-20 text-center"></i> JSON Format</a></li>
+                        <li><a class="dropdown-item py-2" href="#" onclick="exportData('excel')"><i class="fas fa-file-excel text-success me-2 fa-lg w-20 text-center"></i> Excel Format</a></li>
+                        <li><a class="dropdown-item py-2" href="#" onclick="exportData('pdf')"><i class="fas fa-file-pdf text-danger me-2 fa-lg w-20 text-center"></i> PDF Format</a></li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="table-responsive">
+        <table class="table table-hover mb-0" id="paymentsTable">
+            <thead>
+                <tr>
+                    <th style="width: 40px;">
+                        <input type="checkbox" id="selectAll" class="form-check-input">
+                    </th>
+                    <th class="sortable"># <i class="fas fa-sort"></i></th>
+                    <th class="sortable">Date <i class="fas fa-sort"></i></th>
+                    <th class="sortable">Client Type <i class="fas fa-sort"></i></th>
+                    <th class="sortable">Name <i class="fas fa-sort"></i></th>
+                    <th class="sortable">Payment Type <i class="fas fa-sort"></i></th>
+                    <th class="sortable">OR Number <i class="fas fa-sort"></i></th>
+                    <th class="sortable">WIP <i class="fas fa-sort"></i></th>
+                    <th class="sortable text-end">Amount <i class="fas fa-sort"></i></th>
+                    <th class="sortable">Date Recorded <i class="fas fa-sort"></i></th>
+                    <th class="sortable">Received By <i class="fas fa-sort"></i></th>
+                    <th class="sortable">Datetime Updated <i class="fas fa-sort"></i></th>
+                    <th class="sortable">Updated By Username <i class="fas fa-sort"></i></th>
+                    <th class="text-center">Actions</th>
+                </tr>
+                <tr class="bg-light filter-row">
+                    <td></td>
+                    <td></td>
+                    <td><input type="text" class="form-control filter-input" placeholder="Date..."></td>
+                    <td><input type="text" class="form-control filter-input" placeholder="Type..."></td>
+                    <td><input type="text" class="form-control filter-input" placeholder="Client Name..."></td>
+                    <td><input type="text" class="form-control filter-input" placeholder="Payment Type..."></td>
+                    <td><input type="text" class="form-control filter-input" placeholder="OR Number..."></td>
+                    <td><input type="text" class="form-control filter-input" placeholder="WIP..."></td>
+                    <td><input type="text" class="form-control filter-input" placeholder="Amount..."></td>
+                    <td><input type="text" class="form-control filter-input" placeholder="Recorded..."></td>
+                    <td><input type="text" class="form-control filter-input" placeholder="Received..."></td>
+                    <td><input type="text" class="form-control filter-input" placeholder="Updated..."></td>
+                    <td><input type="text" class="form-control filter-input" placeholder="User..."></td>
+                    <td></td>
+                </tr>
+            </thead>
+            <tbody>
+                {% for payment in payments %}
+                <tr>
+                    <td>
+                        <input type="checkbox" class="form-check-input row-checkbox" value="{{ payment.id }}">
+                    </td>
+                    <td>{{ forloop.counter }}</td>
+                    <td>{{ payment.date|date:"d M Y" }}</td>
+                    <td>
+                        <span class="badge bg-light text-dark border extra-small">
+                            {{ payment.job_order.order_type|default:"N/A" }}
+                        </span>
+                    </td>
+                    <td class="fw-bold">{{ payment.client.full_name }}</td>
+                    <td>
+                        <span class="badge {% if payment.payment_type == 'CASH' %}bg-info-subtle text-primary border-primary{% else %}bg-light text-dark border{% endif %} extra-small">
+                            {{ payment.payment_type }}
+                        </span>
+                    </td>
+                    <td class="fw-bold text-primary">{{ payment.or_number|default:"0" }}</td>
+                    <td>
+                        {% if payment.job_order %}
+                        <a href="{% url 'job_order_detail' payment.job_order.id %}" class="text-primary-bold text-decoration-none">
+                            {{ payment.job_order.wip }}
+                        </a>
+                        {% else %}
+                        N/A
+                        {% endif %}
+                    </td>
+                    <td class="text-end fw-bold">₱{{ payment.amount|floatformat:2|intcomma }}</td>
+                    <td class="text-muted small">{{ payment.date_recorded|date:"Y-m-d H:i:s" }}</td>
+                    <td>{{ payment.received_by }}</td>
+                    <td class="text-muted small">{{ payment.datetime_updated|date:"Y-m-d H:i:s" }}</td>
+                    <td>{{ payment.updated_by|default:"" }}</td>
+                    <td class="text-center">
+                        <button class="btn btn-sm btn-light border py-1 edit-payment-btn" 
+                                data-id="{{ payment.id }}"
+                                data-date="{{ payment.date|date:'Y-m-d' }}"
+                                data-type="{{ payment.payment_type }}"
+                                data-amount="{{ payment.amount }}"
+                                data-ewt="{{ payment.ewt }}"
+                                data-or="{{ payment.or_number }}"
+                                title="Edit Payment">
+                            <i class="fas fa-pencil-alt text-primary" style="font-size: 0.7rem;"></i>
+                        </button>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="14" class="text-center p-5 text-muted">No payment records found.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+            <tfoot id="tableFooter">
+                <tr>
+                    <td colspan="8" class="text-end fw-bold py-3" style="color: var(--primary-color); background-color: #fdf2f8 !important;">TOTAL</td>
+                    <td id="totalAmountCell" class="text-end fw-bold py-3" style="color: #e91e63; font-size: 0.85rem; background-color: #fdf2f8 !important;">₱0.00</td>
+                    <td colspan="5" style="background-color: #fdf2f8 !important;"></td>
+                </tr>
+            </tfoot>
+        </table>
+    </div>
+
+    <!-- Pagination -->
+    <div class="p-3 bg-white border-top d-flex justify-content-between align-items-center">
+        <div class="small text-muted">
+            Showing <span id="paginationInfo" class="fw-bold">0</span> of <span id="paginationTotal" class="fw-bold">0</span> entries
+        </div>
+        <ul class="pagination pagination-sm mb-0" id="paginationContainer"></ul>
+    </div>
+</div>
+
+<!-- Payment Activity Logs Table -->
+<div class="inventory-card mt-4">
+    <div class="inventory-card-header bg-light py-2 px-3 border-bottom d-flex justify-content-start align-items-center">
+        <div class="d-flex align-items-center">
+            <div class="icon-box">
+                <i class="fas fa-history"></i>
+            </div>
+            <h6 class="mb-0 fw-bold text-pink" style="font-size: 0.85rem;">Payment Activity Logs</h6>
+        </div>
+        <div class="d-flex align-items-center gap-2">
+            <div class="d-flex align-items-center">
+                <label class="extra-small text-muted me-1 mb-0">From:</label>
+                <input type="date" id="logDateStart" class="form-control form-control-sm" style="width: 120px; font-size: 0.7rem; height: 26px;" value="{{ log_date_start }}">
+            </div>
+            <div class="d-flex align-items-center">
+                <label class="extra-small text-muted me-1 mb-0">To:</label>
+                <input type="date" id="logDateEnd" class="form-control form-control-sm" style="width: 120px; font-size: 0.7rem; height: 26px;" value="{{ log_date_end }}">
+            </div>
+            <div class="btn-group">
+                <button type="button" class="btn btn-sm btn-outline-secondary" style="font-size: 0.7rem;" onclick="applyLogDateFilter()">
+                    <span class="icon-box" style="width: 18px; height: 18px; margin-right: 3px; border-radius: 3px;">
+                        <i class="fas fa-filter" style="font-size: 0.65rem;"></i>
+                    </span>
+                    Filter
+                </button>
+                <button type="button" class="btn btn-sm btn-outline-secondary" style="font-size: 0.7rem; padding-left: 4px; padding-right: 4px;" onclick="clearLogDateFilter()">
+                    <span class="icon-box" style="width: 18px; height: 18px; margin-right: 0; border-radius: 3px;">
+                        <i class="fas fa-times" style="font-size: 0.65rem;"></i>
+                    </span>
+                </button>
+            </div>
+        </div>
+    </div>
+    <div class="table-responsive">
+        <table class="table table-hover mb-0" id="paymentLogsTable">
+            <thead>
+                <tr>
+                    <th style="width: 40px;">#</th>
+                    <th style="width: 180px;">Timestamp</th>
+                    <th style="width: 100px;">Action</th>
+                    <th style="width: 120px;">User</th>
+                    <th>Description</th>
+                </tr>
+                <tr class="bg-light filter-row">
+                    <td></td>
+                    <td><input type="text" class="form-control form-control-sm column-filter-log" data-column="1" placeholder="Timestamp" style="font-size: 0.7rem; height: 24px;"></td>
+                    <td><input type="text" class="form-control form-control-sm column-filter-log" data-column="2" placeholder="Action" style="font-size: 0.7rem; height: 24px;"></td>
+                    <td><input type="text" class="form-control form-control-sm column-filter-log" data-column="3" placeholder="User" style="font-size: 0.7rem; height: 24px;"></td>
+                    <td><input type="text" class="form-control form-control-sm column-filter-log" data-column="4" placeholder="Description" style="font-size: 0.7rem; height: 24px;"></td>
+                </tr>
+            </thead>
+            <tbody id="paymentLogsBody">
+                {% for log in payment_logs %}
+                <tr>
+                    <td>{{ forloop.counter }}</td>
+                    <td class="text-muted small">{{ log.timestamp|date:"Y-m-d H:i:s" }}</td>
+                    <td>
+                        {% if log.action == 'created' %}
+                        <span class="badge bg-success-subtle text-success extra-small border border-success-subtle">CREATED</span>
+                        {% elif log.action == 'updated' %}
+                        <span class="badge bg-primary-subtle text-primary extra-small border border-primary-subtle">UPDATED</span>
+                        {% else %}
+                        <span class="badge bg-secondary-subtle text-secondary extra-small border border-secondary-subtle">{{ log.action|upper }}</span>
+                        {% endif %}
+                    </td>
+                    <td class="fw-bold">{{ log.user }}</td>
+                    <td class="small">{{ log.description|linebreaksbr }}</td>
+                </tr>
+                {% empty %}
+                <tr class="no-results-log">
+                    <td colspan="5" class="text-center p-4 text-muted small">No payment activity logs found.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    <!-- Log Pagination -->
+    <div class="p-3 bg-white border-top d-flex justify-content-between align-items-center">
+        <div class="small text-muted">
+            Showing <span id="logPaginationInfo" class="fw-bold">0</span> of <span id="logPaginationTotal" class="fw-bold">{{ payment_logs|length }}</span> items
+        </div>
+        <ul class="pagination pagination-sm mb-0" id="logPaginationContainer"></ul>
+    </div>
+</div>
+
+<!-- Edit Payment Modal -->
+<div class="modal fade" id="editPaymentModal" tabindex="-1" aria-labelledby="editPaymentModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header border-bottom-0 pb-0">
+                <h5 class="modal-title fw-bold" id="editPaymentModalLabel" style="color: #e91e63;">Update Payment</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-4">
+                <form id="editPaymentForm">
+                    {% csrf_token %}
+                    <input type="hidden" name="payment_id" id="edit_payment_id">
+                    
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold text-muted">Date</label>
+                        <input type="date" name="payment_date" id="edit_payment_date" class="form-control" required>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold text-muted">Payment Type</label>
+                        <select name="payment_type" id="edit_payment_type" class="form-select" required>
+                            <option value="CASH">CASH</option>
+                            <option value="Cheque">Cheque</option>
+                            <option value="GCash">GCash</option>
+                            <option value="ADA Landbank">ADA Landbank</option>
+                            <option value="Transfer">Transfer</option>
+                            <option value="Other">Other</option>
+                        </select>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold text-muted">Amount</label>
+                        <input type="number" step="0.01" name="amount" id="edit_payment_amount" class="form-control" placeholder="0.00" required>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold text-muted">EWT</label>
+                        <input type="number" step="0.01" name="ewt" id="edit_payment_ewt" class="form-control" placeholder="0.00">
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold text-muted">OR Number</label>
+                        <input type="text" name="or_number" id="edit_payment_or" class="form-control" placeholder="OR Number">
+                    </div>
+                    
+                    <div class="d-grid mt-4">
+                        <button type="submit" class="btn btn-primary py-2 fw-bold" style="background-color: #e91e63; border: none;">Save Changes</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .table th {
+        font-size: 0.7rem !important;
+        background-color: #fdf2f8 !important;
+        color: var(--primary-color) !important;
+        font-weight: 700 !important;
+        text-transform: uppercase;
+        border-bottom: 2px solid var(--primary-light) !important;
+        vertical-align: middle !important;
+        white-space: nowrap;
+    }
+
+    .table td {
+        font-size: 0.75rem !important;
+        vertical-align: middle !important;
+        padding: 10px 8px !important;
+    }
+
+    .text-primary-bold {
+        color: #ff85a1 !important;
+        font-weight: 700 !important;
+    }
+
+    .filter-row td {
+        padding: 5px 8px !important;
+        background-color: #ffffff !important;
+    }
+
+    .filter-input {
+        height: 28px !important;
+        font-size: 0.7rem !important;
+        border-color: #fce7f3 !important;
+    }
+
+    .sortable { cursor: pointer; }
+    .sortable i {
+        font-size: 0.6rem;
+        margin-left: 2px;
+        opacity: 0.5;
+    }
+
+    .sortable i.fa-sort-down, .sortable i.fa-sort-up {
+        opacity: 1;
+        color: #e91e63 !important;
+    }
+
+    .extra-small { font-size: 0.65rem; padding: 0.2rem 0.4rem; }
+    
+    .active-sort { color: #e91e63 !important; }
+</style>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const table = document.getElementById('paymentsTable');
+        const inputs = table.querySelectorAll('.filter-input');
+        const tbody = table.querySelector('tbody');
+        const selectAll = document.getElementById('selectAll');
+        const selectedCountSpan = document.getElementById('selectedCount');
+        const paginationContainer = document.getElementById('paginationContainer');
+        const paginationInfo = document.getElementById('paginationInfo');
+        const paginationTotal = document.getElementById('paginationTotal');
+        
+        let currentPage = 1;
+        const rowsPerPage = 20;
+        let filteredRows = [];
+
+        // Log Pagination Variables
+        let currentLogPage = 1;
+        const logsPerPage = 10;
+        const logTbody = document.getElementById('paymentLogsBody');
+        const logPaginationContainer = document.getElementById('logPaginationContainer');
+        const logPaginationInfo = document.getElementById('logPaginationInfo');
+        const logPaginationTotal = document.getElementById('logPaginationTotal');
+        let allLogRows = Array.from(logTbody.querySelectorAll('tr:not(.no-results-log)'));
+        let filteredLogRows = [...allLogRows];
+
+        function updateFilteredRows() {
+            const allRows = Array.from(tbody.querySelectorAll('tr:not(.no-results)'));
+            filteredRows = allRows.filter(row => {
+                let show = true;
+                inputs.forEach((input, idx) => {
+                    const filterValue = input.value.toLowerCase().trim();
+                    if (filterValue) {
+                        // idx + 2 because checkboxes=0, #=1
+                        const cell = row.cells[idx + 2];
+                        if (cell) {
+                            const cellText = cell.textContent.toLowerCase().trim();
+                            if (!cellText.includes(filterValue)) {
+                                show = false;
+                            }
+                        }
+                    }
+                });
+                return show;
+            });
+            
+            // Calculate and update total amount
+            let total = 0;
+            filteredRows.forEach(row => {
+                const amountCell = row.cells[8];
+                if (amountCell) {
+                    const amountText = amountCell.textContent.replace(/[^0-9.-]+/g, "");
+                    const amount = parseFloat(amountText) || 0;
+                    total += amount;
+                }
+            });
+            document.getElementById('totalAmountCell').textContent = '₱' + total.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
+
+            const existingNoResults = tbody.querySelector('.no-results');
+            if (existingNoResults) existingNoResults.remove();
+            
+            if (filteredRows.length === 0) {
+                const noResults = document.createElement('tr');
+                noResults.className = 'no-results';
+                noResults.innerHTML = `<td colspan="14" class="text-center p-5 text-muted">No matching results found.</td>`;
+                tbody.appendChild(noResults);
+            }
+        }
+
+        function renderTable() {
+            const allRows = Array.from(tbody.querySelectorAll('tr:not(.no-results)'));
+            allRows.forEach(row => row.style.display = 'none');
+
+            const start = (currentPage - 1) * rowsPerPage;
+            const end = start + rowsPerPage;
+            const pageRows = filteredRows.slice(start, end);
+
+            pageRows.forEach(row => row.style.display = '');
+
+            if (filteredRows.length > 0) {
+                const rowStart = start + 1;
+                const rowEnd = Math.min(end, filteredRows.length);
+                const infoText = `${rowStart}-${rowEnd}`;
+                if (paginationInfo) paginationInfo.textContent = infoText;
+                if (document.getElementById('paginationInfoTop')) document.getElementById('paginationInfoTop').textContent = infoText;
+                
+                if (paginationTotal) paginationTotal.textContent = filteredRows.length;
+                if (document.getElementById('paginationTotalTop')) document.getElementById('paginationTotalTop').textContent = filteredRows.length;
+            } else {
+                if (paginationInfo) paginationInfo.textContent = '0';
+                if (document.getElementById('paginationInfoTop')) document.getElementById('paginationInfoTop').textContent = '0';
+                
+                if (paginationTotal) paginationTotal.textContent = '0';
+                if (document.getElementById('paginationTotalTop')) document.getElementById('paginationTotalTop').textContent = '0';
+            }
+        }
+
+        function buildPagination() {
+            paginationContainer.innerHTML = '';
+            const totalPages = Math.ceil(filteredRows.length / rowsPerPage);
+            if (totalPages < 1) return;
+
+            const createPageItem = (label, page, active = false, disabled = false) => {
+                const li = document.createElement('li');
+                li.className = `page-item ${active ? 'active' : ''} ${disabled ? 'disabled' : ''}`;
+                li.innerHTML = `<a class="page-link" href="#">${label}</a>`;
+                li.onclick = (e) => {
+                    e.preventDefault();
+                    if (!disabled && currentPage !== page) {
+                        currentPage = page;
+                        updateView();
+                    }
+                };
+                return li;
+            };
+
+            paginationContainer.appendChild(createPageItem('&laquo;', currentPage - 1, false, currentPage === 1));
+            for (let i = 1; i <= totalPages; i++) {
+                if (i === 1 || i === totalPages || (i >= currentPage - 2 && i <= currentPage + 2)) {
+                    paginationContainer.appendChild(createPageItem(i, i, i === currentPage));
+                } else if (i === currentPage - 3 || i === currentPage + 3) {
+                    const dots = document.createElement('li');
+                    dots.className = 'page-item disabled';
+                    dots.innerHTML = '<span class="page-link">...</span>';
+                    paginationContainer.appendChild(dots);
+                }
+            }
+            paginationContainer.appendChild(createPageItem('&raquo;', currentPage + 1, false, currentPage === totalPages));
+        }
+
+        function updateView() {
+            renderTable();
+            buildPagination();
+        }
+
+        function handleFilter() {
+            currentPage = 1;
+            updateFilteredRows();
+            updateView();
+        }
+
+        inputs.forEach(input => {
+            input.addEventListener('input', handleFilter);
+        });
+
+        selectAll.addEventListener('change', function() {
+            tbody.querySelectorAll('.row-checkbox').forEach(cb => {
+                if (cb.closest('tr').style.display !== 'none') {
+                    cb.checked = selectAll.checked;
+                }
+            });
+            updateSelectedCount();
+        });
+
+        tbody.addEventListener('change', (e) => {
+            if (e.target.classList.contains('row-checkbox')) updateSelectedCount();
+        });
+
+        // Edit Modal Handling
+        const editModal = new bootstrap.Modal(document.getElementById('editPaymentModal'));
+        const editForm = document.getElementById('editPaymentForm');
+
+        tbody.addEventListener('click', function(e) {
+            const btn = e.target.closest('.edit-payment-btn');
+            if (btn) {
+                document.getElementById('edit_payment_id').value = btn.dataset.id;
+                document.getElementById('edit_payment_date').value = btn.dataset.date;
+                document.getElementById('edit_payment_type').value = btn.dataset.type;
+                document.getElementById('edit_payment_amount').value = btn.dataset.amount;
+                document.getElementById('edit_payment_ewt').value = btn.dataset.ewt;
+                document.getElementById('edit_payment_or').value = btn.dataset.or;
+                editModal.show();
+            }
+        });
+
+        editForm.onsubmit = async function(e) {
+            e.preventDefault();
+            const formData = new FormData(editForm);
+            const paymentId = document.getElementById('edit_payment_id').value;
+
+            try {
+                const response = await fetch(`/api/payment/update/${paymentId}/`, {
+                    method: 'POST',
+                    body: formData,
+                    headers: {
+                        'X-CSRFToken': formData.get('csrfmiddlewaretoken')
+                    }
+                });
+
+                const data = await response.json();
+                if (data.success) {
+                    location.reload();
+                } else {
+                    alert(data.message || 'Error updating payment');
+                }
+            } catch (err) {
+                alert('An error occurred. Please check console.');
+                console.error(err);
+            }
+        };
+
+        function updateSelectedCount() {
+            const checkedCount = tbody.querySelectorAll('.row-checkbox:checked').length;
+            selectedCountSpan.textContent = checkedCount;
+        }
+
+        // Sorting
+        let currentSortCol = -1;
+        let currentSortDir = 'asc';
+
+        document.querySelectorAll('.sortable').forEach((th, idx) => {
+            th.onclick = () => {
+                const column = idx + 1; // +1 because index 0 is checkboxes
+                currentSortDir = (currentSortCol === column && currentSortDir === 'asc') ? 'desc' : 'asc';
+                currentSortCol = column;
+
+                document.querySelectorAll('.sortable i').forEach(i => i.className = 'fas fa-sort');
+                th.querySelector('i').className = currentSortDir === 'asc' ? 'fas fa-sort-up' : 'fas fa-sort-down';
+
+                const allRows = Array.from(tbody.querySelectorAll('tr:not(.no-results)'));
+                allRows.sort((a, b) => {
+                    let aVal = a.cells[column]?.textContent.trim() || '';
+                    let bVal = b.cells[column]?.textContent.trim() || '';
+                    
+                    // Numeric check for Amount (column 8)
+                    if (column === 8) {
+                        const aNum = parseFloat(aVal.replace(/[^0-9.-]+/g, ""));
+                        const bNum = parseFloat(bVal.replace(/[^0-9.-]+/g, ""));
+                        return currentSortDir === 'asc' ? aNum - bNum : bNum - aNum;
+                    }
+                    return currentSortDir === 'asc' ? aVal.localeCompare(bVal, undefined, {numeric: true}) : bVal.localeCompare(aVal, undefined, {numeric: true});
+                });
+                allRows.forEach(row => tbody.appendChild(row));
+                updateFilteredRows();
+                updateView();
+            };
+        });
+
+        const downloadFile = (content, fileName, contentType) => {
+            const a = document.createElement("a");
+            const file = new Blob([content], { type: contentType });
+            a.href = URL.createObjectURL(file);
+            a.download = fileName;
+            a.click();
+        };
+
+        window.exportData = function(format) {
+            const table = document.getElementById('paymentsTable');
+            const checkedBoxes = Array.from(table.querySelectorAll('.row-checkbox:checked'));
+            let rawRows = checkedBoxes.length > 0 ? checkedBoxes.map(cb => cb.closest('tr')) : filteredRows;
+
+            if (rawRows.length === 0) { alert('No data to export.'); return; }
+
+            const cleanCell = (text) => {
+                return text.replace(/₱/g, 'PHP ').replace(/\s+/g, ' ').trim();
+            };
+
+            const parseAmount = (text) => {
+                return parseFloat(text.replace(/[^0-9.-]+/g, "")) || 0;
+            };
+
+            // Calculate Summary Totals
+            let totalAmount = 0, recordedPayments = rawRows.length;
+            rawRows.forEach(tr => {
+                const tds = tr.querySelectorAll('td');
+                totalAmount += parseAmount(tds[8].textContent);
+            });
+
+            const formatCurrency = (num) => "PHP " + num.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
+            
+            const summaryData = {
+                "Total Amount": formatCurrency(totalAmount),
+                "Recorded Payments": recordedPayments.toString()
+            };
+
+            const skipCols = [0, 13]; // Checkbox and Actions
+            const baseHeaders = Array.from(table.querySelectorAll('thead tr:first-child th'))
+                .filter((_, i) => !skipCols.includes(i))
+                .map(th => th.textContent.replace(' \n', '').trim());
+            const headers = ['#', ...baseHeaders.slice(1)]; // Skip existing '#' header as we'll prepend our own
+
+            const data = rawRows.map((row, idx) => {
+                return Array.from(row.querySelectorAll('td'))
+                    .filter((_, i) => !skipCols.includes(i))
+                    .map((td, i) => {
+                        if (i === 0) return (idx + 1).toString(); // Sequential row number
+                        return cleanCell(td.textContent);
+                    });
+            });
+
+            const filename = `payments_export_${new Date().toISOString().slice(0, 10)}`;
+
+            if (format === 'csv') {
+                let content = "Summary Totals\n" + Object.entries(summaryData).map(([k, v]) => `${k},"${v}"`).join('\n') + "\n\n";
+                content += headers.join(',') + '\n' + data.map(row => row.map(c => `"${c.replace(/"/g, '""')}"`).join(',')).join('\n');
+                downloadFile(content, filename + '.csv', 'text/csv');
+            } else if (format === 'json') {
+                const jsonData = {
+                    summary: summaryData,
+                    data: data.map(row => Object.fromEntries(headers.map((h, i) => [h, row[i]])))
+                };
+                downloadFile(JSON.stringify(jsonData, null, 2), filename + '.json', 'application/json');
+            } else if (format === 'excel') {
+                if (typeof XLSX === 'undefined') return alert('Excel library not loaded.');
+                const summaryRows = [["Summary Totals"], ...Object.entries(summaryData), []];
+                const ws = XLSX.utils.aoa_to_sheet([...summaryRows, headers, ...data]);
+                const wb = XLSX.utils.book_new();
+                XLSX.utils.book_append_sheet(wb, ws, "Payments");
+                XLSX.writeFile(wb, `${filename}.xlsx`);
+            } else if (format === 'pdf') {
+                if (typeof window.jspdf === 'undefined') return alert('PDF library not loaded.');
+                const { jsPDF } = window.jspdf;
+                const doc = jsPDF.hasOwnProperty('default') ? new jsPDF.default('l', 'mm', 'a4') : new jsPDF('l', 'mm', 'a4');
+                doc.setFontSize(18); doc.text("Payments Registry Report", 14, 15);
+                doc.setFontSize(10);
+                let y = 25;
+                Object.entries(summaryData).forEach(([k, v]) => {
+                    doc.text(`${k}: ${v}`, 14, y);
+                    y += 5;
+                });
+                doc.autoTable({ head: [headers], body: data, startY: y + 2, theme: 'grid', styles: { fontSize: 7 } });
+                doc.save(`${filename}.pdf`);
+            }
+        };
+
+        function filterLogs() {
+            filteredLogRows = allLogRows.filter(row => {
+                const cells = row.cells;
+                if (cells.length < 5) return false;
+
+                let matches = true;
+                const filterInputs = document.querySelectorAll('.column-filter-log');
+                filterInputs.forEach(input => {
+                    const colIdx = parseInt(input.getAttribute('data-column'));
+                    const filterVal = input.value.toLowerCase().trim();
+                    if (filterVal) {
+                        const cellText = cells[colIdx] ? cells[colIdx].textContent.toLowerCase().trim() : '';
+                        if (cellText.indexOf(filterVal) === -1) {
+                            matches = false;
+                        }
+                    }
+                });
+                return matches;
+            });
+
+            currentLogPage = 1;
+            updateLogsView();
+        }
+
+        document.querySelectorAll('.column-filter-log').forEach(input => {
+            input.addEventListener('input', filterLogs);
+        });
+
+        function updateLogsView() {
+            if (filteredLogRows.length === 0) {
+                logTbody.querySelectorAll('tr').forEach(row => row.style.display = 'none');
+                const existingNoResults = logTbody.querySelector('.no-results-log');
+                if (existingNoResults) existingNoResults.remove();
+
+                const noResults = document.createElement('tr');
+                noResults.className = 'no-results-log';
+                noResults.innerHTML = `<td colspan="5" class="text-center p-4 text-muted small">No matching activity logs found.</td>`;
+                logTbody.appendChild(noResults);
+
+                if (logPaginationInfo) logPaginationInfo.textContent = '0';
+                if (logPaginationTotal) logPaginationTotal.textContent = '0';
+                if (logPaginationContainer) logPaginationContainer.innerHTML = '';
+                return;
+            }
+
+            // Remove no results row if it exists
+            const existingNoResults = logTbody.querySelector('.no-results-log');
+            if (existingNoResults) existingNoResults.remove();
+
+            // Hide all
+            allLogRows.forEach(row => row.style.display = 'none');
+
+            // Paginate
+            const start = (currentLogPage - 1) * logsPerPage;
+            const end = start + logsPerPage;
+            const pageRows = filteredLogRows.slice(start, end);
+            pageRows.forEach(row => row.style.display = '');
+
+            // Update Info
+            const rowStart = start + 1;
+            const rowEnd = Math.min(end, filteredLogRows.length);
+            if (logPaginationInfo) logPaginationInfo.textContent = `${rowStart}-${rowEnd}`;
+            if (logPaginationTotal) logPaginationTotal.textContent = filteredLogRows.length;
+
+            // Build Pagination
+            logPaginationContainer.innerHTML = '';
+            const totalPages = Math.ceil(filteredLogRows.length / logsPerPage);
+            if (totalPages < 1) return;
+
+            const createPageItem = (label, page, active = false, disabled = false) => {
+                const li = document.createElement('li');
+                li.className = `page-item ${active ? 'active' : ''} ${disabled ? 'disabled' : ''}`;
+                li.innerHTML = `<a class="page-link" href="#">${label}</a>`;
+                li.onclick = (e) => {
+                    e.preventDefault();
+                    if (!disabled && currentLogPage !== page) {
+                        currentLogPage = page;
+                        updateLogsView();
+                        document.getElementById('paymentLogsTable').scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    }
+                };
+                return li;
+            };
+
+            logPaginationContainer.appendChild(createPageItem('&laquo;', currentLogPage - 1, false, currentLogPage === 1));
+            for (let i = 1; i <= totalPages; i++) {
+                if (i === 1 || i === totalPages || (i >= currentLogPage - 2 && i <= currentLogPage + 2)) {
+                    logPaginationContainer.appendChild(createPageItem(i, i, i === currentLogPage));
+                } else if (i === currentLogPage - 3 || i === currentLogPage + 3) {
+                    const dots = document.createElement('li');
+                    dots.className = 'page-item disabled';
+                    dots.innerHTML = '<span class="page-link">...</span>';
+                    logPaginationContainer.appendChild(dots);
+                }
+            }
+            logPaginationContainer.appendChild(createPageItem('&raquo;', currentLogPage + 1, false, currentLogPage === totalPages));
+        }
+
+        updateFilteredRows();
+        updateView();
+        updateLogsView();
+    });
+
+    function applyDateFilter() {
+        const start = document.getElementById('dateStart').value;
+        const end = document.getElementById('dateEnd').value;
+        let url = new URL(window.location.href);
+        
+        if (start) url.searchParams.set('date_start', start);
+        else url.searchParams.delete('date_start');
+        
+        if (end) url.searchParams.set('date_end', end);
+        else url.searchParams.delete('date_end');
+        
+        // When applying main date filter, clear log date filters for focus
+        url.searchParams.delete('log_date_start');
+        url.searchParams.delete('log_date_end');
+        
+        window.location.href = url.toString();
+    }
+
+    function clearDateFilter() {
+        let url = new URL(window.location.href);
+        url.searchParams.delete('date_start');
+        url.searchParams.delete('date_end');
+        window.location.href = url.toString();
+    }
+
+    function applyLogDateFilter() {
+        const start = document.getElementById('logDateStart').value;
+        const end = document.getElementById('logDateEnd').value;
+        let url = new URL(window.location.href);
+        
+        if (start) url.searchParams.set('log_date_start', start);
+        else url.searchParams.delete('log_date_start');
+        
+        if (end) url.searchParams.set('log_date_end', end);
+        else url.searchParams.delete('log_date_end');
+        
+        // When applying log date filter, clear main date filters for focus
+        url.searchParams.delete('date_start');
+        url.searchParams.delete('date_end');
+        
+        window.location.href = url.toString();
+    }
+
+    function clearLogDateFilter() {
+        let url = new URL(window.location.href);
+        url.searchParams.delete('log_date_start');
+        url.searchParams.delete('log_date_end');
+        window.location.href = url.toString();
+    }
+</script>
+{% endblock %}

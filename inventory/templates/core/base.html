@@ -1,0 +1,401 @@
+{% load static %}
+{% load inventory_extras %}
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}The Potter's House Management System{% endblock %}</title>
+    <!-- Favicon -->
+    <link rel="icon" type="image/png" href="{% static 'img/logo.png' %}">
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="{% static 'css/styles.css' %}">
+    <!-- Select2 -->
+    <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+    <link href="https://cdn.jsdelivr.net/npm/select2-bootstrap-5-theme@1.3.0/dist/select2-bootstrap-5-theme.min.css" rel="stylesheet" />
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Export Libraries -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.17.0/xlsx.full.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    {% block extra_css %}{% endblock %}
+</head>
+
+<body>
+    <div id="toastContainer" class="toast-container position-fixed top-0 end-0 p-3"></div>
+
+    <div class="wrapper">
+        <!-- Sidebar -->
+        {% if request.resolver_match.url_name != 'login' %}
+        <nav id="sidebar" class="sidebar">
+            <!-- Mobile Close Button -->
+            <button type="button" id="sidebarClose" class="sidebar-close-btn">
+                <i class="fas fa-times"></i>
+            </button>
+
+            <div class="sidebar-header text-center">
+                <img src="{% static 'img/logo.png' %}" alt="Logo" class="img-fluid mb-2" style="max-height: 80px;">
+                <h3 class="mb-0 fs-5">The Potter's House</h3>
+            </div>
+
+            <ul class="list-unstyled components">
+                <p class="text-uppercase small text-muted px-3 mb-1">My Account</p>
+                <li class="{% if active_page == 'dashboard' %}active{% endif %}">
+                    <a href="{% url 'dashboard' %}"><i class="far fa-circle me-2"></i>Dashboard</a>
+                </li>
+
+                <p class="text-uppercase small text-muted px-3 mb-1 mt-3">Inventory</p>
+                <li class="{% if active_page == 'inventory' %}active{% endif %}">
+                    <a href="{% url 'inventory' %}"><i class="far fa-circle me-2"></i> Inventory</a>
+                </li>
+                <li class="{% if active_page == 'purchase_order_requests' %}active{% endif %}">
+                    <a href="{% url 'purchase_order_requests' %}"><i class="far fa-circle me-2"></i> Purchase Order Request</a>
+                </li>
+                <li class="{% if active_page == 'purchase_orders' %}active{% endif %}">
+                    <a href="{% url 'purchase_orders' %}"><i class="far fa-circle me-2"></i> Purchase Orders</a>
+                </li>
+                <li class="{% if active_page == 'all_inventory_items' %}active{% endif %}">
+                    <a href="{% url 'all_inventory_items' %}"><i class="far fa-circle me-2"></i> All Inventory Items</a>
+                </li>
+                <li class="{% if active_page == 'products' %}active{% endif %}">
+                    <a href="{% url 'products' %}"><i class="far fa-circle me-2"></i> Products</a>
+                </li>
+                <li class="{% if active_page == 'inventory_logs' %}active{% endif %}">
+                    <a href="{% url 'inventory_logs' %}"><i class="far fa-circle me-2"></i> All Inventory Logs</a>
+                </li>
+
+                <p class="text-uppercase small text-muted px-3 mb-1 mt-3">Employees</p>
+                <li class="{% if active_page == 'employees' %}active{% endif %}">
+                    <a href="{% url 'employee_list' %}"><i class="far fa-circle me-2"></i> Employees</a>
+                </li>
+                </li>
+
+            </ul>
+        </nav>
+        {% endif %}
+
+        <!-- Page Content -->
+        <div id="content" class="{% if request.resolver_match.url_name == 'login' %}w-100{% endif %}">
+            {% if request.resolver_match.url_name != 'login' %}
+            <nav class="navbar navbar-expand-lg navbar-light bg-light shadow-sm">
+                <div class="container-fluid">
+                    <button type="button" id="sidebarCollapse" class="btn btn-dark">
+                        <i class="fas fa-bars"></i>
+                    </button>
+
+                    <div class="ms-auto d-flex align-items-center">
+
+                        <div class="user-menu-wrapper position-relative">
+                            <div class="user-menu d-flex align-items-center" id="userMenuToggle" role="button">
+                                <img src="https://placehold.co/30x30/5e35b1/ffffff?text={{ user.username|first|upper }}"
+                                    class="rounded-circle me-2" alt="User">
+                                <span>{% if user.is_authenticated %}{{ user.username }}{% else %}Guest{% endif %}</span>
+                            </div>
+                            <!-- User Dropdown Menu -->
+                            <div class="user-dropdown" id="userDropdown">
+                                <div class="user-dropdown-header">
+                                    <div class="user-dropdown-name">
+                                        {% if user.is_authenticated %}
+                                        {{ user.username }}
+                                        {% else %}
+                                        Guest
+                                        {% endif %}
+                                    </div>
+                                </div>
+                                <div class="user-dropdown-actions">
+                                    <button class="btn btn-outline-secondary" id="changePassBtn" data-bs-toggle="modal"
+                                        data-bs-target="#changePasswordModal">
+                                        <i class="fas fa-key me-2"></i>Change Pass
+                                    </button>
+                                    <button class="btn btn-outline-secondary" id="signOutBtn">
+                                        <i class="fas fa-sign-out-alt me-2"></i>Sign out
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </nav>
+            {% endif %}
+
+            <div class="main-content p-4">
+                {% block content %}{% endblock %}
+            </div>
+
+            <footer class="footer mt-auto py-3 bg-white border-top">
+                <div class="container text-center">
+                    <span class="text-muted">© 2026 The Potter's House Management System. All rights reserved.</span>
+                </div>
+            </footer>
+        </div>
+    </div>
+
+    <!-- Change Password Modal -->
+    <div class="modal fade" id="changePasswordModal" tabindex="-1" aria-labelledby="changePasswordModalLabel"
+        aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="changePasswordModalLabel">
+                        <i class="fas fa-key me-2 text-primary"></i>Change Password
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="changePasswordForm">
+                        <div class="mb-3">
+                            <label for="oldPassword" class="form-label">Old Password</label>
+                            <div class="input-group">
+                                <input type="password" class="form-control" id="oldPassword"
+                                    placeholder="Enter your current password" required>
+                                <button class="btn btn-outline-secondary toggle-password" type="button"
+                                    data-target="oldPassword">
+                                    <i class="fas fa-eye"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label for="newPassword" class="form-label">New Password</label>
+                            <div class="input-group">
+                                <input type="password" class="form-control" id="newPassword"
+                                    placeholder="Enter your new password" required>
+                                <button class="btn btn-outline-secondary toggle-password" type="button"
+                                    data-target="newPassword">
+                                    <i class="fas fa-eye"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label for="confirmPassword" class="form-label">Confirm New Password</label>
+                            <div class="input-group">
+                                <input type="password" class="form-control" id="confirmPassword"
+                                    placeholder="Confirm your new password" required>
+                                <button class="btn btn-outline-secondary toggle-password" type="button"
+                                    data-target="confirmPassword">
+                                    <i class="fas fa-eye"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-primary" id="savePasswordBtn">Save Changes</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% block extra_modals %}{% endblock %}
+    <!-- jQuery -->
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <!-- Select2 JS -->
+    <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+    <!-- Bootstrap 5 JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- Custom JS -->
+    <script>
+        document.addEventListener("DOMContentLoaded", function () {
+            var sidebar = document.getElementById('sidebar');
+            var sidebarToggle = document.getElementById('sidebarCollapse');
+            var sidebarClose = document.getElementById('sidebarClose');
+            var content = document.getElementById('content');
+
+            // Toggle sidebar
+            sidebarToggle.addEventListener('click', function (e) {
+                e.stopPropagation();
+                sidebar.classList.toggle('active');
+            });
+
+            // Close sidebar with close button
+            sidebarClose.addEventListener('click', function (e) {
+                e.stopPropagation();
+                sidebar.classList.remove('active');
+            });
+
+            // Close sidebar when clicking outside on mobile
+            document.addEventListener('click', function (e) {
+                if (window.innerWidth <= 992) {
+                    if (sidebar.classList.contains('active') &&
+                        !sidebar.contains(e.target) &&
+                        !sidebarToggle.contains(e.target)) {
+                        sidebar.classList.remove('active');
+                    }
+                }
+            });
+
+            // Prevent sidebar clicks from closing it
+            sidebar.addEventListener('click', function (e) {
+                e.stopPropagation();
+            });
+
+            // User dropdown toggle
+            var userMenuToggle = document.getElementById('userMenuToggle');
+            var userDropdown = document.getElementById('userDropdown');
+
+            if (userMenuToggle && userDropdown) {
+                userMenuToggle.addEventListener('click', function (e) {
+                    e.stopPropagation();
+                    userDropdown.classList.toggle('show');
+                });
+
+                // Close dropdown when clicking outside
+                document.addEventListener('click', function (e) {
+                    if (userDropdown.classList.contains('show') &&
+                        !userDropdown.contains(e.target) &&
+                        !userMenuToggle.contains(e.target)) {
+                        userDropdown.classList.remove('show');
+                    }
+                });
+
+                // Close dropdown when Change Pass button is clicked (modal will open)
+                var changePassBtn = document.getElementById('changePassBtn');
+                if (changePassBtn) {
+                    changePassBtn.addEventListener('click', function () {
+                        userDropdown.classList.remove('show');
+                    });
+                }
+
+                // Sign out button handler
+                var signOutBtn = document.getElementById('signOutBtn');
+                if (signOutBtn) {
+                    signOutBtn.addEventListener('click', function () {
+                        if (confirm('Are you sure you want to sign out?')) {
+                            window.location.href = "{% url 'logout' %}";
+                        }
+                        userDropdown.classList.remove('show');
+                    });
+                }
+            }
+
+            // Password visibility toggle
+            var togglePasswordBtns = document.querySelectorAll('.toggle-password');
+            togglePasswordBtns.forEach(function (btn) {
+                btn.addEventListener('click', function () {
+                    var targetId = this.getAttribute('data-target');
+                    var input = document.getElementById(targetId);
+                    var icon = this.querySelector('i');
+
+                    if (input.type === 'password') {
+                        input.type = 'text';
+                        icon.classList.remove('fa-eye');
+                        icon.classList.add('fa-eye-slash');
+                    } else {
+                        input.type = 'password';
+                        icon.classList.remove('fa-eye-slash');
+                        icon.classList.add('fa-eye');
+                    }
+                });
+            });
+
+            // Change password form handler
+            var savePasswordBtn = document.getElementById('savePasswordBtn');
+            if (savePasswordBtn) {
+                savePasswordBtn.addEventListener('click', function () {
+                    var oldPassword = document.getElementById('oldPassword').value;
+                    var newPassword = document.getElementById('newPassword').value;
+                    var confirmPassword = document.getElementById('confirmPassword').value;
+
+                    if (!oldPassword || !newPassword || !confirmPassword) {
+                        alert('Please fill in all password fields.');
+                        return;
+                    }
+
+                    if (newPassword !== confirmPassword) {
+                        alert('New password and confirmation do not match.');
+                        return;
+                    }
+
+                    if (newPassword.length < 6) {
+                        alert('New password must be at least 6 characters long.');
+                        return;
+                    }
+
+                    // TODO: Implement actual password change API call
+                    alert('Password change functionality will be implemented with authentication.');
+
+                    // Close modal and reset form
+                    var modal = bootstrap.Modal.getInstance(document.getElementById('changePasswordModal'));
+                    modal.hide();
+                    document.getElementById('changePasswordForm').reset();
+                });
+            }
+
+            // Reset form when modal is closed
+            var changePasswordModal = document.getElementById('changePasswordModal');
+            if (changePasswordModal) {
+                changePasswordModal.addEventListener('hidden.bs.modal', function () {
+                    document.getElementById('changePasswordForm').reset();
+                    // Reset password visibility
+                    document.querySelectorAll('#changePasswordModal input[type="text"]').forEach(function (input) {
+                        input.type = 'password';
+                    });
+                    document.querySelectorAll('#changePasswordModal .toggle-password i').forEach(function (icon) {
+                        icon.classList.remove('fa-eye-slash');
+                        icon.classList.add('fa-eye');
+                    });
+                });
+            }
+        });
+
+        function showToast(message, type = 'success') {
+            // Normalize type
+            if (type === 'debug') type = 'success';
+            if (type === 'danger') type = 'error';
+
+            // Color schemes
+            const schemes = {
+                success: { bg: '#ecfdf5', color: '#065f46', border: '#10b981', icon: 'fas fa-check-circle' },
+                error:   { bg: '#fef2f2', color: '#991b1b', border: '#ef4444', icon: 'fas fa-times-circle' },
+                warning: { bg: '#fffbeb', color: '#92400e', border: '#f59e0b', icon: 'fas fa-exclamation-triangle' },
+                info:    { bg: '#eff6ff', color: '#1e40af', border: '#3b82f6', icon: 'fas fa-info-circle' }
+            };
+            const s = schemes[type] || schemes.info;
+
+            // Create flash element with INLINE styles (no CSS dependency)
+            const flash = document.createElement('div');
+            flash.style.cssText = `
+                position: fixed; top: 0; left: 50%; transform: translateX(-50%);
+                z-index: 99999; display: flex; align-items: center; gap: 10px;
+                min-width: 350px; max-width: 600px; padding: 14px 20px;
+                border-radius: 0 0 8px 8px; font-size: 14px; font-weight: 500;
+                font-family: 'Inter', sans-serif;
+                box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+                background: ${s.bg}; color: ${s.color}; border-bottom: 3px solid ${s.border};
+                transition: opacity 0.3s ease;
+            `;
+            flash.innerHTML = `
+                <i class="${s.icon}" style="font-size:1.15rem;flex-shrink:0;"></i>
+                <span style="flex:1;">${message}</span>
+                <button onclick="this.parentElement.remove()" style="
+                    background:none; border:none; font-size:1.3rem; line-height:1;
+                    cursor:pointer; opacity:0.6; padding:0 0 0 10px; color:inherit;
+                ">&times;</button>
+            `;
+
+            document.body.appendChild(flash);
+
+            // Auto-remove after 5 seconds
+            setTimeout(() => {
+                flash.style.opacity = '0';
+                setTimeout(() => flash.remove(), 300);
+            }, 5000);
+        }
+
+        // Auto-show Django messages as flash messages
+        {% if messages %}
+            {% for message in messages %}
+                showToast("{{ message|escapejs }}", "{{ message.tags }}");
+            {% endfor %}
+        {% endif %}
+    </script>
+    {% block scripts %}{% endblock %}
+</body>
+
+</html>

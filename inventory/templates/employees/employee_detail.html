@@ -1,0 +1,845 @@
+{% extends "core/base.html" %}
+{% block title %}Employee Profile{% endblock %}
+{% load static humanize %}
+
+{% block content %}
+<!-- Breadcrumb & Header -->
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+        <h4 class="mb-0"><i class="fas fa-user me-2" style="color: var(--primary-color);"></i>{{ employee.full_name }}</h4>
+        <nav class="breadcrumb-custom mt-1">
+            <ol class="breadcrumb mb-0">
+                <li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Dashboard</a></li>
+                <li class="breadcrumb-item"><a href="{% url 'employee_list' %}">Employees</a></li>
+                <li class="breadcrumb-item active">{{ employee.employee_id }}</li>
+            </ol>
+        </nav>
+    </div>
+    <div class="d-flex gap-2">
+        <a href="{% url 'export_employee_pdf' employee.id %}" target="_blank" class="btn btn-sm btn-outline-secondary">
+            <i class="fas fa-file-pdf me-1"></i>Export PDF
+        </a>
+        <a href="{% url 'employee_list' %}" class="btn btn-sm btn-outline-secondary">
+            <i class="fas fa-arrow-left me-1"></i>Back to List
+        </a>
+    </div>
+</div>
+
+<!-- Profile Header Card -->
+<div class="inventory-card mb-3">
+    <div class="emp-profile-header">
+        <div class="d-flex align-items-center gap-3">
+            <div class="emp-avatar-lg" {% if employee.avatar %}style="cursor: pointer;" data-bs-toggle="modal" data-bs-target="#avatarModal"{% endif %}>
+                {% if employee.avatar %}
+                <img src="{{ employee.avatar }}" alt="{{ employee.full_name }}">
+                {% else %}
+                <div class="emp-avatar-placeholder">
+                    {{ employee.first_name|first }}{{ employee.last_name|first }}
+                </div>
+                {% endif %}
+            </div>
+            <div>
+                <h5 class="mb-1 fw-bold">{{ employee.full_name }}</h5>
+                <div class="text-muted mb-1" style="font-size: 0.85rem;">{{ employee.position|default:"No Position" }} &bull; {{ employee.department|default:"No Department" }}</div>
+                <div class="d-flex gap-2 align-items-center">
+                    <span class="badge emp-status-badge status-{{ employee.status|lower }}">{{ employee.status }}</span>
+                    <span class="text-muted" style="font-size: 0.75rem;">ID: {{ employee.employee_id }}</span>
+                    <span class="text-muted" style="font-size: 0.75rem;">{{ employee.contract_type }}</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Tabs -->
+<ul class="nav nav-tabs emp-tabs mb-3" id="empTabs" role="tablist">
+    <li class="nav-item">
+        <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#personalTab">
+            <i class="fas fa-user me-1"></i>Personal
+        </button>
+    </li>
+    <li class="nav-item">
+        <button class="nav-link" data-bs-toggle="tab" data-bs-target="#employmentTab">
+            <i class="fas fa-briefcase me-1"></i>Employment
+        </button>
+    </li>
+    <li class="nav-item">
+        <button class="nav-link" data-bs-toggle="tab" data-bs-target="#educationTab">
+            <i class="fas fa-graduation-cap me-1"></i>Education
+        </button>
+    </li>
+    <li class="nav-item">
+        <button class="nav-link" data-bs-toggle="tab" data-bs-target="#documentsTab">
+            <i class="fas fa-folder-open me-1"></i>Documents
+        </button>
+    </li>
+</ul>
+
+<div class="tab-content" id="empTabContent">
+    <!-- ═══ PERSONAL TAB ═══ -->
+    <div class="tab-pane fade show active" id="personalTab">
+        <div class="row g-3">
+            <!-- Personal Information -->
+            <div class="col-md-6">
+                <div class="inventory-card h-100">
+                    <div class="inventory-card-header">
+                        <div><i class="fas fa-id-badge"></i> Personal Information</div>
+                        <button class="btn btn-sm btn-outline-primary edit-section-btn" data-modal="editPersonalModal"><i class="fas fa-edit"></i></button>
+                    </div>
+                    <div class="p-3">
+                        <div class="emp-info-row">
+                            <span class="emp-info-label">Date of Birth</span>
+                            <span class="emp-info-value">{{ employee.date_of_birth|default:"N/A" }}</span>
+                        </div>
+                        <div class="emp-info-row">
+                            <span class="emp-info-label">Age</span>
+                            <span class="emp-info-value">{{ employee.age }}</span>
+                        </div>
+                        <div class="emp-info-row">
+                            <span class="emp-info-label">Gender</span>
+                            <span class="emp-info-value">{{ employee.gender }}</span>
+                        </div>
+                        <div class="emp-info-row">
+                            <span class="emp-info-label">Marital Status</span>
+                            <span class="emp-info-value">{{ employee.marital_status|default:"N/A" }}</span>
+                        </div>
+                        <div class="emp-info-row">
+                            <span class="emp-info-label">Nationality</span>
+                            <span class="emp-info-value">{{ employee.nationality|default:"N/A" }}</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <!-- Contact Details -->
+            <div class="col-md-6">
+                <div class="inventory-card h-100">
+                    <div class="inventory-card-header">
+                        <div><i class="fas fa-address-book"></i> Contact Details</div>
+                        <button class="btn btn-sm btn-outline-primary edit-section-btn" data-modal="editContactModal"><i class="fas fa-edit"></i></button>
+                    </div>
+                    <div class="p-3">
+                        <div class="emp-info-row">
+                            <span class="emp-info-label">Work Email</span>
+                            <span class="emp-info-value">{{ employee.work_email|default:"N/A" }}</span>
+                        </div>
+                        <div class="emp-info-row">
+                            <span class="emp-info-label">Personal Email</span>
+                            <span class="emp-info-value">{{ employee.personal_email|default:"N/A" }}</span>
+                        </div>
+                        <div class="emp-info-row">
+                            <span class="emp-info-label">Phone</span>
+                            <span class="emp-info-value">{{ employee.phone|default:"N/A" }}</span>
+                        </div>
+                        <div class="emp-info-row">
+                            <span class="emp-info-label">Home Address</span>
+                            <span class="emp-info-value">{{ employee.home_address|default:"N/A" }}</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <!-- Emergency Contact -->
+            <div class="col-12">
+                <div class="inventory-card">
+                    <div class="inventory-card-header">
+                        <div><i class="fas fa-phone-alt"></i> Emergency Contact</div>
+                    </div>
+                    <div class="p-3">
+                        <div class="row">
+                            <div class="col-md-4">
+                                <div class="emp-info-row">
+                                    <span class="emp-info-label">Name</span>
+                                    <span class="emp-info-value">{{ employee.emergency_contact_name|default:"N/A" }}</span>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="emp-info-row">
+                                    <span class="emp-info-label">Phone</span>
+                                    <span class="emp-info-value">{{ employee.emergency_contact_phone|default:"N/A" }}</span>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="emp-info-row">
+                                    <span class="emp-info-label">Relationship</span>
+                                    <span class="emp-info-value">{{ employee.emergency_contact_relationship|default:"N/A" }}</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══ EMPLOYMENT TAB ═══ -->
+    <div class="tab-pane fade" id="employmentTab">
+        <div class="row g-3">
+            <!-- Job Details -->
+            <div class="col-md-6">
+                <div class="inventory-card h-100">
+                    <div class="inventory-card-header">
+                        <div><i class="fas fa-briefcase"></i> Job Details</div>
+                        <button class="btn btn-sm btn-outline-primary edit-section-btn" data-modal="editJobModal"><i class="fas fa-edit"></i></button>
+                    </div>
+                    <div class="p-3">
+                        <div class="emp-info-row"><span class="emp-info-label">Position</span><span class="emp-info-value">{{ employee.position|default:"N/A" }}</span></div>
+                        <div class="emp-info-row"><span class="emp-info-label">Department</span><span class="emp-info-value">{{ employee.department|default:"N/A" }}</span></div>
+                        <div class="emp-info-row"><span class="emp-info-label">Reporting Manager</span><span class="emp-info-value">{{ employee.reporting_manager|default:"N/A" }}</span></div>
+                        <div class="emp-info-row"><span class="emp-info-label">Date Hired</span><span class="emp-info-value">{{ employee.date_hired|default:"N/A" }}</span></div>
+                        <div class="emp-info-row"><span class="emp-info-label">Probation End</span><span class="emp-info-value">{{ employee.probation_end_date|default:"N/A" }}</span></div>
+                        <div class="emp-info-row"><span class="emp-info-label">Contract Type</span><span class="emp-info-value">{{ employee.contract_type }}</span></div>
+                        <div class="emp-info-row">
+                            <span class="emp-info-label">Contract Renewal</span>
+                            <span class="emp-info-value">
+                                {% if employee.contract_renewal_date %}
+                                    {{ employee.contract_renewal_date }}
+                                    {% if employee.contract_renewal_date < today %}
+                                        <span class="badge bg-danger ms-1">Overdue</span>
+                                    {% elif employee.contract_renewal_date <= upcoming %}
+                                        <span class="badge bg-warning text-dark ms-1">Due Soon</span>
+                                    {% else %}
+                                        <span class="badge bg-success ms-1">Valid</span>
+                                    {% endif %}
+                                {% else %}
+                                    N/A
+                                {% endif %}
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <!-- Compensation (HR only — shown to all for now) -->
+            <div class="col-md-6">
+                <div class="inventory-card h-100">
+                    <div class="inventory-card-header">
+                        <div><i class="fas fa-money-bill-wave"></i> Compensation</div>
+                    </div>
+                    <div class="p-3">
+                        <div class="emp-info-row"><span class="emp-info-label">Pay Grade</span><span class="emp-info-value">{{ employee.pay_grade|default:"N/A" }}</span></div>
+                        <div class="emp-info-row"><span class="emp-info-label">Salary</span><span class="emp-info-value salary-hidden" id="salaryField">₱{{ employee.salary|floatformat:2|intcomma }}</span></div>
+                        <button class="btn btn-sm btn-outline-secondary mt-2" id="toggleSalary"><i class="fas fa-eye me-1"></i>Show/Hide Salary</button>
+                    </div>
+                </div>
+            </div>
+            <!-- Work History -->
+            <div class="col-12">
+                <div class="inventory-card">
+                    <div class="inventory-card-header d-flex justify-content-between align-items-center">
+                        <div><i class="fas fa-history"></i> Previous Employment</div>
+                        <button class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#addEmploymentHistoryModal"><i class="fas fa-plus"></i></button>
+                    </div>
+                    <div class="p-3">
+                        {% if work_history %}
+                        <div class="emp-timeline">
+                            {% for wh in work_history %}
+                            <div class="timeline-item position-relative">
+                                <div class="timeline-dot"></div>
+                                <div class="timeline-content pe-4">
+                                    <div class="fw-semibold">{{ wh.role|default:"Role" }} at {{ wh.company_name }}</div>
+                                    <div class="text-muted" style="font-size: 0.75rem;">{{ wh.start_date|default:"?" }} — {{ wh.end_date|default:"Present" }}</div>
+                                    {% if wh.responsibilities %}<div class="mt-1" style="font-size: 0.8rem;">{{ wh.responsibilities }}</div>{% endif %}
+                                    <button class="btn btn-sm text-danger delete-item-btn position-absolute top-0 end-0 mt-1" data-url="{% url 'delete_employee_employment_history' employee.id wh.id %}" title="Delete" style="background:none; border:none; padding:0;"><i class="fas fa-trash"></i></button>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                        {% else %}
+                        <p class="text-muted text-center py-3"><i class="fas fa-info-circle me-1"></i>No previous employment records.</p>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══ EDUCATION TAB ═══ -->
+    <div class="tab-pane fade" id="educationTab">
+        <div class="row g-3">
+            <!-- Educational Background -->
+            <div class="col-md-6">
+                <div class="inventory-card h-100">
+                     <div class="inventory-card-header d-flex justify-content-between align-items-center">
+                        <div><i class="fas fa-graduation-cap"></i> Educational Background</div>
+                        <button class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#addEducationModal"><i class="fas fa-plus"></i></button>
+                    </div>
+                    <div class="p-3">
+                        {% for edu in degrees %}
+                        <div class="edu-item mb-3 d-flex justify-content-between align-items-center">
+                            <div>
+                                <div class="fw-semibold">{{ edu.degree }}</div>
+                                <div class="text-muted" style="font-size: 0.8rem;">{{ edu.institution }} &bull; {{ edu.year_completed|default:"" }}</div>
+                            </div>
+                            <button class="btn btn-sm btn-outline-danger delete-item-btn" data-url="{% url 'delete_employee_education' employee.id edu.id %}" title="Delete"><i class="fas fa-trash"></i></button>
+                        </div>
+                        {% empty %}
+                        <p class="text-muted text-center py-3">No educational records.</p>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+            <!-- Certifications & Licenses -->
+            <div class="col-md-6">
+                <div class="inventory-card h-100">
+                     <div class="inventory-card-header d-flex justify-content-between align-items-center">
+                        <div><i class="fas fa-certificate"></i> Certifications & Licenses</div>
+                        <button class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#addCertificationModal"><i class="fas fa-plus"></i></button>
+                    </div>
+                    <div class="p-3">
+                        {% for cert in certifications %}
+                        <div class="cert-item mb-3 d-flex justify-content-between align-items-start">
+                            <div class="flex-grow-1">
+                                <div class="fw-semibold">{{ cert.degree }}</div>
+                                <div class="text-muted" style="font-size: 0.8rem;">{{ cert.institution }}</div>
+                                {% if cert.expiry_date %}
+                                <span class="badge {% if cert.expiry_date < today %}bg-danger{% else %}bg-success{% endif %} mt-1">
+                                    Expires: {{ cert.expiry_date }}
+                                </span>
+                                {% endif %}
+                            </div>
+                            <button class="btn btn-sm btn-outline-danger delete-item-btn ms-2" data-url="{% url 'delete_employee_education' employee.id cert.id %}" title="Delete"><i class="fas fa-trash"></i></button>
+                        </div>
+                        {% empty %}
+                        <p class="text-muted text-center py-3">No certifications on file.</p>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+            <!-- Skills -->
+            <div class="col-12">
+                <div class="inventory-card">
+                     <div class="inventory-card-header d-flex justify-content-between align-items-center">
+                        <div><i class="fas fa-tools"></i> Skills</div>
+                        <button class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#addSkillModal"><i class="fas fa-plus"></i></button>
+                    </div>
+                    <div class="p-3">
+                        {% if skills %}
+                        <div class="d-flex flex-wrap gap-2">
+                            {% for skill in skills %}
+                            <div class="skill-tag d-flex align-items-center gap-1">
+                                <span>{{ skill.name }}</span>
+                                <i class="fas fa-times delete-item-btn" style="cursor:pointer; opacity:0.6; font-size:0.8rem;" data-url="{% url 'delete_employee_skill' employee.id skill.id %}" title="Remove"></i>
+                            </div>
+                            {% endfor %}
+                        </div>
+                        {% else %}
+                        <p class="text-muted text-center py-3">No skills recorded.</p>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══ DOCUMENTS TAB ═══ -->
+    <div class="tab-pane fade" id="documentsTab">
+        <div class="inventory-card">
+            <div class="inventory-card-header">
+                <div><i class="fas fa-folder-open"></i> Uploaded Documents</div>
+                <button class="btn btn-sm" style="background: var(--primary-color); color: #fff;" data-bs-toggle="modal" data-bs-target="#uploadDocModal">
+                    <i class="fas fa-upload me-1"></i>Upload
+                </button>
+            </div>
+            <div class="p-3">
+                <!-- Upload Drop Zone -->
+                <div class="upload-zone mb-3" id="uploadZone">
+                    <i class="fas fa-cloud-upload-alt fa-2x mb-2" style="color: var(--primary-light);"></i>
+                    <p class="mb-0">Drag & drop files here, or click "Upload" above</p>
+                    <small class="text-muted mt-2 d-block"><i class="fas fa-info-circle me-1"></i>Allowed formats: Images (PNG/JPG), PDF, DOC, DOCX</small>
+                </div>
+
+                <!-- Document List -->
+                {% if documents %}
+                <div class="table-responsive" style="min-height: auto;">
+                    <table class="table table-sm mb-0">
+                        <thead>
+                            <tr>
+                                <th>File</th>
+                                <th>Type</th>
+                                <th>Uploaded</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for doc in documents %}
+                            <tr>
+                                <td>
+                                    <div class="d-flex align-items-center gap-2">
+                                        <i class="{% if 'pdf' in doc.file_type %}fas fa-file-pdf text-danger{% elif 'image' in doc.file_type %}fas fa-file-image text-info{% elif 'word' in doc.file_type or 'doc' in doc.file_name %}fas fa-file-word text-primary{% else %}fas fa-file text-muted{% endif %}" style="font-size: 1.2rem;"></i>
+                                        <span class="fw-semibold">{{ doc.file_name }}</span>
+                                    </div>
+                                </td>
+                                <td><span class="badge bg-light text-dark">{{ doc.document_type }}</span></td>
+                                <td class="text-muted">{{ doc.uploaded_at|date:"d M Y" }}</td>
+                                <td>
+                                    <div class="d-flex gap-1 justify-content-start">
+                                        <a href="{% url 'view_employee_document' employee.id doc.id %}" target="_blank" class="btn btn-sm btn-outline-primary" title="View"><i class="fas fa-eye"></i></a>
+                                        <a href="{% url 'download_employee_document' employee.id doc.id %}" class="btn btn-sm btn-outline-success" title="Download"><i class="fas fa-download"></i></a>
+                                        <button class="btn btn-sm btn-outline-danger delete-doc-btn" data-url="{% url 'delete_employee_document' employee.id doc.id %}" title="Delete"><i class="fas fa-trash"></i></button>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <p class="text-muted text-center py-3"><i class="fas fa-file-alt me-1"></i>No documents uploaded yet.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Edit Personal Info Modal -->
+<div class="modal fade" id="editPersonalModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header" style="background: linear-gradient(135deg, var(--primary-color), var(--primary-dark)); color: #fff;">
+                <h5 class="modal-title"><i class="fas fa-edit me-2"></i>Edit Personal Info</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="editPersonalForm" enctype="multipart/form-data">
+                {% csrf_token %}
+                <div class="modal-body">
+                    <div class="row g-3">
+                        <div class="col-6"><label class="form-label fw-semibold">First Name</label><input type="text" class="form-control" name="first_name" value="{{ employee.first_name }}"></div>
+                        <div class="col-6"><label class="form-label fw-semibold">Last Name</label><input type="text" class="form-control" name="last_name" value="{{ employee.last_name }}"></div>
+                        <div class="col-6"><label class="form-label fw-semibold">Date of Birth</label><input type="date" class="form-control" name="date_of_birth" value="{{ employee.date_of_birth|date:'Y-m-d' }}"></div>
+                        <div class="col-6"><label class="form-label fw-semibold">Gender</label>
+                            <select class="form-select" name="gender">
+                                <option value="Male" {% if employee.gender == 'Male' %}selected{% endif %}>Male</option>
+                                <option value="Female" {% if employee.gender == 'Female' %}selected{% endif %}>Female</option>
+                                <option value="Other" {% if employee.gender == 'Other' %}selected{% endif %}>Other</option>
+                            </select>
+                        </div>
+                        <div class="col-6"><label class="form-label fw-semibold">Marital Status</label><input type="text" class="form-control" name="marital_status" value="{{ employee.marital_status }}"></div>
+                        <div class="col-6"><label class="form-label fw-semibold">Nationality</label><input type="text" class="form-control" name="nationality" value="{{ employee.nationality }}"></div>
+                        <div class="col-12">
+                            <label class="form-label fw-semibold">Profile Picture (Avatar)</label>
+                            <input type="file" class="form-control" name="avatar" accept="image/*">
+                            <small class="text-muted">Upload a new image to replace the current avatar.</small>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn" style="background: var(--primary-color); color: #fff;">Save Changes</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Edit Contact Modal -->
+<div class="modal fade" id="editContactModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header" style="background: linear-gradient(135deg, var(--primary-color), var(--primary-dark)); color: #fff;">
+                <h5 class="modal-title"><i class="fas fa-edit me-2"></i>Edit Contact Details</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="editContactForm" enctype="multipart/form-data">
+                {% csrf_token %}
+                <div class="modal-body">
+                    <div class="row g-3">
+                        <div class="col-12"><label class="form-label fw-semibold">Work Email</label><input type="email" class="form-control" name="work_email" value="{{ employee.work_email }}"></div>
+                        <div class="col-12"><label class="form-label fw-semibold">Personal Email</label><input type="email" class="form-control" name="personal_email" value="{{ employee.personal_email }}"></div>
+                        <div class="col-12"><label class="form-label fw-semibold">Phone</label><input type="text" class="form-control" name="phone" value="{{ employee.phone }}"></div>
+                        <div class="col-12"><label class="form-label fw-semibold">Home Address</label><textarea class="form-control" name="home_address" rows="2">{{ employee.home_address }}</textarea></div>
+                        <hr>
+                        <div class="col-12"><label class="form-label fw-semibold">Emergency Contact Name</label><input type="text" class="form-control" name="emergency_contact_name" value="{{ employee.emergency_contact_name }}"></div>
+                        <div class="col-6"><label class="form-label fw-semibold">Emergency Phone</label><input type="text" class="form-control" name="emergency_contact_phone" value="{{ employee.emergency_contact_phone }}"></div>
+                        <div class="col-6"><label class="form-label fw-semibold">Relationship</label><input type="text" class="form-control" name="emergency_contact_relationship" value="{{ employee.emergency_contact_relationship }}"></div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn" style="background: var(--primary-color); color: #fff;">Save Changes</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Edit Job Details Modal -->
+<div class="modal fade" id="editJobModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header" style="background: linear-gradient(135deg, var(--primary-color), var(--primary-dark)); color: #fff;">
+                <h5 class="modal-title"><i class="fas fa-edit me-2"></i>Edit Job Details</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="editJobForm" enctype="multipart/form-data">
+                {% csrf_token %}
+                <div class="modal-body">
+                    <div class="row g-3">
+                        <div class="col-6"><label class="form-label fw-semibold">Position</label><input type="text" class="form-control" name="position" value="{{ employee.position }}"></div>
+                        <div class="col-6"><label class="form-label fw-semibold">Department</label><input type="text" class="form-control" name="department" value="{{ employee.department }}"></div>
+                        <div class="col-6"><label class="form-label fw-semibold">Reporting Manager</label><input type="text" class="form-control" name="reporting_manager" value="{{ employee.reporting_manager }}"></div>
+                        <div class="col-6"><label class="form-label fw-semibold">Date Hired</label><input type="date" class="form-control" name="date_hired" value="{{ employee.date_hired|date:'Y-m-d' }}"></div>
+                        <div class="col-6"><label class="form-label fw-semibold">Probation End</label><input type="date" class="form-control" name="probation_end_date" value="{{ employee.probation_end_date|date:'Y-m-d' }}"></div>
+                        <div class="col-6"><label class="form-label fw-semibold">Contract</label>
+                            <select class="form-select" name="contract_type">
+                                <option value="Full-Time" {% if employee.contract_type == 'Full-Time' %}selected{% endif %}>Full-Time</option>
+                                <option value="Part-Time" {% if employee.contract_type == 'Part-Time' %}selected{% endif %}>Part-Time</option>
+                                <option value="Contract" {% if employee.contract_type == 'Contract' %}selected{% endif %}>Contract</option>
+                                <option value="Probationary" {% if employee.contract_type == 'Probationary' %}selected{% endif %}>Probationary</option>
+                                <option value="Intern" {% if employee.contract_type == 'Intern' %}selected{% endif %}>Intern</option>
+                            </select>
+                        </div>
+                        <div class="col-6"><label class="form-label fw-semibold">Status</label>
+                            <select class="form-select" name="status">
+                                <option value="Active" {% if employee.status == 'Active' %}selected{% endif %}>Active</option>
+                                <option value="On-Leave" {% if employee.status == 'On-Leave' %}selected{% endif %}>On-Leave</option>
+                                <option value="Terminated" {% if employee.status == 'Terminated' %}selected{% endif %}>Terminated</option>
+                            </select>
+                        </div>
+                        <div class="col-6"><label class="form-label fw-semibold">Pay Grade</label><input type="text" class="form-control" name="pay_grade" value="{{ employee.pay_grade }}"></div>
+                        <div class="col-6"><label class="form-label fw-semibold">Salary</label><input type="number" step="0.01" class="form-control" name="salary" value="{{ employee.salary }}"></div>
+                        <div class="col-6"><label class="form-label fw-semibold">Contract Renewal Date</label><input type="date" class="form-control" name="contract_renewal_date" value="{{ employee.contract_renewal_date|date:'Y-m-d' }}"></div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn" style="background: var(--primary-color); color: #fff;">Save Changes</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Upload Document Modal -->
+<div class="modal fade" id="uploadDocModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header" style="background: linear-gradient(135deg, var(--primary-color), var(--primary-dark)); color: #fff;">
+                <h5 class="modal-title"><i class="fas fa-upload me-2"></i>Upload Document</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="uploadDocForm" enctype="multipart/form-data">
+                {% csrf_token %}
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Document Type</label>
+                        <select class="form-select" name="document_type">
+                            <option value="Resume">Resume</option>
+                            <option value="ID Copy">ID Copy</option>
+                            <option value="Certificate">Certificate</option>
+                            <option value="Contract">Contract</option>
+                            <option value="Other">Other</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">File</label>
+                        <input type="file" class="form-control" name="document" accept="image/*,.pdf,.doc,.docx" required>
+                        <small class="text-muted d-block mt-1">Allowed formats: Images, PDF, Word documents</small>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn" style="background: var(--primary-color); color: #fff;">Upload</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Add Education Modal -->
+<div class="modal fade" id="addEducationModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header" style="background: linear-gradient(135deg, var(--primary-color), var(--primary-dark)); color: #fff;">
+                <h5 class="modal-title"><i class="fas fa-graduation-cap me-2"></i>Add Education</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form class="ajax-form" data-url="{% url 'add_employee_education' employee.id %}">
+                {% csrf_token %}
+                <input type="hidden" name="entry_type" value="education">
+                <div class="modal-body">
+                    <div class="row g-3">
+                        <div class="col-12"><label class="form-label fw-semibold">Degree/Course <span class="text-danger">*</span></label><input type="text" class="form-control" name="degree" required></div>
+                        <div class="col-12"><label class="form-label fw-semibold">Institution/School <span class="text-danger">*</span></label><input type="text" class="form-control" name="institution" required></div>
+                        <div class="col-12"><label class="form-label fw-semibold">Year Completed</label><input type="number" class="form-control" name="year_completed" min="1950" max="2100"></div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn" style="background: var(--primary-color); color: #fff;">Add Education</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Add Certification Modal -->
+<div class="modal fade" id="addCertificationModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header" style="background: linear-gradient(135deg, var(--primary-color), var(--primary-dark)); color: #fff;">
+                <h5 class="modal-title"><i class="fas fa-certificate me-2"></i>Add Certification</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form class="ajax-form" data-url="{% url 'add_employee_education' employee.id %}">
+                {% csrf_token %}
+                <input type="hidden" name="entry_type" value="certification">
+                <div class="modal-body">
+                    <div class="row g-3">
+                        <div class="col-12"><label class="form-label fw-semibold">Certification Name <span class="text-danger">*</span></label><input type="text" class="form-control" name="degree" required></div>
+                        <div class="col-12"><label class="form-label fw-semibold">Issuing Organization <span class="text-danger">*</span></label><input type="text" class="form-control" name="institution" required></div>
+                        <div class="col-6"><label class="form-label fw-semibold">Year Issued</label><input type="number" class="form-control" name="year_completed" min="1950" max="2100"></div>
+                        <div class="col-6"><label class="form-label fw-semibold">Expiry Date</label><input type="date" class="form-control" name="expiry_date"></div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn" style="background: var(--primary-color); color: #fff;">Add Certification</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Add Skill Modal -->
+<div class="modal fade" id="addSkillModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-sm modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header" style="background: linear-gradient(135deg, var(--primary-color), var(--primary-dark)); color: #fff;">
+                <h5 class="modal-title"><i class="fas fa-tools me-2"></i>Add Skill</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form class="ajax-form" data-url="{% url 'add_employee_skill' employee.id %}">
+                {% csrf_token %}
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Skill Name <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" name="name" placeholder="e.g. Photoshop, Customer Service" required>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn" style="background: var(--primary-color); color: #fff;">Add Skill</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Add Employment History Modal -->
+<div class="modal fade" id="addEmploymentHistoryModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header" style="background: linear-gradient(135deg, var(--primary-color), var(--primary-dark)); color: #fff;">
+                <h5 class="modal-title"><i class="fas fa-history me-2"></i>Add Previous Employment</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form class="ajax-form" data-url="{% url 'add_employee_employment_history' employee.id %}">
+                {% csrf_token %}
+                <div class="modal-body">
+                    <div class="row g-3">
+                        <div class="col-12"><label class="form-label fw-semibold">Company Name <span class="text-danger">*</span></label><input type="text" class="form-control" name="company_name" required></div>
+                        <div class="col-12"><label class="form-label fw-semibold">Role / Job Title</label><input type="text" class="form-control" name="role"></div>
+                        <div class="col-6"><label class="form-label fw-semibold">Start Date</label><input type="date" class="form-control" name="start_date"></div>
+                        <div class="col-6"><label class="form-label fw-semibold">End Date</label><input type="date" class="form-control" name="end_date"></div>
+                        <div class="col-12"><label class="form-label fw-semibold">Responsibilities / Description</label><textarea class="form-control" name="responsibilities" rows="3"></textarea></div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn" style="background: var(--primary-color); color: #fff;">Add Employment</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Avatar Full Screen Modal -->
+<div class="modal fade" id="avatarModal" tabindex="-1" aria-labelledby="avatarModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content">
+            <div class="modal-header py-2" style="background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-dark) 100%); color: white;">
+                <h6 class="modal-title text-white" id="avatarModalLabel"><i class="fas fa-image me-2"></i>Image Preview</h6>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body text-center p-0 my-3">
+                {% if employee.avatar %}
+                <img src="{{ employee.avatar }}" class="img-fluid" alt="Preview" style="max-height: 70vh;">
+                {% endif %}
+            </div>
+            <div class="modal-footer py-1" style="background: #f8f9fa;">
+                <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Generic Confirm Delete Modal -->
+<div class="modal fade" id="confirmDeleteModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-sm">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header bg-danger text-white">
+                <h6 class="modal-title"><i class="fas fa-exclamation-triangle me-2"></i>Confirm Delete</h6>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body text-center py-4">
+                <i class="fas fa-trash-alt fa-3x text-danger mb-3 opacity-75"></i>
+                <p class="mb-0 fw-medium" id="confirmDeleteText">Are you sure you want to delete this item?</p>
+            </div>
+            <div class="modal-footer justify-content-center bg-light">
+                <button type="button" class="btn btn-sm btn-secondary px-3" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-sm btn-danger px-4" id="confirmDeleteBtn">Delete</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const updateUrl = "{% url 'update_employee' employee.id %}";
+
+    // ── Generic Form Submit Handler ──
+    function setupForm(formId, modalId) {
+        const form = document.getElementById(formId);
+        if (!form) return;
+        form.addEventListener('submit', function(e) {
+            e.preventDefault();
+            const fd = new FormData(form);
+            fetch(updateUrl, { method: 'POST', body: fd })
+            .then(r => r.json())
+            .then(data => {
+                if (data.success) {
+                    showToast('Updated successfully!', 'success');
+                    const modal = bootstrap.Modal.getInstance(document.getElementById(modalId));
+                    if (modal) modal.hide();
+                    setTimeout(() => location.reload(), 600);
+                } else {
+                    showToast(data.message || 'Error', 'error');
+                }
+            })
+            .catch(() => showToast('Network error', 'error'));
+        });
+    }
+    setupForm('editPersonalForm', 'editPersonalModal');
+    setupForm('editContactForm', 'editContactModal');
+    setupForm('editJobForm', 'editJobModal');
+
+    // ── Edit Buttons ──
+    document.querySelectorAll('.edit-section-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const modalId = this.dataset.modal;
+            const modal = new bootstrap.Modal(document.getElementById(modalId));
+            modal.show();
+        });
+    });
+
+    // ── Salary Toggle ──
+    const salaryField = document.getElementById('salaryField');
+    const toggleSalary = document.getElementById('toggleSalary');
+    if (salaryField && toggleSalary) {
+        toggleSalary.addEventListener('click', function() {
+            salaryField.classList.toggle('salary-hidden');
+        });
+    }
+
+    // ── Upload Document Form ──
+    const uploadForm = document.getElementById('uploadDocForm');
+    if (uploadForm) {
+        uploadForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            const fd = new FormData(uploadForm);
+            fetch("{% url 'upload_employee_document' employee.id %}", { method: 'POST', body: fd })
+            .then(r => r.json())
+            .then(data => {
+                if (data.success) {
+                    showToast('Document uploaded!', 'success');
+                    setTimeout(() => location.reload(), 600);
+                } else {
+                    showToast(data.message || 'Upload error', 'error');
+                }
+            })
+            .catch(() => showToast('Network error', 'error'));
+        });
+    }
+
+    // ── Generic Dynamic Forms ──
+    document.querySelectorAll('.ajax-form').forEach(form => {
+        form.addEventListener('submit', function(e) {
+            e.preventDefault();
+            const btn = form.querySelector('button[type="submit"]');
+            btn.disabled = true;
+            btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Saving...';
+            
+            const url = this.dataset.url;
+            const fd = new FormData(this);
+            fetch(url, { method: 'POST', body: fd, headers: { 'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value }})
+            .then(r => r.json())
+            .then(data => {
+                if (data.success) {
+                    showToast('Successfully added!', 'success');
+                    setTimeout(() => location.reload(), 600);
+                } else {
+                    showToast(data.message || 'Error', 'error');
+                    btn.disabled = false;
+                    btn.innerHTML = 'Try Again';
+                }
+            })
+            .catch(() => { showToast('Network error', 'error'); btn.disabled = false; btn.innerHTML = 'Try Again'; });
+        });
+    });
+
+    // ── Delete Confirmation Logic ──
+    let deleteTargetUrl = '';
+    const confirmDeleteModal = new bootstrap.Modal(document.getElementById('confirmDeleteModal'));
+    const confirmDeleteBtn = document.getElementById('confirmDeleteBtn');
+    const confirmDeleteText = document.getElementById('confirmDeleteText');
+
+    function openDeleteModal(url, text) {
+        deleteTargetUrl = url;
+        confirmDeleteText.textContent = text || 'Are you sure you want to delete this item?';
+        confirmDeleteModal.show();
+    }
+
+    document.querySelectorAll('.delete-doc-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+            openDeleteModal(this.dataset.url, 'Are you sure you want to delete this document?');
+        });
+    });
+
+    document.querySelectorAll('.delete-item-btn').forEach(btn => {
+        btn.addEventListener('click', function(e) {
+            e.preventDefault();
+            openDeleteModal(this.dataset.url, 'Are you sure you want to delete this item?');
+        });
+    });
+
+    confirmDeleteBtn.addEventListener('click', function() {
+        if (!deleteTargetUrl) return;
+        const oldText = this.innerHTML;
+        this.disabled = true;
+        this.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Deleting...';
+        
+        fetch(deleteTargetUrl, {
+            method: 'POST',
+            headers: { 'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value },
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (data.success) {
+                showToast('Deleted successfully', 'success');
+                setTimeout(() => location.reload(), 600);
+            } else {
+                showToast(data.message || 'Error deleting item', 'error');
+                this.disabled = false;
+                this.innerHTML = oldText;
+            }
+        })
+        .catch(() => {
+            showToast('Network error', 'error');
+            this.disabled = false;
+            this.innerHTML = oldText;
+        });
+    });
+
+});
+</script>
+{% endblock %}

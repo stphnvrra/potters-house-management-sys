@@ -1,0 +1,79 @@
+{% extends 'core/base.html' %}
+{% load static %}
+
+{% block title %}Reports - The Potter's House{% endblock %}
+
+{% block content %}
+<div class="row align-items-center mb-4">
+    <div class="col">
+        <h4 class="mb-0">Reports Dashboard</h4>
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb breadcrumb-custom mb-0">
+                <li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Home</a></li>
+                <li class="breadcrumb-item active" aria-current="page">Reports</li>
+            </ol>
+        </nav>
+    </div>
+</div>
+
+<div class="row g-4">
+    <!-- Collections Report -->
+    <div class="col-md-4">
+        <a href="{% url 'report_collections' %}" class="text-decoration-none">
+            <div class="inventory-card h-100 text-center p-5 transition-transform">
+                <div class="mb-4">
+                    <i class="fas fa-hand-holding-usd fa-4x text-primary p-4 rounded-circle bg-light"></i>
+                </div>
+                <h5 class="fw-bold text-dark">Collections Report</h5>
+                <p class="text-muted small">View daily collections, breakdown by mode, and total collection summaries.</p>
+                <div class="btn btn-outline-primary mt-2">Open Report</div>
+            </div>
+        </a>
+    </div>
+
+    <!-- Expenses Report -->
+    <div class="col-md-4">
+        <a href="{% url 'report_expenses' %}" class="text-decoration-none">
+            <div class="inventory-card h-100 text-center p-5 transition-transform">
+                <div class="mb-4">
+                    <i class="fas fa-file-invoice fa-4x text-danger p-4 rounded-circle bg-light"></i>
+                </div>
+                <h5 class="fw-bold text-dark">Expenses Report</h5>
+                <p class="text-muted small">Track disbursements, fund sources, and categorical expense breakdowns.</p>
+                <div class="btn btn-outline-danger mt-2">Open Report</div>
+            </div>
+        </a>
+    </div>
+
+    <!-- Monthly Report -->
+    <div class="col-md-4">
+        <a href="{% url 'report_monthly' %}" class="text-decoration-none">
+            <div class="inventory-card h-100 text-center p-5 transition-transform">
+                <div class="mb-4">
+                    <i class="fas fa-calendar-check fa-4x text-info p-4 rounded-circle bg-light"></i>
+                </div>
+                <h5 class="fw-bold text-dark">Monthly Report</h5>
+                <p class="text-muted small">Generate comprehensive monthly summaries for products and overall system activity.</p>
+                <div class="btn btn-outline-info mt-2">Open Report</div>
+            </div>
+        </a>
+    </div>
+</div>
+
+<style>
+    .transition-transform {
+        transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+    }
+    .transition-transform:hover {
+        transform: translateY(-5px);
+        box-shadow: var(--shadow-lg) !important;
+    }
+    .fa-4x {
+        width: 120px;
+        height: 120px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+    }
+</style>
+{% endblock %}
