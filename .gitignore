@@ -6,4 +6,6 @@ db.sqlite3
 manage.py
 requirements.txt
 run.sh
-potters_inventory_prod/
+potters_inventory_prod/settings.py
+potters_inventory_prod/wsgi.py
+potters_inventory_prod/asgi.py
