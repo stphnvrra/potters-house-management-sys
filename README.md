@@ -29,5 +29,5 @@ An all-in-one Management and Enterprise Resource Planning (ERP) web application 
 
 ## Tech Stack
 - **Backend**: Python, Django
-- **Database**: SQLite / PostgreSQL
+- **Database**: MySQL
 - **Frontend Engine**: Django Templates with UI interactions
